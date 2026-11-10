@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!--
+  Unraid template for the Grid app. Install guide: docs/unraid.md.
+  Copy this file to /boot/config/plugins/dockerMan/templates-user/my-grid.xml,
+  then Docker > Add Container > Template: grid.
+
+  Every environment variable Grid reads is listed here, so nothing needs a
+  .env file. Rarely-changed ones are under "Show more settings".
+  Settings an admin changes day to day (email server, clean-up, backups) are not here:
+  they're in the app, under Settings.
+  Keep this file in step with .env.example (pnpm test checks it).
+-->
+<Container version="2">
+  <Name>grid</Name>
+  <Repository>ghcr.io/ausrasplex/grid:latest</Repository>
+  <Registry>https://github.com/ausrasplex/grid/pkgs/container/grid</Registry>
+  <Network>grid</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/ausrasplex/grid/issues</Support>
+  <Project>https://github.com/ausrasplex/grid</Project>
+  <Overview>Grid: a jobsite app for Australian trades. Sites and jobs, photos and notes, plans, quotes with online signing, on your own server. Needs the grid-postgres container (unraid/grid-postgres.xml) on the same "grid" Docker network. Open the WebUI and create the first account; it becomes the server admin.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/ausrasplex/grid/main/unraid/grid.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/ausrasplex/grid/main/unraid/grid-icon.png</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>The grid-postgres container (template in the same folder), on a Docker network called "grid": run "docker network create grid" once in the Unraid terminal.</Requires>
+
+  <!-- ===== Shown by default ===== -->
+  <Config Name="WebUI port" Target="3000" Default="3000" Mode="tcp" Description="The port you open Grid on, e.g. http://tower.local:3000" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+
+  <Config Name="Files (photos, plans)" Target="/data/files" Default="/mnt/user/grid-files" Mode="rw" Description="Photos, plans, signed quotes and other uploads. An array share is fine. Back it up together with the database." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/grid-files</Config>
+  <Config Name="Appdata" Target="/config" Default="/mnt/user/appdata/grid" Mode="rw" Description="Grid's own settings, including secrets.env (made on first start). Back this up: without it, saved passwords for email and other connections can't be read." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/grid</Config>
+  <Config Name="Backups" Target="/data/backups" Default="/mnt/user/grid-backups" Mode="rw" Description="Where Grid's own backups go (schedule and history in Settings > Backups). Ideally a different disk or pool from the files share." Type="Path" Display="always" Required="false" Mask="false">/mnt/user/grid-backups</Config>
+
+  <Config Name="Database host" Target="DB_HOST" Default="grid-postgres" Mode="" Description="The Postgres container's name (both on the &quot;grid&quot; network), or its IP address." Type="Variable" Display="always" Required="true" Mask="false">grid-postgres</Config>
+  <Config Name="Database password" Target="DB_PASSWORD" Default="" Mode="" Description="The same password you gave the grid-postgres container (POSTGRES_PASSWORD)." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="Address people use (BETTER_AUTH_URL)" Target="BETTER_AUTH_URL" Default="" Mode="" Description="Exactly how people open Grid, e.g. http://192.168.1.20:3000 (your Unraid IP and the port above) or https://grid.example.com.au. Sign-in only works from this address (add others under Other addresses)." Type="Variable" Display="always" Required="true" Mask="false"></Config>
+  <Config Name="Time zone (TZ)" Target="TZ" Default="Australia/Melbourne" Mode="" Description="For the nightly clean-up and backups, and dates in logs. Unraid passes its own time zone too; this overrides it." Type="Variable" Display="always" Required="false" Mask="false">Australia/Melbourne</Config>
+  <Config Name="Sign-up" Target="SIGNUP_MODE" Default="invite|open" Mode="" Description="invite: only the first account can sign up; everyone else joins through an invite from a business. open: anyone who can reach the server can make an account." Type="Variable" Display="always" Required="true" Mask="false">invite</Config>
+
+  <!-- ===== Under "Show more settings" ===== -->
+  <Config Name="Other addresses (TRUSTED_ORIGINS)" Target="TRUSTED_ORIGINS" Default="" Mode="" Description="Other addresses Grid is opened at, comma-separated, e.g. http://tower.local:3000,https://grid.example.com.au" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User Grid runs as and owns its files as. Unraid: 99 (nobody)." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group Grid runs as. Unraid: 100 (users)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="Permissions for new files. 022 = others can read; 002 = the users group can also write." Type="Variable" Display="advanced" Required="false" Mask="false">022</Config>
+
+  <Config Name="Database port" Target="DB_PORT" Default="5432" Mode="" Description="Postgres port." Type="Variable" Display="advanced" Required="false" Mask="false">5432</Config>
+  <Config Name="Database user" Target="DB_USER" Default="grid" Mode="" Description="Same as POSTGRES_USER on grid-postgres." Type="Variable" Display="advanced" Required="false" Mask="false">grid</Config>
+  <Config Name="Database name" Target="DB_NAME" Default="grid" Mode="" Description="Same as POSTGRES_DB on grid-postgres." Type="Variable" Display="advanced" Required="false" Mask="false">grid</Config>
+  <Config Name="Database URL (overrides the above)" Target="DATABASE_URL" Default="" Mode="" Description="Leave blank. Only for a Postgres set up some other way: postgresql://user:password@host:5432/db" Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Apply database updates on start" Target="MIGRATE_ON_START" Default="true|false" Mode="" Description="Updates the database to match a new Grid version each time the container starts. Leave on." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+
+  <Config Name="Sign-in secret (BETTER_AUTH_SECRET)" Target="BETTER_AUTH_SECRET" Default="" Mode="" Description="Leave blank: Grid makes one and keeps it in appdata/secrets.env. Changing it signs everyone out." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Encryption key (APP_ENCRYPTION_KEY)" Target="APP_ENCRYPTION_KEY" Default="" Mode="" Description="Leave blank: Grid makes one and keeps it in appdata/secrets.env. Never change it once set, or saved passwords (email etc.) can't be read." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+
+
+  <Config Name="Short link address (PUBLIC_LINK_BASE)" Target="PUBLIC_LINK_BASE" Default="" Mode="" Description="The address customers and QR codes use: quote links (/q/...), the signed-PDF check (/verify/...) and /go links. Must be reachable from the internet for customers to sign quotes online. Blank = the address above." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Server code prefix (INSTANCE_ID)" Target="INSTANCE_ID" Default="" Mode="" Description="Leave blank. Set once this server joins the Grid hub (later)." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+
+  <Config Name="Scheduled jobs" Target="JOBS" Default="on|off" Mode="" Description="Nightly clean-up and backups run in this container. Turn off only on a second Grid container." Type="Variable" Display="advanced" Required="false" Mask="false">on</Config>
+</Container>

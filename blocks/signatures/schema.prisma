@@ -1,0 +1,83 @@
+// Signatures block (core): getting a document signed by someone outside
+// the business, on a private link (docs/quotations-block.md §6b, the
+// `signatures` core service). Quotes use it now; variations, completion
+// sign-offs and SWMS later. The block that owns the document (blockId +
+// refId) renders it; this block handles the link, the one-time code,
+// consent, the audit trail, sealing and the verify page.
+
+enum SignRequestStatus {
+  OPEN
+  SIGNED
+  DECLINED
+  /// A newer version was sent, or the quote was withdrawn or answered another way.
+  REVOKED
+}
+
+model SignRequest {
+  id             String            @id @default(uuid())
+  companyId      String
+  /// The block and document type, e.g. "quotes" / "quotes.acceptance".
+  blockId        String
+  docType        String
+  /// The thing being signed (a quote) and the exact version (a revision).
+  refId          String
+  revisionId     String
+  /// SHA-256 of the private link's token, and the token itself encrypted
+  /// so the business can copy the link again.
+  tokenHash      String            @unique
+  tokenEnc       String
+  /// Where one-time codes go: the address the document was sent to.
+  recipientEmail String
+  /// SHA-256 of the PDF the signer was shown.
+  docSha256      String
+  status         SignRequestStatus @default(OPEN)
+  expiresAt      DateTime
+  createdById    String
+  createdAt      DateTime          @default(now())
+  viewedAt       DateTime?
+  revokedAt      DateTime?
+
+  /// The current one-time code (hashed), when it runs out and wrong tries.
+  codeHash       String?
+  codeExpiresAt  DateTime?
+  codeAttempts   Int               @default(0)
+  codeVerifiedAt DateTime?
+
+  signedAt       DateTime?
+  signerName     String?
+  signerTitle    String?
+  signerCompany  String?
+  /// "DRAWN" | "TYPED"
+  signMethod     String?
+  signatureFileId String?
+  /// What the signer chose, e.g. { options: [3, 5], totalCents }.
+  details        Json?
+  signedPdfFileId String?
+  /// SHA-256 of the sealed, signed PDF (what /verify checks a file against).
+  signedSha256   String?
+  /// Printed on the certificate page: /verify/XXXX-XXXX
+  verifyCode     String?           @unique
+  declinedAt     DateTime?
+  declineReason  String?
+
+  events SignatureEvent[]
+
+  @@index([blockId, refId])
+  @@index([companyId, status])
+}
+
+/// Append-only: every step on the link, with when, IP and device. Never edited.
+model SignatureEvent {
+  id        String   @id @default(uuid())
+  requestId String
+  /// VIEWED | CODE_SENT | CODE_FAILED | CODE_VERIFIED | OPTIONS_CHANGED | CONSENTED | SIGNED | DECLINED | EMAILED | REVOKED
+  type      String
+  at        DateTime @default(now())
+  ip        String?
+  userAgent String?
+  data      Json?
+
+  request SignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, at])
+}

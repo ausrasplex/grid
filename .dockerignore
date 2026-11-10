@@ -1,0 +1,8 @@
+**/node_modules
+**/.next
+packages/db/src/generated
+prisma/schema/block.*
+data
+.env
+.git
+*.zip

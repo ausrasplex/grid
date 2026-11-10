@@ -1,0 +1,29 @@
+{
+  "name": "@grid/ui",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Design system: Tailwind tokens, shadcn/ui components, icons and mobile-first building blocks for block pages.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./components/*": "./src/components/*.tsx",
+    "./lib/*": "./src/lib/*.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "dependencies": {
+    "@grid/core": "workspace:*",
+    "@radix-ui/react-checkbox": "^1",
+    "@radix-ui/react-dialog": "^1",
+    "@radix-ui/react-label": "^2",
+    "@radix-ui/react-slot": "^1",
+    "@radix-ui/react-switch": "^1",
+    "class-variance-authority": "^0.7",
+    "clsx": "^2",
+    "lucide-react": "^0.500",
+    "tailwind-merge": "^3"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}

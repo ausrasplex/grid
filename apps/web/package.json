@@ -1,0 +1,43 @@
+{
+  "name": "@grid/web",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@grid/block-companies": "workspace:*",
+    "@grid/block-photos": "workspace:*",
+    "@grid/block-plans": "workspace:*",
+    "@grid/block-projects": "workspace:*",
+    "@grid/block-quotes": "workspace:*",
+    "@grid/block-signatures": "workspace:*",
+    "@grid/block-sites": "workspace:*",
+    "@grid/block-templates": "workspace:*",
+    "@grid/block-users": "workspace:*",
+    "@grid/core": "workspace:*",
+    "@grid/db": "workspace:*",
+    "@grid/ui": "workspace:*",
+    "better-auth": "1.7.18",
+    "lucide-react": "^0.500",
+    "next": "^16",
+    "nodemailer": "^7",
+    "pg-boss": "^11",
+    "react": "^19",
+    "react-dom": "^19",
+    "server-only": "^0.0.1",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1",
+    "typescript": "^5.9"
+  }
+}

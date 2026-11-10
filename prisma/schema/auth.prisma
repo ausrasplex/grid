@@ -1,0 +1,54 @@
+// Sign-in tables used by Better Auth (apps/web/src/lib/auth.ts).
+// Core: every server has them, whatever Blocks are switched on.
+// The User model itself lives in blocks/users/schema.prisma.
+
+/// One signed-in device. Long-lived on a person's own phone or tablet;
+/// listed under Profile › Devices so it can be signed out remotely.
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// A way of signing in: providerId "credential" holds the password hash;
+/// Google / Microsoft (optional, per server) add their own rows later.
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Short-lived tokens: email sign-in links, password resets.
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}

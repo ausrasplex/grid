@@ -1,0 +1,66 @@
+// Photos block: photos and notes on a job, at the area they're about.
+// Design: docs/photos-block.md.
+
+enum PhotoTag {
+  NONE
+  BEFORE
+  AFTER
+}
+
+/// Who outside your company can see a photo or note (docs/roadmap.md rule 6).
+/// Stored from day one; solo businesses never see the choice.
+enum ItemVisibility {
+  /// Your company only.
+  PRIVATE
+  /// Everyone on the job, up the contract chain (2b).
+  SHARED
+}
+
+model JobPhoto {
+  /// Made on the phone, so a retried upload never makes a second copy.
+  id          String         @id
+  projectId   String
+  companyId   String
+  buildingId  String?
+  levelId     String?
+  fileId      String         @unique
+  caption     String?
+  tag         PhotoTag       @default(NONE)
+  visibility  ItemVisibility @default(PRIVATE)
+  /// When the photo was taken (from the phone), not when it reached the server.
+  takenAt     DateTime
+  takenById   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  /// Deleted = in Recently deleted (restorable) until purged.
+  deletedAt   DateTime?
+  deletedById String?
+  /// Gone for good: the file has been removed from disk.
+  purgedAt    DateTime?
+  restoredAt  DateTime?
+  restoredById String?
+
+  @@index([projectId, takenAt])
+  @@index([projectId, buildingId, levelId])
+}
+
+model JobNote {
+  id          String         @id @default(uuid())
+  projectId   String
+  companyId   String
+  buildingId  String?
+  levelId     String?
+  body        String
+  visibility  ItemVisibility @default(PRIVATE)
+  createdById String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  deletedById String?
+  /// Past Recently deleted: can't be restored any more (the row stays for the history).
+  purgedAt    DateTime?
+  restoredAt  DateTime?
+  restoredById String?
+
+  @@index([projectId, createdAt])
+}

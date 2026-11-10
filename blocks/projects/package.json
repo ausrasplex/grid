@@ -1,0 +1,29 @@
+{
+  "name": "@grid/block-projects",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./block": "./block.ts",
+    "./ui": "./ui/index.tsx",
+    "./components": "./ui/components.ts"
+  },
+  "dependencies": {
+    "@grid/block-companies": "workspace:*",
+    "@grid/block-sites": "workspace:*",
+    "@grid/core": "workspace:*",
+    "@grid/db": "workspace:*",
+    "@grid/ui": "workspace:*",
+    "lucide-react": "^0.500",
+    "zod": "^4"
+  },
+  "peerDependencies": {
+    "next": "^16",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "next": "^16"
+  }
+}

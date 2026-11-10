@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Design tokens + theme live in the shared UI package. */
+@import "../../../../packages/ui/src/styles.css";
+
+/* Tailwind only generates classes it finds, so point it at every
+   workspace folder that contains components. */
+@source "../../../../packages/ui/src";
+@source "../../../../blocks";

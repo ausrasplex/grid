@@ -1,0 +1,15 @@
+{
+  "name": "@grid/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prisma 7 client, audit log helper and secret encryption shared by all blocks.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7",
+    "@prisma/client": "^7",
+    "sharp": "^0.34"
+  }
+}

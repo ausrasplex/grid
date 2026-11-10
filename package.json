@@ -1,0 +1,26 @@
+{
+  "name": "grid",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @grid/web dev",
+    "build": "pnpm db:generate && pnpm --filter @grid/web build",
+    "db:collect": "node scripts/collect-schema.mjs",
+    "db:generate": "pnpm db:collect && prisma generate",
+    "db:migrate": "pnpm db:collect && prisma migrate dev",
+    "db:deploy": "pnpm db:collect && prisma migrate deploy",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "TZ=Australia/Melbourne node --test \"packages/*/test/*.test.ts\" \"blocks/*/test/*.test.ts\" \"scripts/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^16",
+    "prisma": "^7",
+    "typescript": "^5.9"
+  }
+}

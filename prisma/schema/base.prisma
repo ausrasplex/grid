@@ -1,0 +1,12 @@
+// Shared generator/datasource. Block models live in blocks/*/schema.prisma
+// and are collected into prisma/schema/block.<id>.prisma (git-ignored) by
+// `pnpm db:collect`. Edit the block files, not the collected copies.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../packages/db/src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}

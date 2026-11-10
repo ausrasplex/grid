@@ -1,0 +1,203 @@
+// Quotes block (docs/quotations-block.md). Phase 3a: tax settings, clients,
+// price book, quick quotes, revisions, accept → job. Signing comes in 3b.
+// Money is Decimal(12,2) in dollars; maths happens in cents (money.ts).
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum PriceItemKind {
+  LABOUR
+  MATERIAL
+}
+
+/// How much detail the customer sees.
+enum QuoteClientView {
+  ITEMISED
+  SECTIONS
+  LUMP
+}
+
+/// One per company: tax name, codes, currency (§3a). Nothing assumes GST.
+model TaxSettings {
+  companyId          String   @id
+  taxName            String   @default("GST")
+  pricesIncludeTax   Boolean  @default(false)
+  registrationLabel  String   @default("ABN")
+  currency           String   @default("AUD")
+  locale             String   @default("en-AU")
+  /// "LINE" | "TOTAL"
+  rounding           String   @default("LINE")
+  documentTitle      String   @default("Quote")
+  defaultTaxCodeId   String?
+  quotePrefix        String   @default("Q-")
+  validityDays       Int      @default(30)
+  defaultTerms       String?
+  /// Quote emails include a link where the customer can view, sign or decline.
+  onlineAccept       Boolean  @default(true)
+  /// How customers may sign: drawing and/or typing their name.
+  signDrawn          Boolean  @default(true)
+  signTyped          Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+}
+
+model TaxCode {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  /// Short, on documents: "GST", "GST-free"
+  label     String
+  /// 0.1000 = 10%
+  rate      Decimal  @db.Decimal(6, 4)
+  active    Boolean  @default(true)
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
+/// Who a quote goes to: a homeowner, property manager, builder…
+model Client {
+  id          String    @id @default(uuid())
+  companyId   String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  /// Business number (ABN etc.) for business clients.
+  abn         String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  quotes Quote[]
+
+  @@index([companyId, name])
+}
+
+model PriceItem {
+  id           String        @id @default(uuid())
+  companyId    String
+  kind         PriceItemKind
+  name         String
+  /// "each", "hr", "m"…
+  unit         String        @default("each")
+  cost         Decimal?      @db.Decimal(12, 2)
+  sell         Decimal       @db.Decimal(12, 2)
+  taxCodeId    String?
+  supplier     String?
+  supplierCode String?
+  /// Shown first when adding to a quote on the phone.
+  favourite    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+
+  @@index([companyId, kind])
+}
+
+model Quote {
+  id               String          @id @default(uuid())
+  companyId        String
+  /// "Q-1001": unique per company.
+  number           String
+  title            String
+  clientId         String?
+  siteAddress      String?
+  status           QuoteStatus     @default(DRAFT)
+  clientView       QuoteClientView @default(ITEMISED)
+  pricesIncludeTax Boolean
+  validUntil       DateTime
+  intro            String?
+  terms            String?
+  /// Never on the PDF.
+  internalNotes    String?
+  /// The job it became (or was quoted for).
+  projectId        String?
+  createdById      String
+  sentAt           DateTime?
+  /// First time the customer opened the link for the current revision.
+  viewedAt         DateTime?
+  acceptedAt       DateTime?
+  /// "RECORDED_BY_STAFF" now; "SIGNED_ONLINE" etc. with signing (3b).
+  acceptedHow      String?
+  acceptedNote     String?
+  /// Optional extras the customer chose when accepting (line indexes in the signed revision).
+  acceptedOptions  Json?
+  /// The SignRequest that accepted it, when signed online.
+  signRequestId    String?
+  declinedAt       DateTime?
+  declineReason    String?
+  currentRevisionId String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+
+  client    Client?         @relation(fields: [clientId], references: [id])
+  lines     QuoteLine[]
+  revisions QuoteRevision[]
+  events    QuoteEvent[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+}
+
+/// The lines being edited. Sending copies them into a revision.
+model QuoteLine {
+  id          String   @id @default(uuid())
+  quoteId     String
+  sort        Int
+  section     String?
+  priceItemId String?
+  description String
+  qty         Decimal  @db.Decimal(12, 3)
+  unit        String   @default("each")
+  cost        Decimal? @db.Decimal(12, 2)
+  sell        Decimal  @db.Decimal(12, 2)
+  taxCodeId   String?
+  optional    Boolean  @default(false)
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, sort])
+}
+
+/// What was sent: Rev A, B… Read-only. The snapshot has the lines, client,
+/// totals, tax settings and business details as they were, so changing
+/// settings later never changes a quote already sent.
+model QuoteRevision {
+  id        String   @id @default(uuid())
+  quoteId   String
+  label     String
+  snapshot  Json
+  pdfFileId String?
+  sentAt    DateTime @default(now())
+  sentById  String
+  /// Email address it was emailed to, or null if marked sent by hand.
+  sentTo    String?
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+}
+
+model QuoteEvent {
+  id       String   @id @default(uuid())
+  quoteId  String
+  /// CREATED | SENT | ACCEPTED | DECLINED | WITHDRAWN | REOPENED | JOB_CREATED
+  type     String
+  byUserId String?
+  note     String?
+  at       DateTime @default(now())
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, at])
+}

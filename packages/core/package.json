@@ -1,0 +1,10 @@
+{
+  "name": "@grid/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Block system: registry, permissions, menu slots, event bus, routing. No runtime dependencies.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -1,0 +1,88 @@
+// Companies block: businesses, their roles, who works for them, and
+// which optional blocks each company has switched on.
+
+enum TradeProfile {
+  BUILDER
+  ELECTRICAL
+  MECHANICAL
+  CONTROLS_BMS
+  PLUMBING
+  FIRE
+  CARPENTRY
+  OTHER
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  REMOVED
+}
+
+model Company {
+  id           String       @id @default(uuid())
+  name         String
+  abn          String?
+  tradeProfile TradeProfile
+  /// { branding: {...}, units: "metric", workingHours: {...}, features: {...} }
+  settings     Json         @default("{}")
+  logoKey      String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  roles       Role[]
+  memberships Membership[]
+  blocks      CompanyBlock[]
+}
+
+/// A named bundle of permission strings. System roles (OWNER, FOREMAN,
+/// EMPLOYEE, VIEWER) are created for every company and kept in sync with
+/// the blocks' grants; custom roles are edited by the company.
+model Role {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  /// "OWNER" | "FOREMAN" | "EMPLOYEE" | "VIEWER" for built-in roles, null for custom
+  systemRole  String?
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id])
+  memberships Membership[]
+
+  @@unique([companyId, name])
+  @@unique([companyId, systemRole])
+}
+
+/// A user's employment in a company. One person can belong to several.
+model Membership {
+  id        String           @id @default(uuid())
+  userId    String
+  companyId String
+  roleId    String
+  status    MembershipStatus @default(INVITED)
+  invitedBy String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+  role    Role    @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, companyId])
+  @@index([companyId, status])
+}
+
+/// Which optional blocks a company has switched on. Required blocks
+/// are always on and never stored here.
+model CompanyBlock {
+  companyId String
+  blockId  String
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@id([companyId, blockId])
+}

@@ -1,0 +1,150 @@
+// Core tables every block relies on.
+
+/// Append-only history of every change. Powers "history of changes",
+/// approvals and dispute evidence. Written via packages/db audit().
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  companyId  String?
+  projectId  String?
+  blockId   String // which block made the change
+  entityType String
+  entityId   String
+  action     String // created, updated, invited, role_changed...
+  diff       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([companyId, createdAt])
+}
+
+/// Quick routes (docs/navigation.md §7, docs/deployment-modes.md §5): the
+/// random code behind every QR code and short link. Codes only route, they
+/// never grant access. Shared by every block (sites, jobs, quotes, sheets,
+/// asset tags), so codes are unique across the whole server.
+model RouteCode {
+  /// e.g. "92MF-4TD8", or "K7QX-92MF-4TD8" once the server has an INSTANCE_ID prefix
+  code       String    @id
+  blockId    String
+  entityType String
+  entityId   String
+  companyId  String?
+  createdById String?
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+  /// Regenerating a code revokes the old one (the old sticker stops working).
+  revokedAt  DateTime?
+
+  @@index([entityType, entityId])
+}
+
+/// An uploaded file (photos now; plans, documents and signatures later).
+/// Bytes live on disk under FILES_ROOT, never in the database. A file is
+/// uploaded first, then a block attaches it to its own record (blockId),
+/// and that block decides who may read it.
+model StoredFile {
+  id           String    @id @default(uuid())
+  companyId    String
+  /// The block that owns it once attached, e.g. "photos". Null until then
+  /// (only the uploader can read it, and unattached files are cleaned up).
+  blockId      String?
+  /// Path under FILES_ROOT: <companyId>/<yyyy>/<mm>/<id>.<ext>
+  key          String
+  mime         String
+  size         Int
+  width        Int?
+  height       Int?
+  sha256       String
+  /// Smaller copies: { thumb: { key, width, height, size }, display: {...} }
+  variants     Json      @default("{}")
+  originalName String?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  attachedAt   DateTime?
+  deletedAt    DateTime?
+  /// The bytes are gone from disk (clean-up or Delete now). The row stays for the history.
+  purgedAt     DateTime?
+
+  @@index([companyId, createdAt])
+  @@index([blockId, deletedAt, createdAt])
+}
+
+/// Server-wide settings the server admin changes in the app (Settings ›
+/// Storage, later backups). Values override the .env defaults.
+model ServerSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+/// One clean-up: the nightly run, "Run clean-up now", or a manager's
+/// "Delete now". Shown as the clean-up history in Settings › Storage.
+model CleanupRun {
+  id            String        @id @default(uuid())
+  /// "schedule" | "manual" (Run clean-up now) | "delete-now"
+  trigger       String
+  /// "on" or "dry-run" (logged only, nothing removed)
+  mode          String
+  triggeredById String?
+  startedAt     DateTime      @default(now())
+  finishedAt    DateTime?
+  /// Counts and bytes by kind.
+  summary       Json          @default("{}")
+  error         String?
+  items         CleanupItem[]
+
+  @@index([startedAt])
+}
+
+/// One thing a clean-up removed (or, in a dry run, would have).
+model CleanupItem {
+  id        String     @id @default(uuid())
+  runId     String
+  /// Whose it was; null for stray files on disk.
+  companyId String?
+  /// "unfiled" | "deleted-photo" | "deleted-note" | "stray"
+  kind      String
+  /// Human-readable: "Photo on Add 4 power points (J-1002), deleted by Jesse on 7 Nov"
+  label     String
+  refId     String?
+  bytes     Int        @default(0)
+  /// False in a dry run.
+  applied   Boolean
+  createdAt DateTime   @default(now())
+
+  run CleanupRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([runId])
+}
+
+/// One backup (docs/backups.md). The files live in BACKUPS_ROOT/<folder>.
+model BackupRun {
+  id            String    @id @default(uuid())
+  /// "schedule" | "manual"
+  trigger       String
+  triggeredById String?
+  includesDb    Boolean
+  includesMedia Boolean
+  /// "running" | "done" | "failed"
+  status        String    @default("running")
+  /// Folder name under BACKUPS_ROOT, e.g. "2026-11-07_0300_ab12cd34".
+  folder        String
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  dbBytes       BigInt    @default(0)
+  /// Every photo in the snapshot.
+  mediaBytes    BigInt    @default(0)
+  mediaFiles    Int       @default(0)
+  /// Only the photos new since the last backup (the rest are hard links, so they take no extra space).
+  newMediaBytes BigInt    @default(0)
+  error         String?
+  /// Kept forever: doesn't count towards "keep the latest N".
+  pinned        Boolean   @default(false)
+  /// Removed (by "keep the latest N" or by hand). The row stays for the history.
+  deletedAt     DateTime?
+  deletedById   String?
+
+  @@index([status, deletedAt, startedAt])
+}

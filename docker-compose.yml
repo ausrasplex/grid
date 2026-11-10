@@ -1,0 +1,43 @@
+# Alternative to the Unraid templates (unraid/*.xml): docker compose, e.g.
+# with Unraid's Compose Manager plugin or on any Linux box.
+#   cp .env.example .env   (set DB_PASSWORD, POSTGRES_PASSWORD, BETTER_AUTH_URL)
+#   docker compose up -d
+# Grid applies database updates itself when it starts.
+services:
+  grid-postgres:
+    image: postgres:17
+    restart: unless-stopped
+    shm_size: 256m
+    environment:
+      POSTGRES_USER: grid
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: grid
+      TZ: ${TZ:-Australia/Melbourne}
+    volumes:
+      - /mnt/cache/appdata/grid-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grid"]
+      interval: 10s
+      retries: 5
+
+  grid:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    # Or a published image: ghcr.io/ausrasplex/grid:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: grid-postgres
+      # The container builds the database address from DB_*; ignore a
+      # development DATABASE_URL left in .env.
+      DATABASE_URL: ""
+    depends_on:
+      grid-postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - /mnt/user/grid-files:/data/files
+      - /mnt/user/appdata/grid:/config
+      - /mnt/user/grid-backups:/data/backups

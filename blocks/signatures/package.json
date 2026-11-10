@@ -1,0 +1,36 @@
+{
+  "name": "@grid/block-signatures",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./block": "./block.ts",
+    "./ui": "./ui/index.tsx",
+    "./certificate": "./certificate.tsx",
+    "./pad": "./ui/SignaturePad.tsx"
+  },
+  "dependencies": {
+    "@fontsource/caveat": "^5",
+    "@grid/core": "workspace:*",
+    "@grid/db": "workspace:*",
+    "@grid/ui": "workspace:*",
+    "@signpdf/placeholder-pdf-lib": "^4",
+    "@signpdf/signer-p12": "^4",
+    "@signpdf/signpdf": "^4",
+    "@signpdf/utils": "^4",
+    "lucide-react": "^0.500",
+    "node-forge": "^1.3",
+    "pdf-lib": "^1.17",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@types/node-forge": "^1.3",
+    "next": "^16"
+  },
+  "peerDependencies": {
+    "next": "^16",
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}

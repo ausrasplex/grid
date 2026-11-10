@@ -1,0 +1,35 @@
+// Users block. A person's login identity, independent of any company.
+// Employment (which companies they belong to, and their role) lives in
+// the companies block as Membership.
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  /// Set by Better Auth once the person proves they own the address
+  /// (sign-in link, verification email).
+  emailVerified Boolean   @default(false)
+  /// Picture URL from an outside sign-in (Google / Microsoft). Our own
+  /// uploads use avatarKey.
+  image         String?
+  /// The first account on a fresh server. Can see every account and
+  /// sign devices out. Not the same as being a company Owner.
+  serverAdmin   Boolean   @default(false)
+  name      String
+  phone     String?
+  avatarKey String?
+  /// Personal preferences: { markupColour, favouriteIcons, units, ... }
+  settings  Json      @default("{}")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // --- Back-relations required by Prisma for blocks that depend on users.
+  // Each dependent block adds its line here (Prisma can't extend a model
+  // from another file). The tables always exist; enabling a block per
+  // company only controls access.
+  memberships Membership[] // companies
+
+  // Core sign-in tables (prisma/schema/auth.prisma)
+  sessions Session[]
+  accounts Account[]
+}

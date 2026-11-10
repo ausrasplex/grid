@@ -1,0 +1,13 @@
+{
+  // Type-checks the whole monorepo in one pass: `pnpm typecheck`
+  // (run `pnpm db:generate` first so the Prisma client exists).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "types": ["node"],
+    "paths": { "@/*": ["./apps/web/src/*"] }
+  },
+  "include": ["packages/*/src", "packages/*/test", "blocks", "apps/web/src", "prisma.config.ts"],
+  "exclude": ["node_modules", "**/node_modules"]
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!--
+  Unraid template for Grid's database (plain Postgres 17). Install guide: docs/unraid.md.
+  Copy to /boot/config/plugins/dockerMan/templates-user/my-grid-postgres.xml.
+-->
+<Container version="2">
+  <Name>grid-postgres</Name>
+  <Repository>postgres:17</Repository>
+  <Registry>https://hub.docker.com/_/postgres</Registry>
+  <Network>grid</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/ausrasplex/grid/issues</Support>
+  <Project>https://www.postgresql.org/</Project>
+  <Overview>The database for Grid. Install this first, on the "grid" Docker network ("docker network create grid" once in the Unraid terminal). Keep its data on the cache pool (SSD).</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI/>
+  <TemplateURL>https://raw.githubusercontent.com/ausrasplex/grid/main/unraid/grid-postgres.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/docker-library/docs/master/postgres/logo.png</Icon>
+  <ExtraParams>--restart=unless-stopped --shm-size=256m</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+
+  <Config Name="Database data" Target="/var/lib/postgresql/data" Default="/mnt/cache/appdata/grid-postgres" Mode="rw" Description="Keep this on the cache pool (SSD), not the array: the database is written to all the time." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/grid-postgres</Config>
+  <Config Name="Password (POSTGRES_PASSWORD)" Target="POSTGRES_PASSWORD" Default="" Mode="" Description="Make up a long password. Put the same one in Grid's &quot;Database password&quot;." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="User (POSTGRES_USER)" Target="POSTGRES_USER" Default="grid" Mode="" Description="Leave as grid." Type="Variable" Display="always" Required="true" Mask="false">grid</Config>
+  <Config Name="Database (POSTGRES_DB)" Target="POSTGRES_DB" Default="grid" Mode="" Description="Leave as grid." Type="Variable" Display="always" Required="true" Mask="false">grid</Config>
+  <Config Name="Time zone (TZ)" Target="TZ" Default="Australia/Melbourne" Mode="" Description="Time zone for the database's logs. Unraid passes its own too; this overrides it." Type="Variable" Display="always" Required="false" Mask="false">Australia/Melbourne</Config>
+  <Config Name="Port (only if needed)" Target="5432" Default="" Mode="tcp" Description="Leave blank: Grid reaches the database over the grid network. Set e.g. 5432 only to connect a database tool from another computer." Type="Port" Display="advanced" Required="false" Mask="false"></Config>
+</Container>

@@ -1,0 +1,30 @@
+{
+  "name": "@grid/block-plans",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./block": "./block.ts",
+    "./ui": "./ui/index.tsx",
+    "./parse": "./parse.ts"
+  },
+  "dependencies": {
+    "@grid/block-projects": "workspace:*",
+    "@grid/core": "workspace:*",
+    "@grid/db": "workspace:*",
+    "@grid/ui": "workspace:*",
+    "lucide-react": "^0.500",
+    "openseadragon": "6.1.1",
+    "sharp": "^0.34",
+    "zod": "^4"
+  },
+  "peerDependencies": {
+    "next": "^16",
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@types/openseadragon": "6.0.0",
+    "next": "^16"
+  }
+}

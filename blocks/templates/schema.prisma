@@ -1,0 +1,23 @@
+// Document Templates block (core). Phase 3a builds the basics: each
+// company's branding on documents, and rendering to PDF. The template
+// editor (elements, multiple templates, versions) comes later
+// (docs/templates-block.md).
+
+/// How a company's documents look, and the details printed on them.
+model DocTheme {
+  companyId     String   @id
+  logoFileId    String?
+  /// Headings, table header and totals bar: "#1f6feb".
+  accentColor   String   @default("#b45309")
+  /// Printed under the business name.
+  phone         String?
+  email         String?
+  address       String?
+  website       String?
+  /// e.g. "REC" (Victorian electrical licence) or "Licence no."
+  licenceLabel  String?
+  licenceNumber String?
+  /// Small print at the bottom of every page.
+  footerText    String?
+  updatedAt     DateTime @updatedAt
+}

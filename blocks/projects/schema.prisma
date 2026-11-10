@@ -1,0 +1,114 @@
+// Projects block (core): jobs. Every job belongs to one site and Covers
+// the buildings and levels it works on. A job is a full project with a
+// contract chain from day one; a sole trader's chain is just their own
+// company as host. Design: docs/stage-2-projects.md.
+
+enum ProjectStatus {
+  ACTIVE
+  /// Finished. Shows under "Earlier jobs" on the site page; read-only until reopened.
+  COMPLETED
+}
+
+enum ProjectListing {
+  /// Name, builder and Covers visible to other companies at a managed site (2b).
+  LISTED
+  /// Invisible to anyone not on the job.
+  UNLISTED
+}
+
+enum ProjectCompanyStatus {
+  INVITED
+  PENDING_PARENT
+  PENDING_PLACEMENT
+  ACTIVE
+  COMPLETED
+  REMOVED
+}
+
+model Project {
+  id            String         @id @default(uuid())
+  siteId        String
+  /// The company at the root of the contract chain.
+  hostCompanyId String
+  name          String
+  /// The customer, for a sole trader's own jobs ("Mrs Nguyen"). Quotes link proper client records later.
+  clientName    String?
+  description   String?
+  status        ProjectStatus  @default(ACTIVE)
+  listing       ProjectListing @default(UNLISTED)
+  startedAt     DateTime       @default(now())
+  completedAt   DateTime?
+  createdById   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  covers     ProjectCover[]
+  companies  ProjectCompany[]
+  references ProjectReference[]
+
+  @@index([siteId, status])
+  @@index([hostCompanyId, status])
+}
+
+/// A building (levelId null = the whole building, including levels added
+/// later) or one level the job works on.
+model ProjectCover {
+  id         String  @id @default(uuid())
+  projectId  String
+  buildingId String
+  levelId    String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, buildingId, levelId])
+  @@index([buildingId, levelId])
+}
+
+/// A company on a job, and its contract with the company above it
+/// (parentId). The host's row has no parent.
+model ProjectCompany {
+  id          String               @id @default(uuid())
+  projectId   String
+  companyId   String
+  parentId    String?
+  status      ProjectCompanyStatus @default(ACTIVE)
+  invitedById String?
+  /// Trade/scope, may subcontract, which plan sets (2b).
+  termsJson   Json?
+  expiresAt   DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, companyId])
+  @@index([companyId, status])
+}
+
+/// Each company's own number for a job (job number, PO, the builder's
+/// project number). Only that company sees and searches it.
+model ProjectReference {
+  id        String   @id @default(uuid())
+  projectId String
+  companyId String
+  label     String
+  value     String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, value])
+  @@index([projectId])
+}
+
+/// The area someone last used on a job; where search results land.
+model UserProjectLevel {
+  userId     String
+  projectId  String
+  buildingId String
+  levelId    String?
+  updatedAt  DateTime @updatedAt
+
+  @@id([userId, projectId])
+}

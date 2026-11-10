@@ -1,0 +1,64 @@
+// Plans block (phase 4a): a job's drawing sheets and their revisions.
+// A sheet is "E-101 Lighting Layout"; each upload of it is a PlanVersion
+// (Rev A, B…). The newest is current unless someone picks another. Each
+// version is rendered once to deep-zoom tiles (<files>/.cache/plans/<id>)
+// for the viewer; the original PDF or image stays as uploaded.
+
+enum PlanVersionStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+model PlanSheet {
+  id               String    @id @default(uuid())
+  companyId        String
+  projectId        String
+  /// As on the drawing: "E-101", "E1.01".
+  number           String
+  title            String    @default("")
+  /// Discipline code from the number's letters: E, M, H, A, S, F… ("" when unknown).
+  discipline       String    @default("")
+  /// Optional: the level it shows, so the job page can offer it on that level.
+  buildingId       String?
+  levelId          String?
+  currentVersionId String?
+  createdById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  deletedById      String?
+  purgedAt         DateTime?
+
+  versions PlanVersion[]
+
+  @@index([projectId, deletedAt])
+  @@index([companyId, deletedAt])
+}
+
+model PlanVersion {
+  id           String            @id @default(uuid())
+  sheetId      String
+  /// "C", "P2", "3"; "" when the upload didn't say.
+  revision     String            @default("")
+  /// The uploaded PDF or image (several versions can share one PDF: one per page).
+  fileId       String
+  page         Int               @default(1)
+  status       PlanVersionStatus @default(PENDING)
+  error        String?
+  /// Rendered size in pixels, and the dots per inch used (for measuring in 4b).
+  widthPx      Int?
+  heightPx     Int?
+  dpi          Int?
+  /// The PDF page size in points (1/72 inch), when it came from a PDF.
+  pageWidthPt  Float?
+  pageHeightPt Float?
+  note         String?
+  uploadedById String
+  createdAt    DateTime          @default(now())
+
+  sheet PlanSheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+
+  @@index([sheetId, createdAt])
+  @@index([fileId])
+}

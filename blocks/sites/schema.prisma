@@ -1,0 +1,107 @@
+// Sites block (core): where work happens. A site sets out its buildings
+// and levels once; jobs (projects block) tick the parts they Cover.
+// Design: docs/stage-2-projects.md §1, docs/navigation.md.
+
+enum SiteKind {
+  /// Precincts, shopping centres, schools: shared by every company with a job there (2b).
+  MANAGED
+  /// Houses and small jobs: made automatically from a job address, seen by that company only.
+  PRIVATE
+}
+
+enum BuildingKind {
+  MULTI
+  SINGLE
+}
+
+model Site {
+  id             String    @id @default(uuid())
+  kind           SiteKind
+  /// The company that looks after the structure (buildings and levels).
+  ownerCompanyId String
+  name           String
+  address        String
+  /// Normalised address for matching ("12 smith st brunswick vic 3056").
+  addressKey     String
+  /// Access and hazard notes kept with the address, so every job there sees them.
+  notes          String?
+  /// { lat, lng, radiusM } for "near the site" checks (later).
+  geofence       Json?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  buildings Building[]
+  states    SiteCompanyState[]
+  locations UserSiteLocation[]
+
+  @@index([ownerCompanyId, addressKey])
+  @@index([addressKey])
+}
+
+model Building {
+  id        String       @id @default(uuid())
+  siteId    String
+  name      String
+  kind      BuildingKind
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  site   Site    @relation(fields: [siteId], references: [id])
+  levels Level[]
+
+  @@index([siteId])
+}
+
+/// A floor of a multi-level building. order: higher number = higher floor
+/// (lists show highest first).
+model Level {
+  id         String   @id @default(uuid())
+  buildingId String
+  name       String
+  shortName  String
+  order      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  building Building @relation(fields: [buildingId], references: [id])
+
+  @@index([buildingId])
+}
+
+/// A company's view of a site: whether it's archived for them, how many of
+/// their jobs are active there, and words to search by (customer names).
+/// Kept up to date by the projects block.
+model SiteCompanyState {
+  siteId         String
+  companyId      String
+  activeJobs     Int       @default(0)
+  totalJobs      Int       @default(0)
+  /// Set when the company's last active job here closes; cleared when a new one starts.
+  archivedAt     DateTime?
+  keywords       String    @default("")
+  lastActivityAt DateTime  @default(now())
+
+  site Site @relation(fields: [siteId], references: [id])
+
+  @@id([siteId, companyId])
+  @@index([companyId, archivedAt])
+}
+
+/// Where someone last was on each site; follows them across devices.
+model UserSiteLocation {
+  userId     String
+  siteId     String
+  companyId  String
+  buildingId String?
+  levelId    String?
+  projectId  String?
+  updatedAt  DateTime @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id])
+
+  @@id([userId, siteId])
+  @@index([userId, companyId, updatedAt])
+}

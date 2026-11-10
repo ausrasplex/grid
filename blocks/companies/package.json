@@ -1,0 +1,22 @@
+{
+  "name": "@grid/block-companies",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./block": "./block.ts",
+    "./ui": "./ui/index.tsx"
+  },
+  "dependencies": {
+    "@grid/core": "workspace:*",
+    "@grid/db": "workspace:*",
+    "@grid/block-users": "workspace:*",
+    "@grid/ui": "workspace:*",
+    "lucide-react": "^0.500",
+    "zod": "^4"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  }
+}

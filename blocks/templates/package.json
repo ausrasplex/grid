@@ -1,0 +1,27 @@
+{
+  "name": "@grid/block-templates",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./block": "./block.ts",
+    "./ui": "./ui/index.tsx",
+    "./document": "./document.tsx"
+  },
+  "dependencies": {
+    "@grid/core": "workspace:*",
+    "@grid/db": "workspace:*",
+    "@grid/ui": "workspace:*",
+    "puppeteer-core": "^24",
+    "zod": "^4"
+  },
+  "peerDependencies": {
+    "next": "^16",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "next": "^16"
+  }
+}
