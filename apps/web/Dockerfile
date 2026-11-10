@@ -37,14 +37,19 @@ ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 \
 COPY --from=build /repo/apps/web/.next/standalone ./
 COPY --from=build /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /migrate /app/migrate
+# Scripts are made executable and given Unix line endings here, so a copy
+# that lost its execute bit or gained Windows line endings (uploaded through
+# the GitHub website, checked out on Windows) still starts.
 COPY docker/entrypoint.sh /usr/local/bin/grid-entrypoint
 # The restore script runs on the Unraid host; copy it out with:
 #   docker cp grid:/app/grid-restore.sh /tmp/
 COPY scripts/grid-restore.sh /app/grid-restore.sh
+RUN sed -i 's/\r$//' /usr/local/bin/grid-entrypoint /app/grid-restore.sh \
+ && chmod 0755 /usr/local/bin/grid-entrypoint /app/grid-restore.sh
 VOLUME ["/config", "/data/files", "/data/backups"]
 EXPOSE 3000
 # Node's fetch, not wget: it ignores proxy variables a server might set.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 # Starts as root only to set folder owners, then runs Grid as PUID:PGID.
-ENTRYPOINT ["grid-entrypoint"]
+ENTRYPOINT ["/usr/local/bin/grid-entrypoint"]
