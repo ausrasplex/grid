@@ -356,7 +356,9 @@ function UsedForField({ value, onChange }: { value: string; onChange: (value: st
 
 function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; onOpenChange: (open: boolean) => void; building: Building; run: Run }) {
   const empty = building.levels.length === 0;
-  const [mode, setMode] = useState<"standard" | "one">(empty ? "standard" : "one");
+  // A building that's just been given levels has only "Ground": still a good time for the full set.
+  const onlyGround = building.levels.length === 1 && levelKey(building.levels[0]!.name) === "ground";
+  const [mode, setMode] = useState<"standard" | "one">(empty || onlyGround ? "standard" : "one");
   const [above, setAbove] = useState("3");
   const [basements, setBasements] = useState("0");
   const [below, setBelow] = useState<BelowGround>("basement");
@@ -365,12 +367,15 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
   const [position, setPosition] = useState<"above" | "below">("above");
   const [usedFor, setUsedFor] = useState("");
 
-  const names =
-    mode === "standard"
-      ? standardLevels({ above: Math.max(0, Math.min(150, Number(above) || 0)), basements: Math.max(0, Math.min(10, Number(basements) || 0)), roof, below })
-      : name.trim()
-        ? [name.trim()]
-        : [];
+  const fullSet = standardLevels({ above: Math.max(0, Math.min(150, Number(above) || 0)), basements: Math.max(0, Math.min(10, Number(basements) || 0)), roof, below });
+  // The full set skips floors the building already has (usually "Ground", made when it was given levels):
+  // the rest go above the top floor (Level 1 up, Roof) or below the bottom one (basements, parking).
+  const existing = new Set(building.levels.map((level) => levelKey(level.name)));
+  const groundAt = fullSet.findIndex((level) => levelKey(level) === "ground");
+  const already = fullSet.filter((level) => existing.has(levelKey(level)));
+  const newAbove = fullSet.slice(0, groundAt).filter((level) => !existing.has(levelKey(level)));
+  const newBelow = fullSet.slice(groundAt).filter((level) => !existing.has(levelKey(level)));
+  const names = mode === "standard" ? [...newAbove, ...newBelow] : name.trim() ? [name.trim()] : [];
   const clashes = levelNameClashes(
     building.levels.map((level) => level.name),
     names,
@@ -383,7 +388,15 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
           className="flex flex-col gap-4 px-2"
           onSubmit={async (event) => {
             event.preventDefault();
-            const ok = await run(() => api(`/sites/buildings/${building.id}/levels`, { body: { names, position: mode === "standard" ? "above" : position, ...(mode === "one" && usedFor.trim() ? { use: usedFor.trim() } : {}) } }));
+            const add = (levels: string[], where: "above" | "below", use?: string) =>
+              api(`/sites/buildings/${building.id}/levels`, { body: { names: levels, position: where, ...(use ? { use } : {}) } });
+            const ok = await run(async () => {
+              if (mode === "one") return add(names, position, usedFor.trim() || undefined);
+              // An empty building takes the whole stack at once; otherwise above the top and below the bottom.
+              if (empty) return add(names, "above");
+              if (newAbove.length) await add(newAbove, "above");
+              if (newBelow.length) await add(newBelow, "below");
+            });
             if (ok) {
               onOpenChange(false);
               setName("");
@@ -421,7 +434,10 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
                 <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={roof} onChange={(event) => setRoof(event.target.checked)} />
                 Include a roof level
               </label>
-              <p className="text-sm text-muted-foreground">Adds: {names.join(", ")}</p>
+              <p className="text-sm text-muted-foreground">
+                {names.length ? `Adds: ${names.join(", ")}` : "All of these are already there."}
+                {already.length > 0 && names.length > 0 && ` (${already.join(", ")} ${already.length === 1 ? "is" : "are"} already there)`}
+              </p>
             </>
           ) : (
             <>
