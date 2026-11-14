@@ -77,7 +77,8 @@ export interface QuoteJson {
     verifyCode: string | null;
   } | null;
   declineReason: string | null;
-  lines: Omit<LineJson, "key">[];
+  /** As saved: each line also has its database id (never sent back). */
+  lines: (Omit<LineJson, "key"> & { id?: string })[];
   revisions: { id: string; label: string; sentAt: string; sentTo: string | null; hasPdf: boolean; sentBy: string }[];
   events: { type: string; at: string; by: string | null; note: string | null }[];
   settings: { currency: string; locale: string; taxName: string; rounding: string; defaultTaxCodeId: string | null; codes: { id: string; name: string; label: string; rate: number; active: boolean }[] };
@@ -106,7 +107,8 @@ const when = (isoDate: string) => new Date(isoDate).toLocaleString("en-AU", { da
 
 export function QuoteEditor({ initial, permissions, emailReady }: { initial: QuoteJson; permissions: { edit: boolean; send: boolean }; emailReady: boolean }) {
   const [quote, setQuote] = useState(initial);
-  const [lines, setLines] = useState<LineJson[]>(() => initial.lines.map((line) => ({ ...line, key: key() })));
+  // Saved lines come with their database id; the editor keys them itself and never sends the id back.
+  const [lines, setLines] = useState<LineJson[]>(() => initial.lines.map(({ id: _id, ...line }) => ({ ...line, key: key() })));
   const [form, setForm] = useState({
     title: initial.title,
     client: initial.client,
@@ -151,7 +153,18 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
       internalNotes: form.internalNotes,
       lines: lines
         .filter((line) => line.description.trim())
-        .map(({ key: _k, cost, ...line }) => ({ ...line, ...(quote.canSeeCosts ? { cost } : {}) })),
+        // Only the fields a line has (the server refuses anything else).
+        .map((line) => ({
+          section: line.section,
+          priceItemId: line.priceItemId,
+          description: line.description,
+          qty: line.qty,
+          unit: line.unit,
+          sell: line.sell,
+          taxCodeId: line.taxCodeId,
+          optional: line.optional,
+          ...(quote.canSeeCosts ? { cost: line.cost } : {}),
+        })),
     }),
     [form, lines, quote.title, quote.canSeeCosts],
   );
@@ -197,7 +210,7 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
   const reload = async () => {
     const latest = await api<QuoteJson>(`/quotes/${quote.id}`);
     setQuote(latest);
-    setLines(latest.lines.map((line) => ({ ...line, key: key() })));
+    setLines(latest.lines.map(({ id: _id, ...line }) => ({ ...line, key: key() })));
     lastSaved.current = JSON.stringify({ ...body, lines: latest.lines });
   };
 
