@@ -38,7 +38,7 @@ Each company-owned induction (company, project or area) has an **audience**, app
 - **Subcontractors only:** companies below the owner, not its own staff.
 
 It can be narrowed further, combining any of these:
-- **by role:** e.g. Foremen only, apprentices only (company roles, or per-project role overrides);
+- **by role:** e.g. Foremen only, apprentices only (company roles, or per-project role overrides; "apprentices" is the built-in Apprentice role, optionally by year, set by the business: `roadmap.md`, Phase 7: apprentices);
 - **by trade:** e.g. electrical or mechanical subcontractors, from each company's trade profile;
 - **by named company:** e.g. the crane-lift subcontractor;
 - **by ticket:** only workers who hold, or are required to hold, a credential type, e.g. EWP operators get the boom-lift briefing.
@@ -197,7 +197,7 @@ Employment and payroll-related industry details. **Different audience and higher
 - **Portable long service leave:** scheme (e.g. CoINVEST in Vic, QLeave in Qld, Long Service Corporation in NSW) and worker number; the person can record service history across employers.
 - **Superannuation:** fund name, USI, member number.
 - **Industry redundancy / income protection funds** (e.g. Incolink in Vic): fund and member number.
-- **Award/agreement classification and apprenticeship details** (year, RTO, training contract), if the person chooses.
+- **Award/agreement classification and apprenticeship details** (year, RTO, training contract), if the person chooses. This is the apprentice's own record; whether they *are* an apprentice in a business (and which year) is that business's role setting, not this (`roadmap.md`, Phase 7: apprentices).
 
 **Rules:**
 - **Only ever shared with the person's employer.** Never with hosts, builders, other companies on a project, platform admins (without explicit approval), and never usable as a site/project requirement.

@@ -16,7 +16,7 @@ Status: **agreed.** Build for a **sole trader first** and expand to teams, then 
 | **4. Plans, markups, photo pins, measure (done: 4a, 4b)** (`plans`, `markups`) | Upload, tiled viewer, revisions, own markup layer, photo pins, calibrated measuring | Mark up and measure plans on the tablet | Company layers with visibility, plan update requests linked to RFIs |
 | **5. Documents & assets** | Own manual library with search and product catalogue; tools, test & tag, van | Manuals on hand, test-and-tag reminders, van servicing | Sharing libraries with subcontractors, Shared notes, fleet-wide assets |
 | **6. Offline sync, notifications, email** | Full offline, push, own SMTP | Works in plant rooms and basements | Team notifications and approvals |
-| **7. Teams** | Members screen, invites, roles in use, My work across people, onboarding inductions | — | Foremen, apprentices, per-project roles |
+| **7. Teams** | Members screen, invites, roles in use (including the built-in **Apprentice** role with a year, see below), My work across people, onboarding inductions | — | Foremen, apprentices, per-project roles |
 | **8. Multi-company projects** (stage 2b proper) | Contract chain, company invites, site/project QR access, placement, managed sites, project listing | — | Builders hosting jobs, subcontractors under them |
 | **9. Inductions & credentials** | Site/company/project/area inductions, wallet, sharing, compliance | (A solo trader still uses the wallet for their own tickets.) | Builder inductions, chain inductions, induction builder later |
 | **10+.** | RFIs, revision requests, variations, SWMS & forms, reports, hosted site & federation | | |
@@ -83,6 +83,19 @@ Detailed designs: `photos-block.md`, `backups.md`, `stage-2-projects.md`, `quota
 
 - A **business size** choice sits alongside the trade preset (`startingBlocks(trade, size)` in `blocks/companies/presets.ts`). Blocks that aren't built yet are skipped, so a new company today starts with only the core. Solo turns on: `sites`, `projects`, `photos`, `quotes`, `templates`, `plans`, `markups`, `documents`, `assets`.
 - It leaves the team blocks off (`rfis`, `revisions`, `variations`, `swms`, `forms`, team `inductions`). They're one switch away in Settings › Blocks.
+
+## Phase 7: apprentices (planned, decided Nov 2026)
+
+Two separate things, set by different people:
+
+1. **Whether someone is an apprentice: set by the business.** **Apprentice** becomes a built-in role, alongside Owner, Foreman, Employee and Viewer (and Estimator, `quotations-block.md` §9), with an **apprenticeship year (1st, 2nd, 3rd, 4th)** on their membership. Only the Owner, or someone with `companies.members.manage` (a Foreman if the Owner allows it), can set or change it, on Members. The person can't set it themselves: it decides what they may do on site.
+   - Add `APPRENTICE` to `SYSTEM_ROLES` (`packages/core/src/block.ts`), a display name in the companies block, and `grants.APPRENTICE` in each Block (default: about what an Employee gets). Add `apprenticeYear Int?` to `Membership` (only used with this role).
+   - The year shows next to their name on Members and in people pickers ("Sam · Apprentice, 2nd year"), and is changed on Members (e.g. each anniversary). Grid doesn't move it on by itself.
+   - Other features use it: inductions and forms aimed at "apprentices only" (`inductions-credentials.md` §2), and later, sign-offs and test results that need a licensed person (an apprentice's work shows as needing their supervisor's sign-off), and supervision on site.
+   - Like every role, a business can copy it into a custom role and change it.
+2. **Their apprenticeship details: entered by the apprentice.** Year, RTO, training contract and classification sit in the person's own private wallet (`inductions-credentials.md` §11), entered by them and shared only with their employer, only if they choose. The year the business sets (1) and the one in their wallet are separate: the business's is what Grid uses.
+
+Related but separate: the **apprentice labour rate** in the price book (`quotations-block.md` §2) is a price, not a person.
 
 ## Rules that keep expansion free
 
