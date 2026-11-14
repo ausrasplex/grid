@@ -25,6 +25,7 @@ Navigation, breadcrumbs, search and quick routes are specified in `navigation.md
   - A single-level building can be converted to multi-level later; its existing work moves to "Ground".
 - **Level:** belongs to a multi-level building. Full name ("Level 5") plus a short label ("L5") for phone breadcrumbs.
 - **Zones** inside a level are optional and come later (plant room, east wing). The model leaves room for them.
+- **Every level in a building has its own name (decided Nov 2026).** Two levels can't share a name; case and extra spaces don't count ("Level 3" = "level  3"). The server refuses a clash when adding or renaming (`levelNameClashes` in `blocks/sites/address.ts`), and the Add levels and Rename sheets say so before you save. Short names are unique too: a typed one must be free; a worked-out one gets a number added ("Carp", "Carp2"). Levels named the same from before this get a warning on Buildings & levels. Different buildings can still both have a "Level 1".
 
 ### 1b. Project Covers
 

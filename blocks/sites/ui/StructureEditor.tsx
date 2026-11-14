@@ -1,7 +1,8 @@
 "use client";
 
 // Buildings and levels of a site (docs/stage-2-projects.md §1a).
-// Only the company that looks after the site can change them.
+// Only the company that looks after the site can change them. Every level in
+// a building needs its own name and short name (the server checks too).
 
 import { useState } from "react";
 import {
@@ -20,7 +21,7 @@ import {
   api,
   useAction,
 } from "@grid/ui";
-import { standardLevels } from "../address";
+import { levelKey, levelNameClashes, standardLevels } from "../address";
 import type { SiteStructure } from "../service";
 
 type Building = SiteStructure["buildings"][number];
@@ -67,6 +68,8 @@ type Run = (callback: () => Promise<unknown>) => Promise<boolean | undefined>;
 
 function BuildingCard({ building, editable, busy, run }: { building: Building; editable: boolean; busy: boolean; run: Run }) {
   const [adding, setAdding] = useState(false);
+  // Levels named the same from before names had to be different.
+  const repeated = levelNameClashes([], building.levels.map((level) => level.name));
   return (
     <Section
       title={building.name}
@@ -78,10 +81,17 @@ function BuildingCard({ building, editable, busy, run }: { building: Building; e
         ) : undefined
       }
     >
+      {repeated.length > 0 && (
+        <div className="px-4 pb-3 sm:px-5">
+          <Alert variant="error">
+            More than one level is called {repeated.map((name) => `"${name}"`).join(", ")}. Rename them so each level has its own name.
+          </Alert>
+        </div>
+      )}
       {building.kind === "MULTI" && building.levels.length > 0 && (
         <List>
           {building.levels.map((level, index) => (
-            <LevelRow key={level.id} level={level} first={index === 0} last={index === building.levels.length - 1} editable={editable} busy={busy} run={run} />
+            <LevelRow key={level.id} level={level} others={building.levels.filter((other) => other.id !== level.id)} first={index === 0} last={index === building.levels.length - 1} editable={editable} busy={busy} run={run} />
           ))}
         </List>
       )}
@@ -107,7 +117,24 @@ function BuildingCard({ building, editable, busy, run }: { building: Building; e
   );
 }
 
-function LevelRow({ level, first, last, editable, busy, run }: { level: Level; first: boolean; last: boolean; editable: boolean; busy: boolean; run: Run }) {
+function LevelRow({
+  level,
+  others,
+  first,
+  last,
+  editable,
+  busy,
+  run,
+}: {
+  level: Level;
+  /** The building's other levels (their names and short names are taken). */
+  others: Level[];
+  first: boolean;
+  last: boolean;
+  editable: boolean;
+  busy: boolean;
+  run: Run;
+}) {
   const move = (direction: "up" | "down") => run(() => api(`/sites/levels/${level.id}/move`, { body: { direction } }));
   return (
     <li className="flex min-h-touch-lg items-center gap-3 px-4 py-2 sm:px-5">
@@ -125,6 +152,13 @@ function LevelRow({ level, first, last, editable, busy, run }: { level: Level; f
             label={`Rename ${level.name}`}
             current={level.name}
             extra={level.shortName}
+            problem={(name, short) => {
+              const sameName = others.find((other) => levelKey(other.name) === levelKey(name));
+              if (sameName) return `There's already a level called "${sameName.name}" in this building. Give each level its own name.`;
+              const sameShort = short.trim() && others.find((other) => other.shortName.toLowerCase() === short.trim().toLowerCase());
+              if (sameShort) return `"${sameShort.name}" already uses the short name "${sameShort.shortName}". Pick another.`;
+              return null;
+            }}
             onSave={(name, shortName) => run(() => api(`/sites/levels/${level.id}`, { method: "PATCH", body: { name, shortName } }))}
           />
         </span>
@@ -137,17 +171,21 @@ function RenameButton({
   label,
   current,
   extra,
+  problem,
   onSave,
 }: {
   label: string;
   current: string;
   /** Short name for levels ("L5"). */
   extra?: string;
+  /** Why the name can't be saved (e.g. another level has it), or null. */
+  problem?: (name: string, shortName: string) => string | null;
   onSave: (name: string, shortName?: string) => Promise<unknown>;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(current);
   const [short, setShort] = useState(extra ?? "");
+  const issue = name.trim() ? (problem?.(name, short) ?? null) : null;
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <Button variant="ghost" size="icon" aria-label={label} onClick={() => (setName(current), setShort(extra ?? ""), setOpen(true))}>
@@ -158,6 +196,7 @@ function RenameButton({
           className="flex flex-col gap-4 px-2"
           onSubmit={async (event) => {
             event.preventDefault();
+            if (issue) return;
             if (await onSave(name, extra !== undefined ? short : undefined)) setOpen(false);
           }}
         >
@@ -165,8 +204,9 @@ function RenameButton({
           {extra !== undefined && (
             <Field label="Short name" hint="Shown in breadcrumbs on phones, e.g. L5" maxLength={8} value={short} onChange={(event) => setShort(event.target.value)} />
           )}
+          <Alert variant="error">{issue}</Alert>
           <FormActions>
-            <Button type="submit" size="lg">Save</Button>
+            <Button type="submit" size="lg" disabled={!!issue}>Save</Button>
           </FormActions>
         </form>
       </SheetContent>
@@ -189,6 +229,10 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
       : name.trim()
         ? [name.trim()]
         : [];
+  const clashes = levelNameClashes(
+    building.levels.map((level) => level.name),
+    names,
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -242,8 +286,14 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
               )}
             </>
           )}
+          {clashes.length > 0 && (
+            <Alert variant="error">
+              {building.name} already has {clashes.length === 1 ? "a level" : "levels"} called {clashes.map((clash) => `"${clash}"`).join(", ")}. Every level needs its own name
+              {mode === "standard" ? ": add one level at a time instead, or rename the existing ones first." : "."}
+            </Alert>
+          )}
           <FormActions>
-            <Button type="submit" size="lg" disabled={names.length === 0}>
+            <Button type="submit" size="lg" disabled={names.length === 0 || clashes.length > 0}>
               Add {names.length === 1 ? "level" : `${names.length} levels`}
             </Button>
           </FormActions>

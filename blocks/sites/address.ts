@@ -61,3 +61,38 @@ export function standardLevels(options: { above: number; basements: number; roof
   for (let index = 1; index <= options.basements; index++) out.push(options.basements === 1 ? "Basement" : `Basement ${index}`);
   return out;
 }
+
+/** How level names are compared: case and extra spaces don't make two levels different ("Level 3" = "level  3"). */
+export function levelKey(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/**
+ * Names in `adding` that a building can't take: already one of `existing`,
+ * or given twice in `adding`. Each name is listed once, as typed.
+ */
+export function levelNameClashes(existing: string[], adding: string[]): string[] {
+  const taken = new Set(existing.map(levelKey));
+  const seen = new Set<string>();
+  const clashes: string[] = [];
+  for (const name of adding) {
+    const key = levelKey(name);
+    if ((taken.has(key) || seen.has(key)) && !clashes.some((clash) => levelKey(clash) === key)) clashes.push(name.trim());
+    seen.add(key);
+  }
+  return clashes;
+}
+
+/**
+ * A short name (crumbs, chips) no other level in the building uses:
+ * `base`, or `base` with 2, 3… on the end ("Carp", "Carp2"), at most 8 letters.
+ */
+export function uniqueShortName(base: string, taken: string[]): string {
+  const used = new Set(taken.map((short) => short.toLowerCase()));
+  if (!used.has(base.toLowerCase())) return base;
+  for (let number = 2; ; number++) {
+    const suffix = String(number);
+    const candidate = base.slice(0, 8 - suffix.length) + suffix;
+    if (!used.has(candidate.toLowerCase())) return candidate;
+  }
+}

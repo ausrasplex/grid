@@ -28,3 +28,19 @@ test("level short names", () => {
 test("standard levels run top to bottom", () => {
   assert.deepEqual(standardLevels({ above: 2, basements: 1, roof: true }), ["Roof", "Level 2", "Level 1", "Ground", "Basement"]);
 });
+
+test("a building can't have two levels with the same name", async () => {
+  const { levelNameClashes } = await import("../address.ts");
+  assert.deepEqual(levelNameClashes(["Ground", "Level 1"], ["Level 2", "Level 3"]), []);
+  assert.deepEqual(levelNameClashes(["Ground", "Level 1"], ["level  1", "Level 2"]), ["level  1"]);
+  assert.deepEqual(levelNameClashes([], ["Roof", "Roof", "ROOF"]), ["Roof"]);
+  assert.deepEqual(levelNameClashes(["Ground"], [" Ground "]), ["Ground"]);
+});
+
+test("short names are kept unique in a building", async () => {
+  const { uniqueShortName } = await import("../address.ts");
+  assert.equal(uniqueShortName("L1", ["G", "L2"]), "L1");
+  assert.equal(uniqueShortName("Carp", ["Carp"]), "Carp2");
+  assert.equal(uniqueShortName("Carp", ["carp", "Carp2"]), "Carp3");
+  assert.equal(uniqueShortName("Podium12", ["Podium12"]), "Podium13"); // kept to 8 letters
+});

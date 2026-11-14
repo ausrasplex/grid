@@ -5,9 +5,9 @@
 // Structure (buildings and levels) can only be changed by the owner company
 // for now; site editors, proposals and claims come in 2b.
 
-import { app, badRequest, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
+import { app, badRequest, conflict, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db, ensureRouteCode, type Prisma, type Tx } from "@grid/db";
-import { addressKey, levelShortName, siteNameFromAddress } from "./address";
+import { addressKey, levelKey, levelNameClashes, levelShortName, siteNameFromAddress, uniqueShortName } from "./address";
 import type { AddBuildingInput, AddLevelsInput, CreateSiteInput, SiteNoteInput, UpdateSiteInput } from "./validation";
 
 const MOD = "sites";
@@ -441,14 +441,28 @@ export async function addLevels(ctx: RequestContext, buildingId: string, input: 
     const top = building.levels[0]?.order;
     const bottom = building.levels.at(-1)?.order;
     const count = input.names.length;
+    // Every level in a building needs its own name.
+    const clashes = levelNameClashes(
+      building.levels.map((level) => level.name),
+      input.names,
+    );
+    if (clashes.length) {
+      const list = clashes.map((name) => `"${name}"`).join(", ");
+      throw conflict(
+        clashes.length === 1
+          ? `${building.name} already has a level called ${list}. Give each level its own name.`
+          : `${building.name} already has levels called ${list} (or they're in the list twice). Give each level its own name.`,
+      );
+    }
+    const shorts = building.levels.map((level) => level.shortName);
     // Orders for the new levels, highest first.
     const start = input.position === "below" ? (bottom ?? count) - 1 : (top ?? -1) + count;
     const created = [];
     for (let index = 0; index < count; index++) {
       const name = input.names[index]!;
-      created.push(
-        await tx.level.create({ data: { buildingId, name, shortName: levelShortName(name), order: start - index } }),
-      );
+      const shortName = uniqueShortName(levelShortName(name), shorts);
+      shorts.push(shortName);
+      created.push(await tx.level.create({ data: { buildingId, name, shortName, order: start - index } }));
     }
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Building", entityId: buildingId, action: "levels_added", diff: { names: input.names, position: input.position } });
     return created.map((level) => ({ id: level.id, name: level.name }));
@@ -464,11 +478,16 @@ async function ownedLevel(tx: Tx, ctx: RequestContext, levelId: string) {
 
 export async function updateLevel(ctx: RequestContext, levelId: string, input: { name: string; shortName?: string }) {
   return db.$transaction(async (tx) => {
-    const { companyId, level } = await ownedLevel(tx, ctx, levelId);
-    await tx.level.update({
-      where: { id: levelId },
-      data: { name: input.name, shortName: input.shortName?.trim() || levelShortName(input.name) },
-    });
+    const { companyId, level, building } = await ownedLevel(tx, ctx, levelId);
+    const others = building.levels.filter((other) => other.id !== levelId);
+    const sameName = others.find((other) => levelKey(other.name) === levelKey(input.name));
+    if (sameName) throw conflict(`${building.name} already has a level called "${sameName.name}". Give each level its own name.`);
+    // A short name typed in must be free; one worked out from the name is made free.
+    const typedShort = input.shortName?.trim();
+    const sameShort = typedShort && others.find((other) => other.shortName.toLowerCase() === typedShort.toLowerCase());
+    if (sameShort) throw conflict(`"${sameShort.name}" already uses the short name "${sameShort.shortName}". Pick another.`);
+    const shortName = typedShort || uniqueShortName(levelShortName(input.name), others.map((other) => other.shortName));
+    await tx.level.update({ where: { id: levelId }, data: { name: input.name, shortName } });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Level", entityId: levelId, action: "renamed", diff: { from: level.name, ...input } });
     return { id: levelId };
   });
