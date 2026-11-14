@@ -69,6 +69,7 @@ Shown once a project is selected and it covers more than one area.
 ## 5. Main menus
 
 **Phone (bottom bar):** Home · Sites · **Scan** · My work · More.
+- **The action button is always dead centre (decided Nov 2026).** The bar is five equal slots: two items, the action button, two items. The sides fill in menu order (Home, then the primary, main and other items). With more than four items the last slot is **More** holding the rest; with fewer, the spare slots stay empty so the button doesn't move.
 - **Active item:** a yellow bar across the top of its slot, with its icon and label in yellow. Other items are grey.
 - **Scan:** a raised yellow button in the middle, above the bar, so it's easy to hit with a thumb or glove. It opens the one scanner (§7a).
 - **Projects:** there's no Projects tab. Projects are reached through Sites (Site › Building › Level › Project) and Jump to search, and screens inside a project highlight **Sites**.

@@ -2,9 +2,12 @@
 
 // App shell, concept C (docs/navigation.md §5, docs/visual-style.md).
 //
-//   Phone (< 768px):   flat top bar · content · bottom bar:
-//                      Home · primary · [Scan] · primary · More
-//                      (yellow bar over the active item, raised Scan button)
+//   Phone (< 768px):   flat top bar · content · bottom bar of five equal
+//                      slots: two items · [action] · two items. The action
+//                      button is always dead centre; the sides fill with
+//                      Home, primary, main, then other items in order, and
+//                      the last slot is More when there are more than four.
+//                      (yellow bar over the active item, raised action button)
 //   Tablet (768px+):   flat top bar · 88px rail on the left (Home, primary,
 //                      More, Scan, avatar) · content
 //   Desktop (1024px+): 232px sidebar (company, Home, primary, main, then
@@ -209,10 +212,19 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
     return () => window.removeEventListener("keydown", onKey);
   }, [search]);
 
-  // Phone/tablet: anything not pinned goes under More.
-  const barPrimary = primary.slice(0, 2);
+  // Tablet rail: anything not pinned goes under More.
   const compactMore = [...primary.slice(2), ...main, ...more];
   const moreActive = compactMore.some((item) => isActive(pathname, item));
+  // Phone bar: four slots around the centre action button, filled in menu order.
+  // With more than four items, the fourth slot is More (holding the rest).
+  const phoneItems = [home, ...primary, ...main, ...more];
+  const phoneNeedsMore = phoneItems.length > 4;
+  const phoneShown = phoneNeedsMore ? phoneItems.slice(0, 3) : phoneItems;
+  const phoneMore = phoneNeedsMore ? phoneItems.slice(3) : [];
+  const phoneMoreActive = phoneMore.some((item) => isActive(pathname, item));
+  /** The four side slots, left to right; null is an empty slot (keeps the action centred). */
+  const phoneSlots: (NavItem | "more" | null)[] = [...phoneShown, ...(phoneNeedsMore ? (["more"] as const) : [])];
+  while (phoneSlots.length < 4) phoneSlots.push(null);
 
   const companyBlock = (
     <span className="min-w-0">
@@ -409,11 +421,11 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
 
       {/* ---------- Phone bottom bar ---------- */}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t bg-dock pb-safe md:hidden">
-        <ul className="flex h-bottomnav items-stretch pl-safe pr-safe">
-          {[home, barPrimary[0]].filter(Boolean).map((item) => (
-            <BarItem key={item!.id} item={item!} active={isActive(pathname, item!)} />
+        <ul className="grid h-bottomnav grid-cols-5 items-stretch pl-safe pr-safe">
+          {phoneSlots.slice(0, 2).map((slot, index) => (
+            <PhoneSlot key={index} slot={slot} pathname={pathname} more={phoneMore} moreActive={phoneMoreActive} />
           ))}
-          <li className="flex flex-1 justify-center">
+          <li className="flex justify-center">
             <a
               href={scan.href}
               aria-label={scan.label}
@@ -422,32 +434,42 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
               <Icon name={scan.icon ?? "scan"} className="size-7" />
             </a>
           </li>
-          {barPrimary[1] && <BarItem item={barPrimary[1]} active={isActive(pathname, barPrimary[1])} />}
-          <li className="flex-1">
-            <MoreSheet
-              items={compactMore}
-              triggerClassName={cn(
-                "flex h-full w-full flex-col items-center justify-center gap-0.5 border-t-[3px] text-xs",
-                moreActive ? "border-nav-active font-bold text-nav-active" : "border-transparent font-medium text-nav-foreground",
-              )}
-              trigger={
-                <>
-                  <Icon name="more" className="size-6" />
-                  More
-                </>
-              }
-            />
-          </li>
+          {phoneSlots.slice(2).map((slot, index) => (
+            <PhoneSlot key={index + 2} slot={slot} pathname={pathname} more={phoneMore} moreActive={phoneMoreActive} />
+          ))}
         </ul>
       </nav>
     </div>
   );
 }
 
+/** One side slot of the phone bar: a menu item, More, or empty (so the action button stays centred). */
+function PhoneSlot({ slot, pathname, more, moreActive }: { slot: NavItem | "more" | null; pathname: string; more: NavItem[]; moreActive: boolean }) {
+  if (slot === null) return <li aria-hidden />;
+  if (slot !== "more") return <BarItem item={slot} active={isActive(pathname, slot)} />;
+  return (
+    <li>
+      <MoreSheet
+        items={more}
+        triggerClassName={cn(
+          "flex h-full w-full flex-col items-center justify-center gap-0.5 border-t-[3px] text-xs",
+          moreActive ? "border-nav-active font-bold text-nav-active" : "border-transparent font-medium text-nav-foreground",
+        )}
+        trigger={
+          <>
+            <Icon name="more" className="size-6" />
+            More
+          </>
+        }
+      />
+    </li>
+  );
+}
+
 /** Phone bar item: yellow bar across the top of the active item. */
 function BarItem({ item, active }: { item: NavItem; active: boolean }) {
   return (
-    <li className="flex-1">
+    <li className="min-w-0">
       <a
         href={item.href}
         aria-current={active ? "page" : undefined}
