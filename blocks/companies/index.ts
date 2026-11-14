@@ -7,6 +7,9 @@ export {
   isSolo,
   defaultCompanyId,
   hasAnyMembership,
+  inviteByLink,
+  acceptInviteLink,
+  type InviteByLink,
   type CompanyAccess,
 } from "./service";
 export {

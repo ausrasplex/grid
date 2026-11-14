@@ -15,7 +15,8 @@ import {
   type RequestContext,
   type SystemRole,
 } from "@grid/core";
-import { audit, db, type Prisma, type Tx } from "@grid/db";
+import { createHash, randomBytes } from "node:crypto";
+import { audit, db, decryptSecret, encryptSecret, type Prisma, type Tx } from "@grid/db";
 import { ensureUser } from "@grid/block-users";
 import { TRADE_PRESETS, startingBlocks } from "./presets";
 import type { CreateCompanyInput, InviteInput, RoleInput, UpdateCompanyInput } from "./validation";
@@ -205,7 +206,18 @@ export async function listMembers(ctx: RequestContext) {
     },
     orderBy: { user: { name: "asc" } },
   });
-  return rows.map((row) => ({ membershipId: row.id, status: row.status, user: row.user, role: row.role, since: row.createdAt }));
+  // Join links only for people who may invite.
+  const canInvite = ctx.permissions.has("companies.members.invite");
+  return rows.map((row) => ({
+    membershipId: row.id,
+    status: row.status,
+    user: row.user,
+    role: row.role,
+    since: row.createdAt,
+    ...(canInvite && row.status === "INVITED"
+      ? { invitePath: row.inviteExpiresAt && row.inviteExpiresAt > new Date() ? invitePathOf(row) : null, inviteExpiresAt: row.inviteExpiresAt }
+      : {}),
+  }));
 }
 
 async function companyRole(tx: Tx, companyId: string, roleId: string) {
@@ -231,6 +243,88 @@ async function assertKeepsAnOwner(tx: Tx, companyId: string, losingMembershipId:
   if (owners === 0) throw conflict("A company needs at least one Owner. Make someone else an Owner first.");
 }
 
+// ---------------------------------------------------------------------
+// Join links: every invite has one (/join/<token>), so an Owner can send it
+// by text or WhatsApp when the server has no email set up.
+// ---------------------------------------------------------------------
+
+/** How long a join link works. A new one can be made on Members any time. */
+const INVITE_DAYS = 14;
+
+const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+/** A fresh join link: the token to put in the link, and what's stored. */
+function newInviteToken() {
+  const token = randomBytes(24).toString("base64url");
+  return {
+    token,
+    stored: { inviteTokenHash: hashToken(token), inviteTokenEnc: encryptSecret(token), inviteExpiresAt: new Date(Date.now() + INVITE_DAYS * 86_400_000) },
+  };
+}
+
+/** "/join/<token>", or null when the link is used up or gone. */
+function invitePathOf(membership: { status: string; inviteTokenEnc: string | null }) {
+  if (membership.status !== "INVITED" || !membership.inviteTokenEnc) return null;
+  try {
+    return `/join/${decryptSecret(membership.inviteTokenEnc)}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Makes a new join link for an invite (the old one stops working). */
+export async function renewInviteLink(ctx: RequestContext, membershipId: string) {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    const membership = await tx.membership.findFirst({ where: { id: membershipId, companyId, status: "INVITED" } });
+    if (!membership) throw notFound("Invite not found");
+    const { token, stored } = newInviteToken();
+    await tx.membership.update({ where: { id: membershipId }, data: stored });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Membership", entityId: membershipId, action: "invite_link_renewed" });
+    return { invitePath: `/join/${token}`, inviteExpiresAt: stored.inviteExpiresAt };
+  });
+}
+
+export interface InviteByLink {
+  membershipId: string;
+  companyId: string;
+  companyName: string;
+  roleName: string;
+  userId: string;
+  email: string;
+  name: string;
+  invitedBy: string | null;
+}
+
+/** What a join link is for, or null if it's wrong, used or out of date. Needs no sign-in. */
+export async function inviteByLink(token: string): Promise<InviteByLink | null> {
+  if (!token || token.length > 100) return null;
+  const membership = await db.membership.findUnique({
+    where: { inviteTokenHash: hashToken(token) },
+    include: { company: { select: { name: true } }, role: { select: { name: true } }, user: { select: { id: true, email: true, name: true } } },
+  });
+  if (!membership || membership.status !== "INVITED" || !membership.inviteExpiresAt || membership.inviteExpiresAt < new Date()) return null;
+  const inviter = membership.invitedBy ? await db.user.findUnique({ where: { id: membership.invitedBy }, select: { name: true } }) : null;
+  return {
+    membershipId: membership.id,
+    companyId: membership.companyId,
+    companyName: membership.company.name,
+    roleName: membership.role.name,
+    userId: membership.user.id,
+    email: membership.user.email,
+    name: membership.user.name,
+    invitedBy: inviter?.name ?? null,
+  };
+}
+
+/** The invited person (signed in as themselves) uses the join link: they're in. */
+export async function acceptInviteLink(userId: string, token: string) {
+  const invite = await inviteByLink(token);
+  if (!invite) throw notFound("This invite link has expired or was already used. Ask for a new one.");
+  if (invite.userId !== userId) throw forbidden(`This invite is for ${invite.email}. Sign in as them to accept it.`);
+  return respondToInvite(userId, invite.membershipId, true);
+}
+
 export async function inviteMember(ctx: RequestContext, input: InviteInput) {
   const companyId = requireCompany(ctx);
   const result = await db.$transaction(async (tx) => {
@@ -242,13 +336,14 @@ export async function inviteMember(ctx: RequestContext, input: InviteInput) {
     if (existing && existing.status !== "REMOVED") {
       throw conflict(existing.status === "ACTIVE" ? "Already a member" : "Already invited");
     }
+    const { token, stored } = newInviteToken();
     const membership = existing
       ? await tx.membership.update({
           where: { id: existing.id },
-          data: { status: "INVITED", roleId: role.id, invitedBy: ctx.userId },
+          data: { status: "INVITED", roleId: role.id, invitedBy: ctx.userId, ...stored },
         })
       : await tx.membership.create({
-          data: { userId: user.id, companyId, roleId: role.id, status: "INVITED", invitedBy: ctx.userId },
+          data: { userId: user.id, companyId, roleId: role.id, status: "INVITED", invitedBy: ctx.userId, ...stored },
         });
     await audit(tx, {
       blockId: MOD,
@@ -259,7 +354,7 @@ export async function inviteMember(ctx: RequestContext, input: InviteInput) {
       action: "invited",
       diff: { email: user.email, role: role.name },
     });
-    return { membershipId: membership.id, userId: user.id, email: user.email, role: role.name };
+    return { membershipId: membership.id, userId: user.id, email: user.email, role: role.name, invitePath: `/join/${token}`, inviteExpiresAt: stored.inviteExpiresAt };
   });
   // Stage 6 (notifications/email) listens to this to send the invite email.
   await emit("companies.member.invited", { companyId, ...result, invitedBy: ctx.userId }, ctx);
@@ -273,7 +368,8 @@ export async function respondToInvite(userId: string, membershipId: string, acce
     if (!membership) throw notFound("Invite not found");
     const updated = await tx.membership.update({
       where: { id: membership.id },
-      data: { status: accept ? "ACTIVE" : "REMOVED" },
+      // The join link is used up either way.
+      data: { status: accept ? "ACTIVE" : "REMOVED", inviteTokenHash: null, inviteTokenEnc: null, inviteExpiresAt: null },
     });
     await audit(tx, {
       blockId: MOD,

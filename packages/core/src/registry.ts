@@ -19,7 +19,7 @@ import { EventBus, type EnabledCheck } from "./events.ts";
  * for its pages (block pages live at /<address>/..., docs/navigation.md §8).
  */
 export const RESERVED_ADDRESSES: ReadonlySet<string> = new Set([
-  "api", "b", "p", "q", "go", "verify", "scan", "settings", "sign-in", "setup", "reset-password",
+  "api", "b", "p", "q", "go", "verify", "scan", "settings", "sign-in", "setup", "reset-password", "join",
   "icon", "apple-icon", "manifest.webmanifest", "favicon.ico", "_next",
 ]);
 

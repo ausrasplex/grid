@@ -39,6 +39,8 @@ export const routes: Routes = {
   },
 
   "GET /current/members": { permission: "companies.members.view", handler: (ctx) => svc.listMembers(ctx) },
+  // A new join link for an invite (the old one stops working).
+  "POST /current/members/:membershipId/link": { permission: "companies.members.invite", handler: (ctx, request) => svc.renewInviteLink(ctx, request.params.membershipId!) },
   "POST /current/members": {
     permission: "companies.members.invite",
     handler: (ctx, request) => svc.inviteMember(ctx, inviteSchema.parse(request.body)),

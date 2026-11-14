@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Phone, UserPlus } from "lucide-react";
+import { Check, Copy, Link2, Mail, Phone, Share2, UserPlus } from "lucide-react";
 import {
   ActionButton,
   Alert,
@@ -30,6 +30,8 @@ interface Member {
   status: "ACTIVE" | "INVITED";
   user: { id: string; name: string; email: string; phone: string | null };
   role: { id: string; name: string; systemRole: string | null };
+  /** Invited: their join link ("/join/…"), or null when it has run out. Only for people who may invite. */
+  invitePath?: string | null;
 }
 interface RoleList {
   roles: { id: string; name: string; systemRole: string | null }[];
@@ -45,6 +47,8 @@ export function Members({ canInvite, canManage, myUserId }: { canInvite: boolean
   const action = useAction();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [selected, setSelected] = useState<Member | null>(null);
+  /** The invited person whose join link is showing (tablet and up). */
+  const [linkFor, setLinkFor] = useState<Member | null>(null);
 
   const list = members.data ?? [];
   const invited = list.filter((item) => item.status === "INVITED").length;
@@ -127,8 +131,15 @@ export function Members({ canInvite, canManage, myUserId }: { canInvite: boolean
                       </>
                     }
                     actions={
-                      canManage ? (
+                      canManage || (canInvite && item.status === "INVITED") ? (
                         <>
+                          {canInvite && item.status === "INVITED" && (
+                            <Button variant="outline" onClick={() => setLinkFor(item)}>
+                              <Link2 /> Invite link
+                            </Button>
+                          )}
+                          {canManage && (
+                          <>
                           <NativeSelect
                             aria-label={`Role for ${item.user.name}`}
                             value={item.role.id}
@@ -140,6 +151,8 @@ export function Members({ canInvite, canManage, myUserId }: { canInvite: boolean
                           <Button variant="outline" className="text-destructive" disabled={action.busy} onClick={() => void remove(item)}>
                             Remove
                           </Button>
+                          </>
+                          )}
                         </>
                       ) : undefined
                     }
@@ -149,6 +162,16 @@ export function Members({ canInvite, canManage, myUserId }: { canInvite: boolean
             </div>
           </Section>
         </div>
+      )}
+
+      {linkFor && (
+        <Sheet open onOpenChange={(open) => !open && setLinkFor(null)}>
+          <SheetContent title={`Invite link for ${linkFor.user.name}`} description="Send it by text, WhatsApp or however you like. Opening it lets them set a password and join.">
+            <div className="px-2">
+              <InviteLink membershipId={linkFor.membershipId} path={linkFor.invitePath ?? null} name={linkFor.user.name} onRenewed={() => void members.reload()} />
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
 
       {canInvite && (
@@ -165,6 +188,8 @@ export function Members({ canInvite, canManage, myUserId }: { canInvite: boolean
         member={selected}
         onClose={() => setSelected(null)}
         canManage={canManage}
+        canInvite={canInvite}
+        onRenewed={() => void members.reload()}
         roleOptions={roleOptions}
         busy={action.busy}
         error={action.error}
@@ -176,6 +201,69 @@ export function Members({ canInvite, canManage, myUserId }: { canInvite: boolean
         }}
       />
     </>
+  );
+}
+
+/**
+ * An invited person's join link, to copy or share by hand (handy when the
+ * server has no email). "Make a new link" replaces it (the old one stops working).
+ */
+function InviteLink({ membershipId, path, name, onRenewed }: { membershipId: string; path: string | null; name: string; onRenewed: () => void }) {
+  const [current, setCurrent] = useState(path);
+  const [copied, setCopied] = useState(false);
+  const renew = useAction();
+  const url = current && typeof window !== "undefined" ? `${window.location.origin}${current}` : null;
+  const canShare = typeof navigator !== "undefined" && "share" in navigator;
+  return (
+    <div className="flex flex-col gap-2">
+      {url ? (
+        <>
+          <input
+            readOnly
+            aria-label={`Invite link for ${name}`}
+            value={url}
+            onFocus={(event) => event.target.select()}
+            className="h-touch w-full rounded-md border border-input bg-card px-3 font-mono text-sm"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={async () => {
+                await navigator.clipboard.writeText(url).catch(() => undefined);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+            >
+              {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy link"}
+            </Button>
+            {canShare && (
+              <Button type="button" variant="outline" onClick={() => void navigator.share({ title: "Join on Grid", text: `${name}, here's your invite to Grid:`, url }).catch(() => undefined)}>
+                <Share2 /> Share
+              </Button>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">This link has run out. Make a new one to send.</p>
+      )}
+      <Alert variant="error">{renew.error}</Alert>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="self-start"
+        disabled={renew.busy}
+        onClick={async () => {
+          const result = await renew.run(() => api<{ invitePath: string }>(`/companies/current/members/${membershipId}/link`, { body: {} }));
+          if (result) {
+            setCurrent(result.invitePath);
+            onRenewed();
+          }
+        }}
+      >
+        {renew.busy ? "Making…" : "Make a new link"}
+      </Button>
+    </div>
   );
 }
 
@@ -196,25 +284,41 @@ function InviteSheet({
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [roleId, setRoleId] = useState("");
+  /** Just invited: show their join link to send. */
+  const [sent, setSent] = useState<{ membershipId: string; path: string; name: string } | null>(null);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={(value) => (onOpenChange(value), !value && setSent(null))}>
       <SheetContent
-        title="Invite someone"
-        description="They'll be asked to accept next time they sign in."
+        title={sent ? `Send ${sent.name} their link` : "Invite someone"}
+        description={
+          sent
+            ? "Send it by text, WhatsApp or however you like. Opening it lets them set a password and join. It works for 14 days; you can find it again on Members."
+            : "You'll get a link to send them. They can also accept next time they sign in."
+        }
         className="md:bottom-6 md:mx-auto md:max-w-md md:rounded-2xl md:border"
       >
+        {sent ? (
+          <div className="flex flex-col gap-4 px-2">
+            <InviteLink membershipId={sent.membershipId} path={sent.path} name={sent.name} onRenewed={onInvited} />
+            <FormActions>
+              <Button size="lg" onClick={() => (setSent(null), onOpenChange(false))}>
+                Done
+              </Button>
+            </FormActions>
+          </div>
+        ) : (
         <form
           className="flex flex-col gap-4 px-2"
           onSubmit={async (event) => {
             event.preventDefault();
-            const ok = await invite.run(() =>
-              api("/companies/current/members", { body: { email, name: name || undefined, roleId: roleId || defaultRole } }),
+            const result = await invite.run(() =>
+              api<{ membershipId: string; invitePath: string }>("/companies/current/members", { body: { email, name: name || undefined, roleId: roleId || defaultRole } }),
             );
-            if (ok) {
+            if (result) {
+              setSent({ membershipId: result.membershipId, path: result.invitePath, name: name.trim() || email });
               setEmail("");
               setName("");
-              onOpenChange(false);
               onInvited();
             }
           }}
@@ -233,10 +337,11 @@ function InviteSheet({
           <Alert variant="error">{invite.error}</Alert>
           <FormActions>
             <Button type="submit" size="lg" disabled={invite.busy}>
-              {invite.busy ? "Sending…" : "Send invite"}
+              {invite.busy ? "Inviting…" : "Invite"}
             </Button>
           </FormActions>
         </form>
+        )}
       </SheetContent>
     </Sheet>
   );
@@ -252,10 +357,14 @@ function MemberSheet({
   error,
   onChangeRole,
   onRemove,
+  canInvite,
+  onRenewed,
 }: {
   member: Member | null;
   onClose: () => void;
   canManage: boolean;
+  canInvite: boolean;
+  onRenewed: () => void;
   roleOptions: RoleOption[];
   busy: boolean;
   error: string | null;
@@ -298,6 +407,12 @@ function MemberSheet({
               )}
             </div>
             <p className="truncate px-1 text-sm text-muted-foreground">{shown.user.email}</p>
+            {canInvite && shown.status === "INVITED" && (
+              <div className="flex flex-col gap-2 rounded-lg bg-muted/50 p-3">
+                <p className="text-sm font-medium">Invite link</p>
+                <InviteLink membershipId={shown.membershipId} path={shown.invitePath ?? null} name={shown.user.name} onRenewed={onRenewed} />
+              </div>
+            )}
 
             {canManage && (
               <>

@@ -63,6 +63,12 @@ model Membership {
   roleId    String
   status    MembershipStatus @default(INVITED)
   invitedBy String?
+  /// The invite's join link (/join/<token>), for sending by hand when the
+  /// server has no email. The hash finds it; the encrypted copy lets the
+  /// Owner see and copy the link again. Cleared once used.
+  inviteTokenHash String?   @unique
+  inviteTokenEnc  String?
+  inviteExpiresAt DateTime?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
