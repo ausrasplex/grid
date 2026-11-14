@@ -12,7 +12,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { app, can } from "@grid/core";
 import { Icon, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
-import { getProject, type JobAreaPanelProps, type LevelStartPanelProps } from "@grid/block-projects";
+import { getProject, type JobAreaPanelProps, type PlaceStartPanelProps } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import { getClient } from "@grid/block-clients";
 import { getQuote, getTaxSettings, listPriceItems, listQuotes, quoteForJob } from "../service";
@@ -37,7 +37,7 @@ export const pages: BlockPages = {
     return <QuotesList initial={json<QuoteRowJson[]>(rows)} currency={settings.currency} locale={settings.locale} canCreate={can(ctx, "quotes.create")} />;
   },
 
-  // /quotes/new, /quotes/new/<job>, or /quotes/new/at/<site>/<building>/<level> (from an empty floor).
+  // /quotes/new, /quotes/new/<job>, or /quotes/new/at/<site>/<building>[/<level>] (from an empty building or floor).
   new: async ({ ctx, params }) => {
     if (!can(ctx, "quotes.create")) return <p>You can&apos;t write quotes.</p>;
     if (params[0] === "at" && params[1]) {
@@ -87,12 +87,12 @@ export const pages: BlockPages = {
 };
 
 export const panels: BlockPanels = {
-  // On an empty floor: "Add quote", with the site, building and floor filled in.
-  "level.start": async (props) => {
-    const { ctx, siteId, buildingId, levelId } = props as typeof props & LevelStartPanelProps;
+  // On an empty building or floor: "Add quote", with the place filled in.
+  "place.start": async (props) => {
+    const { ctx, siteId, buildingId, levelId } = props as typeof props & PlaceStartPanelProps;
     if (!can(ctx, "quotes.create")) return null;
     return (
-      <a href={`/quotes/new/at/${siteId}/${buildingId}/${levelId}`} className={cn(buttonVariants({ size: "lg", variant: "outline" }), "w-full sm:w-auto")}>
+      <a href={`/quotes/new/at/${siteId}/${buildingId}${levelId ? `/${levelId}` : ""}`} className={cn(buttonVariants({ size: "lg", variant: "outline" }), "w-full sm:w-auto")}>
         <Icon name="dollar" /> Add quote
       </a>
     );

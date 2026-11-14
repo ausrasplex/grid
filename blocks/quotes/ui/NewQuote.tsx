@@ -12,7 +12,7 @@ export function NewQuote({
   canAddClient,
 }: {
   job: { id: string; name: string; address: string } | null;
-  /** Started from an empty floor: where the job will go if it's accepted. */
+  /** Started from an empty building or floor: where the job will go if it's accepted. */
   place?: { siteId: string; buildingId: string | null; levelId: string | null; label: string; address: string };
   /** The job's client, to start with. */
   client: ClientJson | null;

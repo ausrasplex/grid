@@ -40,7 +40,7 @@ Suggested placement: after stage 4 (markups), so take-offs work; quick quotes do
 - Foremen see only quotes they drafted, and only the fields the company allows (cost/margin hidden from them by default).
 - Pricing never flows up or down the contract chain except to the party being quoted.
 
-- **Quote from a floor (decided Nov 2026):** **Add quote** on an empty floor opens `/quotes/new/at/<site>/<building>/<level>`. The quote keeps `siteId`, `buildingId` and `levelId` (site address filled in), and when it is accepted the job is made on that site covering that floor, instead of from the address. If the floor has since been deleted, the job covers the whole building; if the building or site has gone, the job is made from the address as usual.
+- **Quote from a floor (decided Nov 2026):** **Add quote** on an empty building or floor opens `/quotes/new/at/<site>/<building>[/<level>]`. The quote keeps `siteId`, `buildingId` and `levelId` (site address filled in), and when it is accepted the job is made on that site covering that floor (or the whole building), instead of from the address. If the floor has since been deleted, the job covers the whole building; if the building or site has gone, the job is made from the address as usual.
 
 ## 1. Clients
 

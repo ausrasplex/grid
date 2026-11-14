@@ -28,15 +28,16 @@ export interface JobAreaPanelProps {
 }
 
 /**
- * Props for the "level.start" panel slot: the empty-floor section
- * ("Nothing here yet: Add job / Add quote"). Other Blocks add their own
- * start button for this exact place (Quotes adds "Add quote").
+ * Props for the "place.start" panel slot: the section on an empty building
+ * or floor ("Nothing here yet: Add job / Add quote"). Other Blocks add their
+ * own start button for this exact place (Quotes adds "Add quote").
  */
-export interface LevelStartPanelProps {
+export interface PlaceStartPanelProps {
   siteId: string;
   buildingId: string;
-  levelId: string;
-  /** "Level 3 · Building A". */
+  /** A floor, or null for the whole building. */
+  levelId: string | null;
+  /** "Level 3 · Building A", or "Building A". */
   place: string;
 }
 

@@ -15,7 +15,7 @@ import { SiteNotes } from "@grid/block-sites/components";
 import { getClient } from "@grid/block-clients";
 import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
 import { getProject, jobsAt, recordArea, resumeOnSite, type Area } from "../service";
-import type { LevelStartPanelProps } from "../index";
+import type { PlaceStartPanelProps } from "../index";
 import { CopyLink, FinishJob } from "./JobActions";
 import { JobRows } from "./JobRows";
 import { JobSettings } from "./JobSettings";
@@ -136,7 +136,7 @@ function BuildingsSection({ site, counts }: { site: SiteStructure; counts: Recor
   );
 }
 
-async function BuildingPage({ ctx, siteId, buildingId }: { ctx: RequestContext; siteId: string; buildingId: string }) {
+async function BuildingPage({ ctx, siteId, buildingId, panels }: { ctx: RequestContext; siteId: string; buildingId: string; panels: PanelRenderer }) {
   const { site, active, earlier, counts } = await jobsAt(ctx, { siteId, buildingId });
   const building = site.buildings.find((building) => building.id === buildingId);
   if (!building) throw notFound("Building not found");
@@ -147,7 +147,11 @@ async function BuildingPage({ ctx, siteId, buildingId }: { ctx: RequestContext; 
       <PageHeader title={building.name} meta={site.name} />
       <Stack>
         {building.kind === "MULTI" && <BuildingsSection site={{ ...site, buildings: [building] }} counts={counts} />}
-        <JobRows title="Current jobs" jobs={active} empty={`No active jobs in ${building.name}`} />
+        {active.length > 0 ? (
+          <JobRows title="Current jobs" jobs={active} />
+        ) : (
+          <StartHere ctx={ctx} panels={panels} place={{ siteId, buildingId, levelId: null, place: building.name }} />
+        )}
         {earlier.length > 0 && <JobRows title="Finished here" jobs={earlier} />}
       </Stack>
     </>
@@ -197,19 +201,23 @@ async function LevelPage({
 }
 
 /**
- * An empty floor: start work right here. "Add job" opens New job with the
- * site, building and floor already picked; other Blocks add their own
- * button through the "level.start" panel (Quotes: "Add quote").
+ * An empty building or floor: start work right here. "Add job" opens New job
+ * with the site, building (and floor) already picked; other Blocks add their
+ * own button through the "place.start" panel (Quotes: "Add quote").
  */
-async function StartHere({ ctx, panels, place }: { ctx: RequestContext; panels: PanelRenderer; place: LevelStartPanelProps }) {
-  const others = await panels("level.start", { ...place });
+async function StartHere({ ctx, panels, place }: { ctx: RequestContext; panels: PanelRenderer; place: PlaceStartPanelProps }) {
+  const others = await panels("place.start", { ...place });
   const canStart = can(ctx, "projects.create");
+  const where = place.levelId ? "site, building and floor" : "site and building";
   return (
-    <Section title={`Nothing on ${place.place} yet`} description={canStart || others.length ? "Start here: the site, building and floor are filled in for you." : "No active jobs on this level."}>
+    <Section
+      title={`Nothing ${place.levelId ? "on" : "in"} ${place.place} yet`}
+      description={canStart || others.length ? `Start here: the ${where} are filled in for you.` : `No active jobs ${place.levelId ? "on this level" : "in this building"}.`}
+    >
       {(canStart || others.length > 0) && (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {canStart && (
-            <a href={`/jobs/new/${place.siteId}/${place.buildingId}/${place.levelId}`} className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}>
+            <a href={`/jobs/new/${place.siteId}/${place.buildingId}${place.levelId ? `/${place.levelId}` : ""}`} className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}>
               <Icon name="plus" /> Add job
             </a>
           )}
@@ -400,7 +408,7 @@ export const pages: BlockPages = {
     if (!siteId) redirect("/sites");
     if (buildingId === "resume") redirect(await resumeOnSite(ctx, siteId));
     if (buildingId && levelId) return <LevelPage ctx={ctx} siteId={siteId} buildingId={buildingId} levelId={levelId} all={mode === "all"} panels={panels} />;
-    if (buildingId) return <BuildingPage ctx={ctx} siteId={siteId} buildingId={buildingId} />;
+    if (buildingId) return <BuildingPage ctx={ctx} siteId={siteId} buildingId={buildingId} panels={panels} />;
     return <SitePage ctx={ctx} siteId={siteId} />;
   },
 
