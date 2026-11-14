@@ -6,7 +6,7 @@ export { describeDevice } from "./lib/devices";
 export { Button, buttonVariants, type ButtonProps } from "./components/button";
 export { Input } from "./components/input";
 export { Label } from "./components/label";
-export { NativeSelect } from "./components/native-select";
+export { NativeSelect, type NativeSelectProps, type SelectOption, type SelectChange } from "./components/native-select";
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "./components/card";
 export { Badge, badgeVariants } from "./components/badge";
 export { Alert } from "./components/alert";

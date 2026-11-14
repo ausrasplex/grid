@@ -2,10 +2,10 @@
 
 // Labelled form fields. Labels sit above inputs (easier to read on narrow
 // screens than side-by-side), hints and errors sit below.
-import { useId, type InputHTMLAttributes, type SelectHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes } from "react";
 import { Input } from "./components/input";
 import { Label } from "./components/label";
-import { NativeSelect } from "./components/native-select";
+import { NativeSelect, type NativeSelectProps } from "./components/native-select";
 
 interface FieldExtras {
   label: string;
@@ -39,14 +39,14 @@ export function SelectField({
   id,
   options,
   ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & FieldExtras & { options: { value: string; label: string }[] }) {
+}: Omit<NativeSelectProps, "aria-describedby"> & FieldExtras) {
   const auto = useId();
   const selectId = id ?? auto;
   const helpId = `${selectId}-help`;
   return (
     <div className="flex flex-col gap-2 lg:max-w-2xl">
       <Label htmlFor={selectId}>{label}</Label>
-      <NativeSelect id={selectId} options={options} aria-describedby={hint || error ? helpId : undefined} {...props} />
+      <NativeSelect id={selectId} options={options} aria-describedby={hint || error ? helpId : undefined} aria-invalid={!!error || undefined} {...props} />
       <Help id={helpId} hint={hint} error={error} />
     </div>
   );

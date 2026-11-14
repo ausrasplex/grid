@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Loader2, Upload } from "lucide-react";
-import { ActionButton, Alert, Badge, Button, EmptyState, PageHeader, SearchInput, Sheet, SheetContent, Stack, api, cn } from "@grid/ui";
+import { ActionButton, Alert, Badge, Button, EmptyState, NativeSelect, PageHeader, SearchInput, Sheet, SheetContent, Stack, api, cn } from "@grid/ui";
 import { disciplineName } from "../parse";
 
 export interface SheetRowJson {
@@ -293,22 +293,17 @@ function ImportReview({ projectId, rows: initial, onClose, onDone }: { projectId
                   Title
                   <input value={row.title} onChange={(event) => set(index, { title: event.target.value })} className="h-touch w-full min-w-0 rounded-md border border-input bg-card px-2 text-base" aria-label={`Title for ${row.fileName}`} />
                 </label>
-                <select
+                <NativeSelect
                   value={row.action}
                   onChange={(event) => set(index, { action: event.target.value as PreviewRow["action"] })}
-                  className="h-touch rounded-md border border-input bg-card px-2 text-sm"
                   aria-label={`What to do with ${row.fileName}`}
-                >
-                  {row.sheetId ? (
-                    <option value="revise">
-                      New revision of {row.existing?.number}
-                      {row.existing?.revision ? ` (now Rev ${row.existing.revision})` : ""}
-                    </option>
-                  ) : (
-                    <option value="new">New sheet</option>
-                  )}
-                  <option value="skip">Skip</option>
-                </select>
+                  options={[
+                    row.sheetId
+                      ? { value: "revise", label: `New revision of ${row.existing?.number ?? ""}${row.existing?.revision ? ` (now Rev ${row.existing.revision})` : ""}` }
+                      : { value: "new", label: "New sheet" },
+                    { value: "skip", label: "Skip" },
+                  ]}
+                />
                 {row.reason && <p className="text-xs text-muted-foreground">{row.reason}</p>}
               </li>
             ))}
