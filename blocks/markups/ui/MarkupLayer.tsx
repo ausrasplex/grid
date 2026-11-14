@@ -560,7 +560,9 @@ function MarkupShape({ markup, draft }: { markup: Drawable; draft?: boolean }) {
     case "PEN":
       return <path d={polylinePath(markup.points)} {...line} />;
     case "HIGHLIGHT":
-      return <path d={polylinePath(markup.points)} {...line} strokeOpacity={0.4} style={{ mixBlendMode: "multiply" }} />;
+      // Plain see-through ink. No "multiply" blend: blending SVG over the plan's
+      // WebGL canvas makes tablets re-blend every frame, and it flickers.
+      return <path d={polylinePath(markup.points)} {...line} strokeOpacity={0.4} />;
     case "LINE":
       return <path d={polylinePath([first, second ?? first])} {...line} />;
     case "ARROW": {
