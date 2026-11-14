@@ -5,7 +5,7 @@ export default defineBlock({
   name: "Quotes",
   version: "1.0.0",
   description: "Quick quotes from your phone with a price book, your logo on a proper PDF, emailed to the client. Accepted quotes become jobs.",
-  dependsOn: ["clients", "projects", "templates", "signatures"],
+  dependsOn: ["clients", "sites", "projects", "templates", "signatures"],
   permissions: [
     { key: "quotes.view", label: "See quotes" },
     { key: "quotes.create", label: "Write quotes", description: "Draft and change quotes" },

@@ -62,6 +62,10 @@ export const createQuoteSchema = z
     clientId: uuid.nullable().optional(),
     siteAddress: optText(300),
     projectId: uuid.nullable().optional(),
+    /** Started from a floor: the site, building and level (the job goes there). */
+    siteId: uuid.nullable().optional(),
+    buildingId: uuid.nullable().optional(),
+    levelId: uuid.nullable().optional(),
   })
   .strict();
 

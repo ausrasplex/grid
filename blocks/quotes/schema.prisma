@@ -91,6 +91,11 @@ model Quote {
   /// Who it's for: a Client (clients block).
   clientId         String?
   siteAddress      String?
+  /// Where it is, when it was started from a site, building or floor: the
+  /// job it becomes goes there (covering that building or floor).
+  siteId           String?
+  buildingId       String?
+  levelId          String?
   status           QuoteStatus     @default(DRAFT)
   clientView       QuoteClientView @default(ITEMISED)
   pricesIncludeTax Boolean

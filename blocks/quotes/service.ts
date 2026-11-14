@@ -8,6 +8,7 @@
 import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db, readStoredFile, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
 import { createProject } from "@grid/block-projects";
+import { getSite } from "@grid/block-sites";
 import { clientIdsNamed, clientsById, requireClient, type ClientRow } from "@grid/block-clients";
 import { createSignRequest, latestSignRequest, maskEmail, revokeSignRequests } from "@grid/block-signatures";
 import { calculate, formatMoney, type LineInput } from "./money";
@@ -264,13 +265,18 @@ export async function createQuote(ctx: RequestContext, input: CreateQuoteInput) 
   const quote = await db.$transaction(async (tx) => {
     const settings = await taxSettings(companyId, tx);
     const client = input.clientId ? await requireClient(tx, companyId, input.clientId) : null;
+    // Started from a floor: check the place, and use the site's address unless one was typed.
+    const place = input.siteId ? await placeFor(ctx, input.siteId, input.buildingId ?? null, input.levelId ?? null) : null;
     const quote = await tx.quote.create({
       data: {
         companyId,
         number: await nextNumber(tx, companyId, settings.quotePrefix),
         title: input.title,
         clientId: input.clientId ?? null,
-        siteAddress: input.siteAddress ?? client?.address ?? null,
+        siteAddress: input.siteAddress ?? place?.address ?? client?.address ?? null,
+        siteId: place?.siteId ?? null,
+        buildingId: place?.buildingId ?? null,
+        levelId: place?.levelId ?? null,
         projectId: input.projectId ?? null,
         pricesIncludeTax: settings.pricesIncludeTax,
         validUntil: new Date(Date.now() + settings.validityDays * 86_400_000),
@@ -574,8 +580,38 @@ export async function reopenQuote(ctx: RequestContext, id: string) {
   });
 }
 
-/** Makes the job an accepted quote turns into (at its site address). */
-export async function makeJobFromQuote(ctx: RequestContext, quote: { title: string; number: string; siteAddress: string | null; clientId: string | null }) {
+/** A site, building and floor this company can see (the building and floor are dropped if they're gone). */
+async function placeFor(ctx: RequestContext, siteId: string, buildingId: string | null, levelId: string | null) {
+  const site = await getSite(ctx, siteId);
+  const building = buildingId ? site.buildings.find((candidate) => candidate.id === buildingId) : undefined;
+  const level = building && levelId ? building.levels.find((candidate) => candidate.id === levelId) : undefined;
+  return { siteId: site.id, address: site.address, buildingId: building?.id ?? null, levelId: level?.id ?? null };
+}
+
+/**
+ * Makes the job an accepted quote turns into: on the site, building and
+ * floor it was started from, or else at its site address.
+ */
+export async function makeJobFromQuote(
+  ctx: RequestContext,
+  quote: { title: string; number: string; siteAddress: string | null; clientId: string | null; siteId?: string | null; buildingId?: string | null; levelId?: string | null },
+) {
+  if (quote.siteId) {
+    const place = await placeFor(ctx, quote.siteId, quote.buildingId ?? null, quote.levelId ?? null).catch(() => null);
+    // The floor gone: the job covers the building. The building or site gone: use the address.
+    if (place?.buildingId) {
+      const companyId = requireCompany(ctx);
+      const clientId = quote.clientId ? await requireClient(db, companyId, quote.clientId).then((client) => client.id, () => null) : null;
+      const job = await createProject(ctx, {
+        name: quote.title,
+        clientId,
+        siteId: place.siteId,
+        covers: [{ buildingId: place.buildingId, levelId: place.levelId }],
+        references: [{ label: "Quote", value: quote.number }],
+      });
+      return job.id;
+    }
+  }
   if (!quote.siteAddress) throw badRequest("Add the site address to the quote, so the job knows where it is");
   // The quote's client goes on the job, unless they've since been removed from the list.
   const companyId = requireCompany(ctx);

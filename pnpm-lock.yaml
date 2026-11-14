@@ -314,6 +314,9 @@ importers:
       '@grid/block-signatures':
         specifier: workspace:*
         version: link:../signatures
+      '@grid/block-sites':
+        specifier: workspace:*
+        version: link:../sites
       '@grid/block-templates':
         specifier: workspace:*
         version: link:../templates

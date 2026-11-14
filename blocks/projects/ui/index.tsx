@@ -15,6 +15,7 @@ import { SiteNotes } from "@grid/block-sites/components";
 import { getClient } from "@grid/block-clients";
 import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
 import { getProject, jobsAt, recordArea, resumeOnSite, type Area } from "../service";
+import type { LevelStartPanelProps } from "../index";
 import { CopyLink, FinishJob } from "./JobActions";
 import { JobRows } from "./JobRows";
 import { JobSettings } from "./JobSettings";
@@ -153,7 +154,21 @@ async function BuildingPage({ ctx, siteId, buildingId }: { ctx: RequestContext; 
   );
 }
 
-async function LevelPage({ ctx, siteId, buildingId, levelId, all }: { ctx: RequestContext; siteId: string; buildingId: string; levelId: string; all: boolean }) {
+async function LevelPage({
+  ctx,
+  siteId,
+  buildingId,
+  levelId,
+  all,
+  panels,
+}: {
+  ctx: RequestContext;
+  siteId: string;
+  buildingId: string;
+  levelId: string;
+  all: boolean;
+  panels: PanelRenderer;
+}) {
   const { site, active, earlier, counts } = await jobsAt(ctx, { siteId, buildingId, levelId });
   const building = site.buildings.find((building) => building.id === buildingId);
   const level = building?.levels.find((level) => level.id === levelId);
@@ -166,10 +181,42 @@ async function LevelPage({ ctx, siteId, buildingId, levelId, all }: { ctx: Reque
       <LocationBar site={site} buildings={locBuildings(site, counts)} buildingId={buildingId} levelId={levelId} />
       <PageHeader title={level.name} meta={[level.use, site.buildings.length > 1 ? building.name : null, site.name].filter(Boolean).join(" · ")} />
       <Stack>
-        <JobRows title="Jobs on this level" jobs={active} empty="No active jobs on this level" />
+        {active.length > 0 ? (
+          <JobRows title="Jobs on this level" jobs={active} />
+        ) : (
+          <StartHere
+            ctx={ctx}
+            panels={panels}
+            place={{ siteId, buildingId, levelId, place: site.buildings.length > 1 ? `${level.label} · ${building.name}` : level.label }}
+          />
+        )}
         {earlier.length > 0 && <JobRows title={`Finished here (${earlier.length})`} jobs={earlier} />}
       </Stack>
     </>
+  );
+}
+
+/**
+ * An empty floor: start work right here. "Add job" opens New job with the
+ * site, building and floor already picked; other Blocks add their own
+ * button through the "level.start" panel (Quotes: "Add quote").
+ */
+async function StartHere({ ctx, panels, place }: { ctx: RequestContext; panels: PanelRenderer; place: LevelStartPanelProps }) {
+  const others = await panels("level.start", { ...place });
+  const canStart = can(ctx, "projects.create");
+  return (
+    <Section title={`Nothing on ${place.place} yet`} description={canStart || others.length ? "Start here: the site, building and floor are filled in for you." : "No active jobs on this level."}>
+      {(canStart || others.length > 0) && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {canStart && (
+            <a href={`/jobs/new/${place.siteId}/${place.buildingId}/${place.levelId}`} className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}>
+              <Icon name="plus" /> Add job
+            </a>
+          )}
+          {others}
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -349,18 +396,22 @@ export const pages: BlockPages = {
     return <JobPage ctx={ctx} jobId={jobId} want={null} panels={panels} />;
   },
 
-  site: async ({ ctx, params: [siteId, buildingId, levelId, mode] }) => {
+  site: async ({ ctx, params: [siteId, buildingId, levelId, mode], panels }) => {
     if (!siteId) redirect("/sites");
     if (buildingId === "resume") redirect(await resumeOnSite(ctx, siteId));
-    if (buildingId && levelId) return <LevelPage ctx={ctx} siteId={siteId} buildingId={buildingId} levelId={levelId} all={mode === "all"} />;
+    if (buildingId && levelId) return <LevelPage ctx={ctx} siteId={siteId} buildingId={buildingId} levelId={levelId} all={mode === "all"} panels={panels} />;
     if (buildingId) return <BuildingPage ctx={ctx} siteId={siteId} buildingId={buildingId} />;
     return <SitePage ctx={ctx} siteId={siteId} />;
   },
 
-  new: async ({ ctx, params: [siteId] }) => {
+  // /jobs/new, /jobs/new/<site>, or /jobs/new/<site>/<building>[/<level>] (from an empty floor).
+  new: async ({ ctx, params: [siteId, buildingId, levelId] }) => {
     if (!can(ctx, "projects.create")) return <Alert variant="error">You don't have permission to start jobs.</Alert>;
     const site = siteId ? await getSite(ctx, siteId) : null;
-    return <NewJobForm site={site} clients={clientAccess(ctx)} />;
+    const building = buildingId ? site?.buildings.find((candidate) => candidate.id === buildingId) : undefined;
+    const level = levelId ? building?.levels.find((candidate) => candidate.id === levelId) : undefined;
+    const cover = building ? { buildingId: building.id, levelId: level?.id ?? null } : undefined;
+    return <NewJobForm site={site} cover={cover} clients={clientAccess(ctx)} />;
   },
 
   search: () => <JumpTo />,

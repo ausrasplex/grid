@@ -7,29 +7,40 @@ import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 
 export function NewQuote({
   job,
+  place,
   client: jobClient,
   canAddClient,
 }: {
   job: { id: string; name: string; address: string } | null;
+  /** Started from an empty floor: where the job will go if it's accepted. */
+  place?: { siteId: string; buildingId: string | null; levelId: string | null; label: string; address: string };
   /** The job's client, to start with. */
   client: ClientJson | null;
   canAddClient: boolean;
 }) {
   const [title, setTitle] = useState(job?.name ?? "");
   const [client, setClient] = useState<ClientJson | null>(jobClient);
-  const [address, setAddress] = useState(job?.address ?? "");
-  const [touched, setTouched] = useState(!!job);
+  const [address, setAddress] = useState(job?.address ?? place?.address ?? "");
+  const [touched, setTouched] = useState(!!job || !!place);
   const action = useAction();
   return (
     <>
-      <PageHeader title="New quote" subtitle={job ? `For the job ${job.name}.` : "What it's for and who it's for. You'll add the prices next."} />
+      <PageHeader title="New quote" subtitle={job ? `For the job ${job.name}.` : place ? `At ${place.label}. If it's accepted, the job goes here.` : "What it's for and who it's for. You'll add the prices next."} />
       <Section>
         <form
           className="flex flex-col gap-4"
           onSubmit={async (event) => {
             event.preventDefault();
             const created = await action.run(() =>
-              api<{ id: string }>("/quotes", { body: { title, clientId: client?.id ?? null, siteAddress: address || null, projectId: job?.id ?? null } }),
+              api<{ id: string }>("/quotes", {
+                body: {
+                  title,
+                  clientId: client?.id ?? null,
+                  siteAddress: address || null,
+                  projectId: job?.id ?? null,
+                  ...(place ? { siteId: place.siteId, buildingId: place.buildingId, levelId: place.levelId } : {}),
+                },
+              }),
             );
             if (created) window.location.href = `/quotes/${created.id}`;
           }}

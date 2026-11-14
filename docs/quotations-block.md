@@ -40,6 +40,8 @@ Suggested placement: after stage 4 (markups), so take-offs work; quick quotes do
 - Foremen see only quotes they drafted, and only the fields the company allows (cost/margin hidden from them by default).
 - Pricing never flows up or down the contract chain except to the party being quoted.
 
+- **Quote from a floor (decided Nov 2026):** **Add quote** on an empty floor opens `/quotes/new/at/<site>/<building>/<level>`. The quote keeps `siteId`, `buildingId` and `levelId` (site address filled in), and when it is accepted the job is made on that site covering that floor, instead of from the address. If the floor has since been deleted, the job covers the whole building; if the building or site has gone, the job is made from the address as usual.
+
 ## 1. Clients
 
 - **One list for jobs and quotes (decided Nov 2026).** Clients live in the core `clients` Block (`/clients`, Settings › Clients, API `/api/clients`), not in Quotes, so they work with Quotes switched off. A job's **Client** and a quote's **Client** pick from the same list (or add to it on the spot). Starting a quote from a job starts with the job's client; an accepted quote's client goes on the job it makes. Screens always say "client", never "customer".

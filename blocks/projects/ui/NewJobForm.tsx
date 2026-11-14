@@ -31,12 +31,21 @@ function defaultCovers(site: Site | null): Cover[] {
   return [];
 }
 
-export function NewJobForm({ site, clients }: { site: Site | null; clients: { canPick: boolean; canAdd: boolean } }) {
+export function NewJobForm({
+  site,
+  cover,
+  clients,
+}: {
+  site: Site | null;
+  /** Already picked (from an empty floor's "Add job"). */
+  cover?: Cover;
+  clients: { canPick: boolean; canAdd: boolean };
+}) {
   const [name, setName] = useState("");
   const [client, setClient] = useState<ClientJson | null>(null);
   const [jobNumber, setJobNumber] = useState("");
   const [address, setAddress] = useState("");
-  const [covers, setCovers] = useState<Cover[]>(defaultCovers(site));
+  const [covers, setCovers] = useState<Cover[]>(cover ? [cover] : defaultCovers(site));
   const [check, setCheck] = useState<AddressCheck | null>(null);
   const action = useAction();
 

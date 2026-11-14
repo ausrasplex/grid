@@ -11,8 +11,9 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { app, can } from "@grid/core";
-import { type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
-import { getProject, type JobAreaPanelProps } from "@grid/block-projects";
+import { Icon, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
+import { getProject, type JobAreaPanelProps, type LevelStartPanelProps } from "@grid/block-projects";
+import { getSite } from "@grid/block-sites";
 import { getClient } from "@grid/block-clients";
 import { getQuote, getTaxSettings, listPriceItems, listQuotes, quoteForJob } from "../service";
 import { CustomerQuote, type CustomerViewJson } from "./CustomerQuote";
@@ -36,8 +37,25 @@ export const pages: BlockPages = {
     return <QuotesList initial={json<QuoteRowJson[]>(rows)} currency={settings.currency} locale={settings.locale} canCreate={can(ctx, "quotes.create")} />;
   },
 
-  new: async ({ ctx, params: [jobId] }) => {
+  // /quotes/new, /quotes/new/<job>, or /quotes/new/at/<site>/<building>/<level> (from an empty floor).
+  new: async ({ ctx, params }) => {
     if (!can(ctx, "quotes.create")) return <p>You can&apos;t write quotes.</p>;
+    if (params[0] === "at" && params[1]) {
+      const [, siteId, buildingId, levelId] = params;
+      const site = await getSite(ctx, siteId!);
+      const building = site.buildings.find((candidate) => candidate.id === buildingId);
+      const level = building?.levels.find((candidate) => candidate.id === levelId);
+      const label = [level?.label, site.buildings.length > 1 ? building?.name : null, site.name].filter(Boolean).join(" · ");
+      return (
+        <NewQuote
+          job={null}
+          place={{ siteId: site.id, buildingId: building?.id ?? null, levelId: level?.id ?? null, label, address: site.address }}
+          client={null}
+          canAddClient={can(ctx, "clients.add")}
+        />
+      );
+    }
+    const jobId = params[0];
     const job = jobId ? await getProject(ctx, jobId) : null;
     // Start with the job's client.
     const client = job?.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;
@@ -69,6 +87,16 @@ export const pages: BlockPages = {
 };
 
 export const panels: BlockPanels = {
+  // On an empty floor: "Add quote", with the site, building and floor filled in.
+  "level.start": async (props) => {
+    const { ctx, siteId, buildingId, levelId } = props as typeof props & LevelStartPanelProps;
+    if (!can(ctx, "quotes.create")) return null;
+    return (
+      <a href={`/quotes/new/at/${siteId}/${buildingId}/${levelId}`} className={cn(buttonVariants({ size: "lg", variant: "outline" }), "w-full sm:w-auto")}>
+        <Icon name="dollar" /> Add quote
+      </a>
+    );
+  },
   // On the job page: the quote it came from (shown once, not per area).
   "job.area": async (props) => {
     const { ctx, job } = props as typeof props & JobAreaPanelProps;

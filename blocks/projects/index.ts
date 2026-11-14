@@ -27,6 +27,19 @@ export interface JobAreaPanelProps {
   singleArea: boolean;
 }
 
+/**
+ * Props for the "level.start" panel slot: the empty-floor section
+ * ("Nothing here yet: Add job / Add quote"). Other Blocks add their own
+ * start button for this exact place (Quotes adds "Add quote").
+ */
+export interface LevelStartPanelProps {
+  siteId: string;
+  buildingId: string;
+  levelId: string;
+  /** "Level 3 · Building A". */
+  place: string;
+}
+
 /** Event payloads. */
 export interface ProjectEvent {
   projectId: string;
