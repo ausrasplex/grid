@@ -1,7 +1,7 @@
 import { Grid, Icon, LinkRow, List, PageHeader, Section } from "@grid/ui";
 import { getContext } from "@/lib/context";
 import { registry } from "@/blocks";
-import { SECURITY } from "@/components/AppShell";
+import { SECURITY, SERVER_SETTINGS } from "@/components/AppShell";
 import { Alert } from "@grid/ui";
 import { db } from "@grid/db";
 
@@ -45,9 +45,9 @@ export default async function SettingsPage() {
           // the app, not the Unraid template, so they need no restart.
           <Section title="Server" description="You're the server admin." flush>
             <List>
-              <LinkRow href="/settings/email" label="Email" description="The email server for sign-in links and password resets" icon={<Icon name="mail" />} />
-              <LinkRow href="/settings/backups" label="Backups" description="Database and photos: schedule, Back up now, downloads" icon={<Icon name="archive" />} />
-              <LinkRow href="/settings/storage" label="Storage" description="Space used, clean-up settings and history" icon={<Icon name="archive" />} />
+              {SERVER_SETTINGS.map((item) => (
+                <LinkRow key={item.id} href={item.href} label={item.label} description={item.description} icon={<Icon name={item.icon} />} />
+              ))}
             </List>
           </Section>
         )}

@@ -43,6 +43,10 @@ So a house reads `12 Smith St ▾ › Switchboard Upgrade ▾`.
   - a trail that fits is **left-aligned**.
 - The site QR button moves out of the header to sit beside the page title, to give the crumbs room.
 
+### Settings pages
+
+Every page reached from Settings has a short trail above its title: **Settings › Clients** (decided Nov 2026). "Settings" goes back to the Settings page. The pages are the Settings page's own list (`settings.user` and `settings.company` menu items, Sign-in & devices, and the server admin's Email, Backups and Storage), so a Block's settings page gets the trail by adding its menu item; deeper pages (a role, a member) show the page they belong to. Built in `ShellNav` (`SettingsCrumbs`), separate from the site trail above.
+
 ## 3. Other work areas
 
 Shown once a project is selected and it covers more than one area.

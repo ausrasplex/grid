@@ -41,9 +41,40 @@ interface Props {
   scan: NavItem;
   headerActions: NavItem[];
   account: NavItem[];
+  /** Pages reached from Settings: they get a "Settings › Clients" breadcrumb. */
+  settings: NavItem[];
   user: { name: string; email: string };
   company: { name: string; role: string } | null;
   children: ReactNode;
+}
+
+/** The Settings page this address belongs to (the longest match, so /business/roles/abc is Roles), or null. */
+function settingsPageFor(pathname: string, pages: NavItem[]): NavItem | null {
+  if (pathname === "/settings") return null;
+  const matches = pages.filter((page) => pathname === page.href || pathname.startsWith(page.href + "/"));
+  return matches.sort((first, second) => second.href.length - first.href.length)[0] ?? null;
+}
+
+/** "Settings › Clients" above a settings page (docs/navigation.md §2). */
+function SettingsCrumbs({ page }: { page: NavItem }) {
+  return (
+    <nav aria-label="Breadcrumb" className="-mt-2 mb-2 sm:mb-3">
+      <ol className="flex min-w-0 items-center gap-1 text-sm">
+        <li className="shrink-0">
+          <a href="/settings" className="-ml-2 inline-flex min-h-touch items-center gap-1.5 rounded-md px-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Icon name="settings" className="size-4" />
+            Settings
+          </a>
+        </li>
+        <li aria-hidden className="shrink-0 text-muted-foreground">
+          <Icon name="chevron-right" className="size-4" />
+        </li>
+        <li aria-current="page" className="min-w-0 truncate px-1 font-medium">
+          {page.label}
+        </li>
+      </ol>
+    </nav>
+  );
 }
 
 function isActive(pathname: string, item: NavItem) {
@@ -157,8 +188,9 @@ function MoreSheet({ items, trigger, triggerClassName }: { items: NavItem[]; tri
   );
 }
 
-export function ShellNav({ home, primary, main, more, scan, headerActions, account, user, company, children }: Props) {
+export function ShellNav({ home, primary, main, more, scan, headerActions, account, settings, user, company, children }: Props) {
   const pathname = usePathname();
+  const settingsPage = settingsPageFor(pathname, settings);
   const switcher = headerActions.find((headerAction) => headerAction.id === "companies.switcher");
   const actions = headerActions.filter((headerAction) => headerAction !== switcher);
   const search = actions.find((action) => action.icon === "search");
@@ -390,7 +422,10 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
       </nav>
 
       {/* ---------- Content ---------- */}
-      <main className="mx-auto w-full max-w-5xl px-4 pt-shell pb-shell sm:px-6 md:pb-10 lg:mx-0 lg:max-w-[110rem] lg:px-10 xl:px-12">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-4 pt-shell pb-shell sm:px-6 md:pb-10 lg:mx-0 lg:max-w-[110rem] lg:px-10 xl:px-12">
+        {settingsPage && <SettingsCrumbs page={settingsPage} />}
+        {children}
+      </main>
 
       {/* ---------- Phone bottom bar ---------- */}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t bg-dock pb-safe md:hidden">
