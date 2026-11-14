@@ -68,12 +68,9 @@ async function signOut() {
   window.location.href = "/sign-in";
 }
 
+/** Grid's icon (made from public/icon.png, see lib/app-icon.ts). */
 function Mark({ className }: { className?: string }) {
-  return (
-    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground", className)}>
-      <Icon name="grid" className="size-5" />
-    </span>
-  );
+  return <img src="/icon/96" alt="" width={36} height={36} className={cn("size-9 shrink-0 rounded-md", className)} />;
 }
 
 function UserAvatar({ name, className }: { name: string; className?: string }) {

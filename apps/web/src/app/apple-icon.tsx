@@ -1,11 +1,11 @@
-// iPhone and iPad home-screen icon (Share › Add to Home Screen). iOS rounds
-// the corners itself, so it's square.
+// iPhone and iPad home-screen icon (Share › Add to Home Screen), made from
+// public/icon.png. iOS rounds the corners itself.
 
-import { appIcon } from "@/lib/app-icon";
+import { appIconPng } from "@/lib/app-icon";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
 export default function AppleIcon() {
-  return appIcon(180);
+  return appIconPng(180);
 }

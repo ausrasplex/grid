@@ -54,3 +54,8 @@ Light "paper" areas keep their original colours, with the accent shown as amber 
 ## Theme switching (later)
 
 Concept C is the default. Because the layout is shared, the original light colours (concept A's palette) can be offered as a **light theme**, chosen per person or following the phone's setting. All colours come from the tokens above, so no screen hardcodes a colour.
+
+## App icon
+
+- The one source is `public/icon.png` at the top of the repo (square, any size). The build makes every size from it (`apps/web/src/lib/app-icon.ts`): the browser tab and the Grid mark in the menus and on sign-in (`/icon/32`, `/icon/96`, cropped close), the installed app (`/icon/192`, `/icon/512`, also Android's maskable icon) and the iPhone/iPad home screen (`/apple-icon`).
+- To change the icon, replace that file and rebuild. Keep the picture inside the middle 80% so Android's round crop doesn't clip it.
