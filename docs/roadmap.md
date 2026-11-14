@@ -48,6 +48,7 @@ Detailed designs: `photos-block.md`, `backups.md`, `stage-2-projects.md`, `quota
 - Sessions are checked against the database on every request, so signing a device out takes effect straight away.
 - **Invited people** exist as users without a password. They sign in with an emailed link (only existing people can use links) and add a password under Settings › Sign-in & devices. Phase 7 adds a proper invite-acceptance screen.
 - Settings: `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `TRUSTED_ORIGINS`, `SIGNUP_MODE` (Unraid template). The email server is set in the app: Settings › Email (server admin), with provider presets and a test button.
+- **Changing your email (decided Nov 2026):** anyone, the Owner included, changes their own sign-in email in Settings › Profile › Change email, confirming with their current password (people without one set a password first). Refused if another account uses the address. The old address gets a "your email was changed" email when the server has email set up; the change is in the audit log. It's `POST /api/session/email` in the app, not Better Auth's change-email (that needs email verification and hides a taken address). Changing someone else's email comes with the team screens.
 - **Ways to sign in:** email and password, plus a **sign-in link by email**, which is handy on a phone on site.
   - Passkeys (Face ID / fingerprint) come after.
   - Google / Microsoft sign-in is optional and switched on per server.
