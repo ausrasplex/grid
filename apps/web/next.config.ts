@@ -26,6 +26,11 @@ const config: NextConfig = {
       { source: "/q/:token", destination: "/p/quotes/q/:token" },
       { source: "/verify", destination: "/p/signatures/verify" },
       { source: "/verify/:code", destination: "/p/signatures/verify/:code" },
+      // A site's pages (site, building, level) are drawn by the jobs Block
+      // but shown at /sites/<site>/... (docs/navigation.md §8). /sites/new
+      // and /sites/<site>/structure stay with the Sites Block.
+      { source: "/sites/:site((?!new$)[^/]+)", destination: "/jobs/site/:site" },
+      { source: "/sites/:site((?!new$)[^/]+)/:next((?!structure$)[^/]+)/:rest*", destination: "/jobs/site/:site/:next/:rest*" },
     ];
   },
   // Block pages used to live under /b/<block id>/...; old links and

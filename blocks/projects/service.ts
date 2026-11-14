@@ -395,20 +395,20 @@ function resumeHref(location: { siteId: string; buildingId: string | null; level
       ? `/jobs/${location.projectId}/area/${location.buildingId}${location.levelId ? `/${location.levelId}` : ""}`
       : `/jobs/${location.projectId}`;
   }
-  if (location.buildingId) return `/jobs/site/${location.siteId}/${location.buildingId}${location.levelId ? `/${location.levelId}` : ""}`;
-  return `/jobs/site/${location.siteId}`;
+  if (location.buildingId) return `/sites/${location.siteId}/${location.buildingId}${location.levelId ? `/${location.levelId}` : ""}`;
+  return `/sites/${location.siteId}`;
 }
 
 /** Switching site returns you to where you last were on it (docs/navigation.md §2). */
 export async function resumeOnSite(ctx: RequestContext, siteId: string): Promise<string> {
   const location = await locationOnSite(ctx, siteId);
-  if (!location) return `/jobs/site/${siteId}`;
+  if (!location) return `/sites/${siteId}`;
   if (location.projectId) {
     const ok = await db.project.findFirst({
       where: { id: location.projectId, deletedAt: null, companies: { some: { companyId: ctx.companyId!, status: VISIBLE } } },
       select: { id: true },
     });
-    if (!ok) return `/jobs/site/${siteId}`;
+    if (!ok) return `/sites/${siteId}`;
   }
   return resumeHref(location);
 }
@@ -627,7 +627,7 @@ export async function search(ctx: RequestContext, typed: string): Promise<{ exac
     title: siteRow.name,
     meta: siteRow.archivedAt ? `Archived · ${siteRow.totalJobs} earlier job${siteRow.totalJobs === 1 ? "" : "s"}` : `${siteRow.activeJobs} active job${siteRow.activeJobs === 1 ? "" : "s"}`,
     trail: siteRow.address,
-    href: `/jobs/site/${siteRow.id}`,
+    href: `/sites/${siteRow.id}`,
   }));
 
   return { exact, jobs: jobs.filter((job) => job.id !== exact?.id), sites: siteResults };

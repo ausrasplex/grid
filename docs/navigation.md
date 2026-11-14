@@ -173,7 +173,7 @@ Every search bar (Jump to, Documents, a manufacturer page, Assets) has a **scan 
 - **Page addresses (decided Nov 2026):** short and plain, the screen's word first, then the page. Every Block's pages live at `/<address>/...`; the address is the Block's id unless it sets `address` (the screens' word when the code word differs). Deep links and the back button behave predictably.
   - `/sites` (Sites list), `/sites/<site>/structure`
   - `/jobs/<job>`, `/jobs/<job>/area/<building>[/<level>]`, `/jobs/<job>/settings`, `/jobs/new`, `/jobs/search`
-  - `/jobs/site/<site>[/<building>[/<level>]]` (site, building and level pages)
+  - `/sites/<site>[/<building>[/<level>]]` (site, building and level pages). The jobs Block draws these at `/jobs/site/...`; a rewrite in `next.config.ts` shows them at `/sites/...` (`/sites/new` and `/sites/<site>/structure` stay with the Sites Block).
   - `/plans/job/<job>`, `/plans/sheet/<sheet>`, `/photos/capture`, `/quotes/<quote>`
   - `/business/store`, `/business/members` (the companies Block; screens say "business")
   - The app's own pages (`/settings`, `/scan`, `/sign-in`, `/go`, `/q`, `/verify`, `/p`, `/api`…) can't be taken by a Block: `RESERVED_ADDRESSES` in `packages/core/src/registry.ts`, checked when the app starts and by `pnpm test`.

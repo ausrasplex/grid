@@ -57,7 +57,7 @@ function useWide() {
   return wide;
 }
 
-const siteBase = (siteId: string) => `/jobs/site/${siteId}`;
+const siteBase = (siteId: string) => `/sites/${siteId}`;
 
 export function LocationBar({ site, buildings, buildingId, levelId, job, jobsHere = [], allHref }: Props) {
   const building = buildings.find((building) => building.id === buildingId) ?? (buildings.length === 1 ? buildings[0] : undefined);

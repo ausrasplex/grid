@@ -1,11 +1,12 @@
 // Pages for jobs and the places they happen.
 //
-//   /jobs/site/<site>[/<building>[/<level>[/all]]]   site, building and level pages
-//   /jobs/site/<site>/resume                          back to where you last were on a site
-//   /jobs/<job>[/area/<building>[/<level>]]           a job, at one of its work areas
-//   /jobs/<job>/settings                              job details and Covers
-//   /jobs/new[/<site>]                                start a job
-//   /jobs/search                                      Jump to
+//   /sites/<site>[/<building>[/<level>[/all]]]   site, building and level pages
+//       (the "site" page below, at /jobs/site/...; next.config.ts shows it at /sites/...)
+//   /sites/<site>/resume                         back to where you last were on a site
+//   /jobs/<job>[/area/<building>[/<level>]]      a job, at one of its work areas
+//   /jobs/<job>/settings                         job details and Covers
+//   /jobs/new[/<site>]                           start a job
+//   /jobs/search                                 Jump to
 
 import { redirect } from "next/navigation";
 import { can, notFound, type RequestContext } from "@grid/core";
@@ -21,7 +22,7 @@ import { LocationBar, type LocBuilding } from "./LocationBar";
 import { NewJobForm } from "./NewJobForm";
 
 const date = (date: Date) => date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
-const siteHref = (siteId: string, buildingId?: string | null, levelId?: string | null) => `/jobs/site/${siteId}${buildingId ? `/${buildingId}` : ""}${levelId ? `/${levelId}` : ""}`;
+const siteHref = (siteId: string, buildingId?: string | null, levelId?: string | null) => `/sites/${siteId}${buildingId ? `/${buildingId}` : ""}${levelId ? `/${levelId}` : ""}`;
 const areaHref = (job: string, area: { buildingId: string; levelId: string | null }) => `/jobs/${job}/area/${area.buildingId}${area.levelId ? `/${area.levelId}` : ""}`;
 
 /** Buildings with active-job counts, for the breadcrumb pickers. */

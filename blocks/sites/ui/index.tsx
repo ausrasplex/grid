@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { can } from "@grid/core";
 import { type BlockPages } from "@grid/ui";
 import { getSite } from "../service";
@@ -8,7 +8,7 @@ import { StructureEditor } from "./StructureEditor";
 
 export const pages: BlockPages = {
   // /sites                    the Sites list
-  // /sites/<id>               → the site page (projects block)
+  // /sites/<id>[/...]        the site page: drawn by the projects block (next.config.ts sends it there)
   // /sites/<id>/structure     buildings and levels
   "": async ({ ctx, params: [siteId, sub] }) => {
     if (!siteId) {
@@ -18,7 +18,7 @@ export const pages: BlockPages = {
       const site = await getSite(ctx, siteId);
       return <StructureEditor initial={site} canEdit={can(ctx, "sites.structure.edit")} />;
     }
-    redirect(`/jobs/site/${siteId}`);
+    notFound();
   },
   new: () => <NewSiteForm />,
 };

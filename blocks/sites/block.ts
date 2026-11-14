@@ -34,7 +34,7 @@ export default defineBlock({
   ],
   routes: async () => (await import("./routes")).routes,
   routeTargets: {
-    Site: (id) => `/jobs/site/${id}`,
+    Site: (id) => `/sites/${id}`,
   },
   emits: ["sites.created", "sites.building.converted"],
 });

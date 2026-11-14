@@ -89,7 +89,7 @@ export function SitesList({ solo, canCreateJob, canCreateSite }: { solo: boolean
               {data.map((site) => (
                 <li key={site.id}>
                   <a
-                    href={`/jobs/site/${site.id}`}
+                    href={`/sites/${site.id}`}
                     className="flex min-h-touch-lg items-center gap-3 px-4 py-3 transition-colors hover:bg-muted active:bg-muted sm:px-5"
                   >
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground [&_svg]:size-5">
