@@ -37,6 +37,7 @@ The design canvas (https://claude.ai/artifact/TB5DBAto6SHu9pQWoxQTer, on claude.
 - Tokens: `packages/ui/src/styles.css`. Concept C on `:root`; `data-theme="light"` and `data-theme="system"` on `<html>` give the optional light theme; `.paper` keeps an area light.
 - Shell: `apps/web/src/components/ShellNav.tsx` (phone bar with Scan, tablet rail, desktop sidebar with expanding More). Menu placement comes from `MenuItem.prominence`.
 - Cards have no outline or shadow; inputs keep a border so fields are easy to find.
+- The top bar has a 1px line under it (`border-b`, the `--border` token), like the phone bottom bar has one above it.
 - **Page width (Nov 2026):** on desktop (1024px+) content fills the space beside the sidebar, up to 1760px (`<main>` in ShellNav); below that it stays at most 1024px. Form fields (`Field`, `SelectField`, the client picker) stop at 672px so forms stay easy to read. Grids add columns on wide screens (photos up to 10 a row, plan sheets up to 6, `Grid` 3 at 1536px+). The job page puts Details, site notes and Finish in a side column from 1280px.
 
 ## Things that stay light

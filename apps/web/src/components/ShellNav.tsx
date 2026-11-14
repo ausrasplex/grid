@@ -193,8 +193,8 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
 
   return (
     <div className="min-h-dvh md:pl-rail lg:pl-sidebar">
-      {/* ---------- Top bar (flat, page colour) ---------- */}
-      <header className="fixed inset-x-0 top-0 z-40 bg-background/95 pt-safe backdrop-blur md:left-rail lg:left-sidebar">
+      {/* ---------- Top bar (flat, page colour, 1px line under it) ---------- */}
+      <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/95 pt-safe backdrop-blur md:left-rail lg:left-sidebar">
         <div className="flex h-topbar items-center gap-1 pl-safe pr-safe">
           {/* Company switcher: phone and tablet (desktop has it in the sidebar) */}
           <div className="flex min-w-0 flex-1 items-center px-2 md:px-4 lg:invisible">
