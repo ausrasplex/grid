@@ -1,5 +1,6 @@
 export * from "./types";
 export { cn, newId } from "./lib/utils";
+export { describeDevice } from "./lib/devices";
 
 // shadcn/ui components
 export { Button, buttonVariants, type ButtonProps } from "./components/button";

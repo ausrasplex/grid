@@ -21,6 +21,7 @@ export default defineBlock({
     { key: "companies.members.manage", label: "Change roles and remove members" },
     { key: "companies.roles.manage", label: "Create and edit custom roles" },
     { key: "companies.blocks.manage", label: "Add and remove Blocks (Store)" },
+    { key: "companies.activity.view", label: "See the activity log", description: "Who changed what, when, and from which device and IP address" },
   ],
   grants: {
     FOREMAN: ["companies.members.view", "companies.members.invite", "companies.storage.manage"],
@@ -68,6 +69,15 @@ export default defineBlock({
       permission: "companies.members.invite",
       order: 25,
       soloOnly: true,
+    },
+    {
+      id: "companies.activity",
+      slot: "settings.company",
+      label: "Activity",
+      icon: "history",
+      href: "/business/activity",
+      permission: "companies.activity.view",
+      order: 70,
     },
     {
       id: "companies.store",

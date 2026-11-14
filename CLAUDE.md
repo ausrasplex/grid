@@ -68,7 +68,7 @@ prisma/        base, core and auth schemas; migrations
 - **Everything is company-scoped.** Services take the RequestContext and only touch `ctx.companyId`. Never trust an id from the URL to pick the company.
 - **Permissions are checked on the server** (route `permission`), as `"<block>.<thing>.<action>"`. Menus hiding things is only convenience. Each Block's `grants` set the built-in roles' defaults.
 - **Blocks import only from Blocks they depend on**, via that Block's `index.ts`. Otherwise talk through events.
-- **Every change writes the audit log** (`audit()` from `@grid/db`) inside the same transaction.
+- **Every change writes the audit log** (`audit()` from `@grid/db`) inside the same transaction. It adds the request's IP and device itself; Settings › Activity shows it. Add new `entityType`s to `blocks/companies/activity-words.ts` if the camelCase split doesn't read well.
 - **Solo-first, hide don't fork.** `ctx.solo` = one active member and no pending invites, worked out per request. Team-only menu items use `teamOnly: true`; `soloOnly` and `soloLabel` exist too. While solo, skip assign-to-person and approval steps; never build a separate "solo" version.
 - **Store fields for later now** (visibility, listing, chain) even when the UI doesn't use them yet. Nothing gets size limits.
 - **Menus:** `prominence: "primary"` (phone bar, rail, sidebar), `"main"` (desktop sidebar), or leave it out (under More).

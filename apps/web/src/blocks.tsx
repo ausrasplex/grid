@@ -7,7 +7,8 @@ import { BlockRegistry, configureApp, type AppServices } from "@grid/core";
 import type { ReactNode } from "react";
 import type { RequestContext } from "@grid/core";
 import type { BlockPages, BlockPanels, PublicPages } from "@grid/ui";
-import { db } from "@grid/db";
+import { db, setAuditOrigin } from "@grid/db";
+import { requestOrigin } from "@/lib/request-origin";
 
 import users from "@grid/block-users/block";
 import companies from "@grid/block-companies/block";
@@ -63,6 +64,8 @@ export async function renderPanels(ctx: RequestContext, slot: string, props: Rec
 }
 
 function boot(): AppServices {
+  // Every audit entry records the IP and device of the request that made it.
+  setAuditOrigin(requestOrigin);
   const registry = new BlockRegistry(definitions);
   // Event handlers only run for blocks the company has switched on.
   const events = registry.createEventBus(async (blockId, companyId) => {

@@ -5,6 +5,8 @@ import { CompanyForm } from "./CompanyForm";
 import { Members } from "./Members";
 import { Roles } from "./Roles";
 import { Store } from "./Store";
+import { Activity } from "./Activity";
+import { activityPeople } from "../activity";
 
 const needsCompany = (
   <Alert>
@@ -13,6 +15,14 @@ const needsCompany = (
 );
 
 export const pages: BlockPages = {
+  activity: async ({ ctx }) =>
+    !ctx.companyId ? (
+      needsCompany
+    ) : can(ctx, "companies.activity.view") ? (
+      <Activity people={await activityPeople(ctx)} />
+    ) : (
+      <Alert variant="error">Only the Owner can see the activity log.</Alert>
+    ),
   // Pages whose header shows live counts render their own PageHeader.
   switch: ({ ctx }) => <CompanySwitcher activeCompanyId={ctx.companyId} />,
 

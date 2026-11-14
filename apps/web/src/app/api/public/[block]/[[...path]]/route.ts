@@ -4,6 +4,7 @@
 // code in the path allows. Only blocks a company could have on are here.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { clientIp } from "@/lib/request-origin";
 import { ZodError } from "zod";
 import { isHttpError, matchRoute } from "@grid/core";
 import { registry } from "@/blocks";
@@ -14,10 +15,8 @@ function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status, headers: { "cache-control": "no-store" } });
 }
 
-function clientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+function requestIp(request: NextRequest): string {
+  return clientIp(request.headers) ?? "unknown";
 }
 
 async function handle(request: NextRequest, { params }: Params) {
@@ -53,7 +52,7 @@ async function handle(request: NextRequest, { params }: Params) {
       query: request.nextUrl.searchParams,
       body,
       bytes,
-      ip: clientIp(request),
+      ip: requestIp(request),
       userAgent: (request.headers.get("user-agent") ?? "").slice(0, 400),
     });
     if (result instanceof Response) return result;

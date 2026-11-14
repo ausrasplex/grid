@@ -2,6 +2,7 @@
 // map when a block needs a new one. Unknown names fall back to a dot.
 import {
   Archive,
+  History,
   ArrowDown,
   ArrowUp,
   Briefcase,
@@ -81,6 +82,7 @@ export const ICONS: Record<string, LucideIcon> = {
   grid: LayoutGrid,
   hardhat: HardHat,
   home: Home,
+  history: History,
   layers: Layers,
   "log-out": LogOut,
   map: MapIcon,

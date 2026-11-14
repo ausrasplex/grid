@@ -11,6 +11,7 @@ import { audit, db } from "@grid/db";
 import { auth } from "@/lib/auth";
 import { getSessionUserId } from "@/lib/session";
 import { sendMail } from "@/lib/mail";
+import "@/blocks"; // sets up the app, so the audit entry gets the IP and device
 
 const bodySchema = z
   .object({

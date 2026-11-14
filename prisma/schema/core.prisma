@@ -12,10 +12,15 @@ model AuditLog {
   entityId   String
   action     String // created, updated, invited, role_changed...
   diff       Json?
+  /// Where the change came from: the person's IP address and browser/device
+  /// (null for background work, like the nightly clean-up).
+  ip         String?
+  userAgent  String?
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId])
   @@index([companyId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 /// Quick routes (docs/navigation.md §7, docs/deployment-modes.md §5): the

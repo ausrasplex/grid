@@ -2,6 +2,7 @@
 // user's active company (from the company switcher), never an id in the URL.
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
+import { listActivity } from "./activity";
 import {
   changeRoleSchema,
   createCompanySchema,
@@ -26,6 +27,12 @@ export const routes: Routes = {
 
   // --- Active company
   "GET /current": { handler: (ctx) => svc.getCurrentCompany(ctx) },
+  // Settings › Activity: the audit log, a page at a time (?before=<last id>&person=<user id>).
+  "GET /current/activity": {
+    permission: "companies.activity.view",
+    handler: (ctx, request) =>
+      listActivity(ctx, { before: request.query.get("before") || undefined, person: request.query.get("person") || undefined }),
+  },
   "PATCH /current": {
     permission: "companies.details.edit",
     handler: (ctx, request) => svc.updateCurrentCompany(ctx, updateCompanySchema.parse(request.body)),

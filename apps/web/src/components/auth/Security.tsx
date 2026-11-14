@@ -4,7 +4,7 @@
 // sign out the devices you're signed in on.
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Field, Icon, List, ListRow, Loading, Section, Stack, api, useAction } from "@grid/ui";
+import { Alert, Button, Field, Icon, List, ListRow, Loading, Section, Stack, api, describeDevice, useAction } from "@grid/ui";
 import { authClient } from "@/lib/auth-client";
 
 interface Device {
@@ -14,34 +14,6 @@ interface Device {
   ipAddress?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
-}
-
-/** "iPhone · Safari" from a user-agent string, good enough to recognise your own devices. */
-function describe(userAgent: string | null | undefined): string {
-  if (!userAgent) return "Unknown device";
-  const device = /iPhone/.test(userAgent)
-    ? "iPhone"
-    : /iPad/.test(userAgent)
-      ? "iPad"
-      : /Android/.test(userAgent)
-        ? "Android"
-        : /Mac OS X/.test(userAgent)
-          ? "Mac"
-          : /Windows/.test(userAgent)
-            ? "Windows PC"
-            : /Linux/.test(userAgent)
-              ? "Linux"
-              : "Device";
-  const browser = /Edg\//.test(userAgent)
-    ? "Edge"
-    : /Chrome\//.test(userAgent)
-      ? "Chrome"
-      : /Firefox\//.test(userAgent)
-        ? "Firefox"
-        : /Safari\//.test(userAgent)
-          ? "Safari"
-          : "Browser";
-  return `${device} · ${browser}`;
 }
 
 const when = (value: Date | string) =>
@@ -179,7 +151,7 @@ function DevicesSection() {
             title={
               <span className="flex items-center gap-2">
                 <Icon name="phone" className="size-5 text-muted-foreground" />
-                {describe(device.userAgent)}
+                {describeDevice(device.userAgent)}
               </span>
             }
             meta={device.token === thisToken ? "This device" : `Last used ${when(device.updatedAt)} · signed in ${when(device.createdAt)}`}
