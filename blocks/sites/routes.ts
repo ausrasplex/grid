@@ -6,6 +6,7 @@ import {
   addLevelsSchema,
   createSiteSchema,
   listSitesQuery,
+  levelsUseSchema,
   moveLevelSchema,
   renameSchema,
   siteNoteOrderSchema,
@@ -34,6 +35,11 @@ export const routes: Routes = {
     handler: (ctx, request) => svc.orderSiteNotes(ctx, request.params.siteId!, siteNoteOrderSchema.parse(request.body).ids),
   },
   // "Basement 2" → "Parking 2" (P2) for every basement in the building.
+  // "Used for" on several floors at once (Car park on Ground to Level 3).
+  "POST /buildings/:buildingId/levels/use": {
+    permission: "sites.structure.edit",
+    handler: (ctx, request) => svc.setLevelsUse(ctx, request.params.buildingId!, levelsUseSchema.parse(request.body)),
+  },
   "POST /buildings/:buildingId/parking": { permission: "sites.structure.edit", handler: (ctx, request) => svc.basementsToParking(ctx, request.params.buildingId!) },
   // Deleting a floor: see what's on it first; only an empty one can go.
   "GET /levels/:levelId/usage": { permission: "sites.structure.edit", handler: (ctx, request) => svc.levelUsage(ctx, request.params.levelId!) },

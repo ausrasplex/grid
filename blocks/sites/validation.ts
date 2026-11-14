@@ -42,6 +42,17 @@ export const updateLevelSchema = z
 
 export const moveLevelSchema = z.object({ direction: z.enum(["up", "down"]) }).strict();
 
+/** "Used for" on several floors at once: by id (a range picked on screen) or by name (just added). */
+export const levelsUseSchema = z
+  .object({
+    levelIds: z.array(z.string().uuid()).max(500).optional(),
+    names: z.array(z.string().trim().min(1).max(60)).max(500).optional(),
+    /** "Car park"; empty or null clears it. */
+    use: z.string().trim().max(40).nullable(),
+  })
+  .strict()
+  .refine((value) => (value.levelIds?.length ?? 0) + (value.names?.length ?? 0) > 0, "Pick the floors");
+
 export const listSitesQuery = z.object({
   tab: z.enum(["active", "mine", "archived"]).default("active"),
   q: z.string().max(200).optional(),

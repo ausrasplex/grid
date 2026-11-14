@@ -555,6 +555,29 @@ function listWords(items: string[]): string {
  * Turns a building's basements into car parking levels: "Basement 2" becomes
  * "Parking 2" (P2). All or nothing: refused if a new name is already taken.
  */
+/** Sets (or clears) what several floors of a building are used for: "Car park" on Ground to Level 3. */
+export async function setLevelsUse(ctx: RequestContext, buildingId: string, input: { levelIds?: string[]; names?: string[]; use: string | null }) {
+  return db.$transaction(async (tx) => {
+    const { companyId, building } = await ownedBuilding(tx, ctx, buildingId);
+    const wantedNames = new Set((input.names ?? []).map(levelKey));
+    const wantedIds = new Set(input.levelIds ?? []);
+    const levels = building.levels.filter((level) => wantedIds.has(level.id) || wantedNames.has(levelKey(level.name)));
+    if (!levels.length) throw badRequest("Those floors aren't in this building");
+    const use = input.use?.trim() || null;
+    await tx.level.updateMany({ where: { id: { in: levels.map((level) => level.id) } }, data: { use } });
+    await audit(tx, {
+      blockId: MOD,
+      actorId: ctx.userId,
+      companyId,
+      entityType: "Building",
+      entityId: buildingId,
+      action: use ? "levels_used_for" : "levels_use_cleared",
+      diff: { use, levels: levels.map((level) => level.name) },
+    });
+    return { id: buildingId, changed: levels.length };
+  });
+}
+
 export async function basementsToParking(ctx: RequestContext, buildingId: string) {
   return db.$transaction(async (tx) => {
     const { companyId, building } = await ownedBuilding(tx, ctx, buildingId);

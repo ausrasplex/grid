@@ -70,6 +70,7 @@ type Run = (callback: () => Promise<unknown>) => Promise<boolean | undefined>;
 
 function BuildingCard({ building, editable, busy, run }: { building: Building; editable: boolean; busy: boolean; run: Run }) {
   const [adding, setAdding] = useState(false);
+  const [settingUse, setSettingUse] = useState(false);
   // Levels named the same from before names had to be different.
   const repeated = levelNameClashes([], building.levels.map((level) => level.name));
   const basements = building.levels.filter((level) => basementAsParking(level.name));
@@ -125,9 +126,15 @@ function BuildingCard({ building, editable, busy, run }: { building: Building; e
               <Car /> Basements are parking
             </Button>
           )}
+          {building.kind === "MULTI" && building.levels.length > 1 && (
+            <Button variant="outline" disabled={busy} onClick={() => setSettingUse(true)}>
+              <Icon name="layers" /> Set what floors are used for
+            </Button>
+          )}
         </div>
       )}
       <AddLevelsSheet open={adding} onOpenChange={setAdding} building={building} run={run} />
+      {settingUse && <LevelsUseSheet building={building} run={run} onClose={() => setSettingUse(false)} />}
     </Section>
   );
 }
@@ -331,6 +338,59 @@ function DeleteLevel({ level, busy, run }: { level: Level; busy: boolean; run: R
   );
 }
 
+/** The floors from `from` to `to` (either way round) in a top-first list. */
+function floorsBetween(levels: string[], from: string, to: string): string[] {
+  const first = levels.findIndex((level) => levelKey(level) === levelKey(from));
+  const last = levels.findIndex((level) => levelKey(level) === levelKey(to));
+  if (first < 0 || last < 0) return [];
+  return levels.slice(Math.min(first, last), Math.max(first, last) + 1);
+}
+
+/** "Used for" on a run of floors at once: Car park on Ground to Level 3. Empty clears it. */
+function LevelsUseSheet({ building, run, onClose }: { building: Building; run: Run; onClose: () => void }) {
+  const bottom = building.levels.at(-1)!;
+  const [fromId, setFromId] = useState(bottom.id);
+  const [toId, setToId] = useState(building.levels.at(-2)?.id ?? bottom.id);
+  const [usedFor, setUsedFor] = useState("Car park");
+  const options = [...building.levels].reverse().map((level) => ({ value: level.id, label: level.use ? `${level.name} · ${level.use}` : level.name }));
+  const ids = building.levels.map((level) => level.id);
+  const first = ids.indexOf(fromId);
+  const last = ids.indexOf(toId);
+  const picked = building.levels.slice(Math.min(first, last), Math.max(first, last) + 1);
+  return (
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent title="Set what floors are used for" description={`Several floors of ${building.name} at once, e.g. Car park on Ground to Level 3.`}>
+        <form
+          className="flex flex-col gap-4 px-2"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            const ok = await run(() => api(`/sites/buildings/${building.id}/levels/use`, { body: { levelIds: picked.map((level) => level.id), use: usedFor.trim() || null } }));
+            if (ok) onClose();
+          }}
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField label="From" value={fromId} onChange={(event) => setFromId(event.target.value)} options={options} />
+            <SelectField label="Up to" value={toId} onChange={(event) => setToId(event.target.value)} options={options} />
+          </div>
+          <UsedForField value={usedFor} onChange={setUsedFor} />
+          <p className="text-sm text-muted-foreground">
+            {usedFor.trim() ? `Marks ${picked.length} floor${picked.length === 1 ? "" : "s"} “${usedFor.trim()}”: ` : `Clears what ${picked.length === 1 ? "this floor is" : "these floors are"} used for: `}
+            {[...picked].reverse().map((level) => level.name).join(", ")}
+          </p>
+          <FormActions>
+            <Button type="button" variant="outline" size="lg" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" size="lg">
+              {usedFor.trim() ? "Set" : "Clear"}
+            </Button>
+          </FormActions>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 /** "Used for": Plant room, Retail… (suggested; any words are fine). The level keeps its number as its name. */
 function UsedForField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
@@ -366,6 +426,10 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
   const [name, setName] = useState("");
   const [position, setPosition] = useState<"above" | "below">("above");
   const [usedFor, setUsedFor] = useState("");
+  // Full set: some floors are car parking ("Ground to Level 3").
+  const [parking, setParking] = useState(false);
+  const [parkingFrom, setParkingFrom] = useState("Ground");
+  const [parkingTo, setParkingTo] = useState("Level 1");
 
   const fullSet = standardLevels({ above: Math.max(0, Math.min(150, Number(above) || 0)), basements: Math.max(0, Math.min(10, Number(basements) || 0)), roof, below });
   // The full set skips floors the building already has (usually "Ground", made when it was given levels):
@@ -376,6 +440,9 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
   const newAbove = fullSet.slice(0, groundAt).filter((level) => !existing.has(levelKey(level)));
   const newBelow = fullSet.slice(groundAt).filter((level) => !existing.has(levelKey(level)));
   const names = mode === "standard" ? [...newAbove, ...newBelow] : name.trim() ? [name.trim()] : [];
+  // The car park floors, picked from the set (and what the building already has), top first.
+  const parkingChoices = fullSet.filter((level) => !/^(parking|basement)\b/i.test(level));
+  const parkingNames = parking ? floorsBetween(parkingChoices, parkingFrom, parkingTo) : [];
   const clashes = levelNameClashes(
     building.levels.map((level) => level.name),
     names,
@@ -396,6 +463,12 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
               if (empty) return add(names, "above");
               if (newAbove.length) await add(newAbove, "above");
               if (newBelow.length) await add(newBelow, "below");
+            }).then(async (added) => {
+              // Then mark the car park floors (new or already there).
+              if (added && mode === "standard" && parkingNames.length) {
+                await run(() => api(`/sites/buildings/${building.id}/levels/use`, { body: { names: parkingNames, use: "Car park" } }));
+              }
+              return added;
             });
             if (ok) {
               onOpenChange(false);
@@ -434,6 +507,17 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
                 <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={roof} onChange={(event) => setRoof(event.target.checked)} />
                 Include a roof level
               </label>
+              <label className="flex min-h-touch items-center gap-3">
+                <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={parking} onChange={(event) => setParking(event.target.checked)} />
+                Some floors above ground are car parking
+              </label>
+              {parking && parkingChoices.length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <SelectField label="Car park from" value={parkingFrom} onChange={(event) => setParkingFrom(event.target.value)} options={[...parkingChoices].reverse().map((level) => ({ value: level, label: level }))} />
+                  <SelectField label="Up to" value={parkingTo} onChange={(event) => setParkingTo(event.target.value)} options={[...parkingChoices].reverse().map((level) => ({ value: level, label: level }))} />
+                </div>
+              )}
+              {parkingNames.length > 0 && <p className="text-sm text-muted-foreground">Marked “Car park”: {parkingNames.join(", ")}</p>}
               <p className="text-sm text-muted-foreground">
                 {names.length ? `Adds: ${names.join(", ")}` : "All of these are already there."}
                 {already.length > 0 && names.length > 0 && ` (${already.join(", ")} ${already.length === 1 ? "is" : "are"} already there)`}
