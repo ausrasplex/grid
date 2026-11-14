@@ -193,15 +193,20 @@ function PickerShell({ title, trigger, children, open, setOpen }: { title: strin
       if (!panel.current?.contains(target) && !anchor.current?.contains(target)) setOpen(false);
     };
     const closePicker = () => setOpen(false);
+    // The page scrolling moves the crumb away, so close. Scrolling the list inside the picker (a long list of levels) mustn't.
+    const closeOnPageScroll = (event: Event) => {
+      if (event.target instanceof Node && panel.current?.contains(event.target)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", close);
     document.addEventListener("keydown", close);
     window.addEventListener("resize", closePicker);
-    window.addEventListener("scroll", closePicker, true);
+    window.addEventListener("scroll", closeOnPageScroll, true);
     return () => {
       document.removeEventListener("mousedown", close);
       document.removeEventListener("keydown", close);
       window.removeEventListener("resize", closePicker);
-      window.removeEventListener("scroll", closePicker, true);
+      window.removeEventListener("scroll", closeOnPageScroll, true);
     };
   }, [open, wide, setOpen]);
 
@@ -226,7 +231,7 @@ function PickerShell({ title, trigger, children, open, setOpen }: { title: strin
             role="dialog"
             aria-label={title}
             style={{ top: position.top, left: position.left }}
-            className="fixed z-50 max-h-[60vh] w-80 overflow-y-auto rounded-xl border bg-popover p-2 text-popover-foreground shadow-xl"
+            className="fixed z-50 max-h-[60vh] w-80 overflow-y-auto overscroll-contain rounded-xl border bg-popover p-2 text-popover-foreground shadow-xl"
           >
             <p className="px-2 pt-1 pb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{title}</p>
             {children}
