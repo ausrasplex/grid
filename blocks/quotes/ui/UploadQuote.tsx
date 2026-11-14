@@ -133,6 +133,11 @@ export function UploadQuote({
           )}
           <Field label="Total (incl. tax)" inputMode="decimal" placeholder="e.g. 4180.00" value={total} onChange={(event) => setTotal(event.target.value)} />
           <AddressField
+            sites={!job && canPickSite}
+            onSite={async (match) => {
+              const site = await api<PlaceValue["site"]>(`/sites/${match.id}`).catch(() => null);
+              if (site) setPlace({ site, buildingId: site.buildings.length === 1 ? site.buildings[0]!.id : null, levelId: null });
+            }}
             label="Site address"
             hint={job ? undefined : "Where the work is. Needed to make the job when it's accepted."}
             value={address}

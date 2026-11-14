@@ -32,7 +32,7 @@ function defaultCovers(site: Site | null): Cover[] {
 }
 
 export function NewJobForm({
-  site,
+  site: startSite,
   cover,
   clients,
 }: {
@@ -45,7 +45,9 @@ export function NewJobForm({
   const [client, setClient] = useState<ClientJson | null>(null);
   const [jobNumber, setJobNumber] = useState("");
   const [address, setAddress] = useState("");
-  const [covers, setCovers] = useState<Cover[]>(cover ? [cover] : defaultCovers(site));
+  // The site: from the page, or picked from "Your sites" in the address box.
+  const [site, setSite] = useState<Site | null>(startSite);
+  const [covers, setCovers] = useState<Cover[]>(cover ? [cover] : defaultCovers(startSite));
   const [check, setCheck] = useState<AddressCheck | null>(null);
   const action = useAction();
 
@@ -67,6 +69,13 @@ export function NewJobForm({
   return (
     <>
       <PageHeader title="New job" meta={site ? site.name : undefined} />
+      {site && !startSite && (
+        <div className="-mt-2 mb-4">
+          <Button type="button" variant="ghost" size="sm" onClick={() => (setSite(null), setCovers([]))}>
+            Not this site? Type an address instead
+          </Button>
+        </div>
+      )}
       <form
         className="flex flex-col gap-4"
         onSubmit={async (event) => {
@@ -90,6 +99,14 @@ export function NewJobForm({
                   placeholder="12 Smith St, Brunswick VIC 3056"
                   value={address}
                   onChange={(event) => setAddress(event.target.value)}
+                  sites
+                  onSite={async (match) => {
+                    // A house's address is enough (the job finds its site). A precinct or centre
+                    // switches to that site, so its buildings and levels can be ticked.
+                    if (match.kind !== "MANAGED") return;
+                    const full = await api<Site>(`/sites/${match.id}`).catch(() => null);
+                    if (full) (setSite(full), setCovers(defaultCovers(full)));
+                  }}
                   required
                 />
                 {check && (

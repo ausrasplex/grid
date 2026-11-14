@@ -27,7 +27,15 @@ export function NewSiteForm() {
           }}
         >
           <Field label="Site name" placeholder="e.g. Riverside Health Precinct" value={name} onChange={(event) => setName(event.target.value)} required />
-          <AddressField label="Address" value={address} onChange={(event) => setAddress(event.target.value)} required />
+          <AddressField
+            label="Address"
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+            sites
+            hint="If it's already one of your sites, it shows first: pick it to open it instead of making a second one."
+            onSite={(match) => (window.location.href = `/sites/${match.id}`)}
+            required
+          />
           <Alert variant="error">{action.error}</Alert>
           <FormActions>
             <Button type="submit" size="lg" disabled={action.busy}>

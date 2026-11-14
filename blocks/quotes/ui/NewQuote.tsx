@@ -79,6 +79,12 @@ export function NewQuote({
             />
           )}
           <AddressField
+            sites={!job && canPickSite}
+            onSite={async (match) => {
+              // Picked one of your sites: it becomes the quote's site (then pick the building and floor).
+              const site = await api<PlaceValue["site"]>(`/sites/${match.id}`).catch(() => null);
+              if (site) setPlace({ site, buildingId: site.buildings.length === 1 ? site.buildings[0]!.id : null, levelId: null });
+            }}
             label="Site address"
             hint={place ? "On the quote. Filled in from the site; change it if the quote needs to say something different." : "Where the work is. Needed to make the job when it's accepted."}
             value={address}
