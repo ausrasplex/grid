@@ -46,15 +46,22 @@ export interface PlanView {
 }
 
 /**
- * A finger, pen or mouse on the sheet. Only sent to tools while one is
- * picked (`tool` not null), except "click", which is always sent so a tap
- * can pick a markup or a pin.
+ * A finger, pen or mouse on the sheet. "press" and "click" are always sent
+ * (a tap can pick a markup or a pin; a press can grab a handle). "drag",
+ * "release", "double" and "cancel" are sent while a tool is picked, or
+ * after a listener claimed the press.
  */
 export interface PlanPointer {
   kind: "press" | "drag" | "release" | "click" | "double" | "cancel";
   point: SheetPoint;
   /** Screen pixels inside the viewer. */
   screen: [number, number];
+  /**
+   * On "press" only: take this touch (e.g. it landed on a corner handle).
+   * The drag that follows comes to you instead of panning the plan, and
+   * the tap that ends it isn't sent as a "click".
+   */
+  claim?: () => void;
 }
 
 export interface PlanOverlayValue {

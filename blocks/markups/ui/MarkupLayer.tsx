@@ -100,6 +100,10 @@ const TOOLS: { id: Exclude<ToolId, "scale">; kind: MarkupKind; label: string; ic
 const FREEHAND: ToolId[] = ["pen", "highlight"];
 const DRAG_SHAPES: ToolId[] = ["arrow", "line", "rect", "ellipse", "cloud"];
 const TAP_POINTS: ToolId[] = ["length", "area", "scale"];
+/** Measurements whose points can be dragged, while drawing and after. */
+const MOVABLE_POINTS: MarkupKind[] = ["LENGTH", "AREA"];
+/** How close (screen pixels) a press must be to a point to grab it. */
+const GRAB = 24;
 
 /** Line width (or text height) on screen, in pixels, for Small / Medium / Large. */
 const SIZES: Record<"line" | "highlight" | "text" | "measure", [number, number, number]> = {
@@ -140,10 +144,17 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
   >(null);
 
   const canDraw = canAdd && isCurrent;
-  const visible = useMemo(() => showsOn(markups, version.id, versions), [markups, version.id, versions]);
+  /** A saved measurement's points while one is being dragged (shown live, saved on letting go). */
+  const [movedPoints, setMovedPoints] = useState<{ id: string; points: Point[] } | null>(null);
+  const visible = useMemo(() => {
+    const shown = showsOn(markups, version.id, versions);
+    return movedPoints ? shown.map((markup) => (markup.id === movedPoints.id ? { ...markup, points: movedPoints.points } : markup)) : shown;
+  }, [markups, version.id, versions, movedPoints]);
   const scale = useMemo(() => scaleFor(version.id, versions, scales), [version.id, versions, scales]);
   const metresPerUnit = scale?.metresPerUnit ?? null;
   const selected = visible.find((markup) => markup.id === selectedId) ?? null;
+  /** The selected measurement, when you may move its points. */
+  const movable = selected && !tool && !hidden && canDraw && selected.canChange && MOVABLE_POINTS.includes(selected.kind) ? selected : null;
 
   // Errors fade after a few seconds.
   useEffect(() => {
@@ -259,8 +270,10 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
 
   // The pointer handler reads the latest state through a ref, so it isn't
   // re-subscribed on every frame of a zoom.
-  const latest = useRef({ tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw });
-  latest.current = { tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw };
+  const latest = useRef({ tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable });
+  latest.current = { tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable };
+  /** The point being dragged: in the measurement being drawn ("draft") or a saved one. */
+  const grabbed = useRef<{ id: string; index: number; points: Point[]; before: Point[] } | null>(null);
 
   const finishPoints = useCallback(
     (current: { tool: ToolId; points: Point[] }) => {
@@ -277,11 +290,61 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
 
   const onPointer = useCallback(
     (pointer: PlanPointer) => {
-      const { tool, otherTool, visible, view, hidden, canDraw } = latest.current;
+      const { tool, otherTool, visible, view, hidden, canDraw, movable } = latest.current;
       const draft = stroke.current;
       const point = pointer.point;
       // Another Block's tool (a photo pin) has the taps.
       if (otherTool) return;
+
+      // Grab a point (of the area or run being drawn, or the selected one) and drag it.
+      if (pointer.kind === "press") {
+        const target =
+          tool && (tool === "length" || tool === "area") && draft?.tool === tool && canDraw
+            ? { id: "draft", points: draft.points }
+            : !tool && movable
+              ? { id: movable.id, points: movable.points }
+              : null;
+        if (target) {
+          let nearest = -1;
+          let nearestGap = GRAB / view.scale;
+          target.points.forEach((corner, index) => {
+            const gap = distance(corner, point);
+            if (gap <= nearestGap) {
+              nearest = index;
+              nearestGap = gap;
+            }
+          });
+          if (nearest >= 0) {
+            pointer.claim?.();
+            grabbed.current = { id: target.id, index: nearest, points: [...target.points], before: target.points };
+            return;
+          }
+        }
+      }
+      const held = grabbed.current;
+      if (held && (pointer.kind === "drag" || pointer.kind === "release" || pointer.kind === "cancel")) {
+        if (pointer.kind === "drag") {
+          const points = held.points.map((corner, index) => (index === held.index ? point : corner));
+          held.points = points;
+          if (held.id === "draft") setStroke(draft ? { ...draft, points } : null);
+          else setMovedPoints({ id: held.id, points });
+          return;
+        }
+        grabbed.current = null;
+        if (pointer.kind === "cancel") {
+          if (held.id === "draft") setStroke(draft ? { ...draft, points: held.before } : null);
+          else setMovedPoints(null);
+          return;
+        }
+        // Let go: a saved measurement saves its new points (Undo puts them back).
+        if (held.id !== "draft") {
+          const markup = movable && movable.id === held.id ? movable : null;
+          if (markup && held.points.some((corner, index) => corner !== held.before[index])) void update({ ...markup, points: held.before }, { points: held.points });
+          setMovedPoints(null);
+        }
+        return;
+      }
+
       if (!tool) {
         if (pointer.kind !== "click" || hidden) return;
         setSelectedId(pickMarkup(visible, point, 14 / view.scale)?.id ?? null);
@@ -371,15 +434,27 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       {!hidden && (
         <PlanLayer>
           {drawn}
-          {selected && <Selection markup={selected} scale={view.scale} />}
+          {selected && !movable && <Selection markup={selected} scale={view.scale} />}
           <Labels markups={visible} metresPerUnit={metresPerUnit} scale={view.scale} />
+          {/* Handles on the selected measurement's points: drag to move. */}
+          {movable?.points.map((point, index) => (
+            <circle key={index} cx={point[0]} cy={point[1]} r={9 / view.scale} fill="white" stroke={ink(movable.color)} strokeWidth={3 / view.scale} />
+          ))}
         </PlanLayer>
       )}
       {draftShape && <PlanLayer>{draftShape}</PlanLayer>}
       {draft && TAP_POINTS.includes(draft.tool) && (
         <PlanLayer>
           {draft.points.map((point, index) => (
-            <circle key={index} cx={point[0]} cy={point[1]} r={5 / view.scale} fill="white" stroke={draft.tool === "scale" ? INKS.magenta : ink(inkName)} strokeWidth={2 / view.scale} />
+            <circle
+              key={index}
+              cx={point[0]}
+              cy={point[1]}
+              r={(draft.tool === "scale" ? 5 : 8) / view.scale}
+              fill="white"
+              stroke={draft.tool === "scale" ? INKS.magenta : ink(inkName)}
+              strokeWidth={(draft.tool === "scale" ? 2 : 2.5) / view.scale}
+            />
           ))}
         </PlanLayer>
       )}
@@ -393,7 +468,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
             ) : tool === "length" || tool === "area" ? (
               <>
                 {draftValue ? <strong className="mr-1 text-base">{draftValue}</strong> : null}
-                <span className="text-white/70">{tool === "length" ? "Tap along the run." : "Tap each corner."}</span>
+                <span className="text-white/70">{tool === "length" ? "Tap along the run." : "Tap each corner."} Drag a point to move it.</span>
                 {scale?.carriedFrom && <span className="block text-xs text-amber-300">Scale from Rev {scale.carriedFrom.revision || "earlier"}: check it.</span>}
               </>
             ) : tool === "text" ? (
@@ -434,6 +509,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
         <SelectedCard
           markup={selected}
           label={measureLabel(selected, metresPerUnit)}
+          hint={movable ? (movable.kind === "AREA" ? "Drag a corner to move it." : "Drag a point to move it.") : null}
           fromRevision={selected.versionId !== version.id ? (versions.find((entry) => entry.id === selected.versionId)?.revision ?? "") : null}
           solo={solo}
           onClose={() => setSelectedId(null)}
@@ -672,6 +748,7 @@ function Labels({ markups, metresPerUnit, scale }: { markups: MarkupJson[]; metr
 function SelectedCard({
   markup,
   label,
+  hint,
   fromRevision,
   solo,
   onClose,
@@ -682,6 +759,7 @@ function SelectedCard({
 }: {
   markup: MarkupJson;
   label: string | null;
+  hint: string | null;
   fromRevision: string | null;
   solo: boolean;
   onClose: () => void;
@@ -702,6 +780,7 @@ function SelectedCard({
             {markup.by} · {day(markup.createdAt)}
             {fromRevision !== null && ` · from ${fromRevision ? `Rev ${fromRevision}` : "an earlier revision"}`}
           </p>
+          {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
         </div>
         <button type="button" onClick={onClose} className="-m-1 flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-muted" aria-label="Close">
           <X className="size-5" />

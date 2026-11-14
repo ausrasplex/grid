@@ -170,27 +170,53 @@ export function Viewer({
 
       // Taps and strokes go to the tool in use. While one's picked, a
       // one-finger drag draws instead of panning; two fingers still zoom.
+      // With no tool, a press can still be claimed (a corner handle), and
+      // then that drag moves the handle instead of the plan.
       type CanvasEvent = { position: OpenSeadragonType.Point; preventDefaultAction?: boolean; quick?: boolean };
-      const send = (kind: PlanPointer["kind"], event: CanvasEvent) => {
+      let claimed = false;
+      let swallowClick = false;
+      const send = (kind: PlanPointer["kind"], event: CanvasEvent, extra: Partial<PlanPointer> = {}) => {
         const point = zoomViewer.viewport.pointFromPixel(event.position, true);
-        for (const listener of listeners.current) listener({ kind, point: [point.x, point.y], screen: [event.position.x, event.position.y] });
+        for (const listener of listeners.current) listener({ kind, point: [point.x, point.y], screen: [event.position.x, event.position.y], ...extra });
       };
-      const whileTool = (kind: PlanPointer["kind"], stopDefault: boolean) => (event: unknown) => {
-        if (!toolRef.current) return;
+      const active = () => !!toolRef.current || claimed;
+      const whileActive = (kind: PlanPointer["kind"], stopDefault: boolean) => (event: unknown) => {
+        if (!active()) return;
         if (stopDefault) (event as CanvasEvent).preventDefaultAction = true;
         send(kind, event as CanvasEvent);
       };
       const on = (name: string, handler: (event: unknown) => void) => zoomViewer.addHandler(name as "canvas-press", handler as never);
-      on("canvas-press", whileTool("press", false));
-      on("canvas-drag", whileTool("drag", true));
-      on("canvas-drag-end", (event) => {
-        if (toolRef.current) (event as CanvasEvent).preventDefaultAction = true;
+      on("canvas-press", (event) => {
+        claimed = false;
+        swallowClick = false;
+        send("press", event as CanvasEvent, { claim: () => void (claimed = true) });
       });
-      on("canvas-release", whileTool("release", false));
-      on("canvas-double-click", whileTool("double", true));
-      on("canvas-pinch", whileTool("cancel", false));
+      on("canvas-drag", whileActive("drag", true));
+      on("canvas-drag-end", (event) => {
+        if (active()) (event as CanvasEvent).preventDefaultAction = true;
+      });
+      on("canvas-release", (event) => {
+        whileActive("release", false)(event);
+        if (claimed) swallowClick = true;
+        claimed = false;
+      });
+      on("canvas-double-click", (event) => {
+        if (!toolRef.current) return;
+        (event as CanvasEvent).preventDefaultAction = true;
+        send("double", event as CanvasEvent);
+      });
+      on("canvas-pinch", (event) => {
+        if (!active()) return;
+        send("cancel", event as CanvasEvent);
+        claimed = false;
+      });
       on("canvas-click", (event) => {
         const canvasEvent = event as CanvasEvent;
+        if (swallowClick) {
+          swallowClick = false;
+          canvasEvent.preventDefaultAction = true;
+          return;
+        }
         if (!canvasEvent.quick) return;
         if (toolRef.current) canvasEvent.preventDefaultAction = true;
         send("click", canvasEvent);

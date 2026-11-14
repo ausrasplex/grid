@@ -56,7 +56,7 @@ The discipline comes from the number's letters (E Electrical, M Mechanical, H Hy
 
 ### Measuring
 
-- **Length:** tap along the run, **Done** (or double-tap). **Area:** tap each corner, **Done**. The running total shows as you go; labels stay readable at any zoom. Under 1 m reads in mm (`820 mm`), then `12.40 m`; areas in m².
+- **Length:** tap along the run, **Done** (or double-tap). **Area:** tap each corner, **Done**. **Drag a point to move it**, while drawing (before Done) or afterwards: tap the saved area or length and drag its round handles (yours, or anyone's for Owner and Foreman; Undo puts it back). A press on a handle takes the drag, so the plan doesn't pan (`PlanPointer.claim()` in the overlay). The running total shows as you go; labels stay readable at any zoom. Under 1 m reads in mm (`820 mm`), then `12.40 m`; areas in m².
 - **Scale, per revision**, two ways:
   - **Drawing scale** (PDFs only): pick 1:20 / 1:50 / 1:100 / 1:200 / 1:500 or type one. Grid knows the PDF's paper size (it says "This PDF is A1"), so 1:100 means 1:100 on that paper. A plan marked "1:100 at A1" printed to A3 is 1:200.
   - **Measure something you know:** tap both ends of a known length (a door, a grid spacing, a written dimension) and type it in metres or millimetres. The only way for picture uploads.
