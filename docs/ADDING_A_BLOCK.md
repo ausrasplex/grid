@@ -119,6 +119,14 @@ Upload with `POST /api/files`, then attach the file to your record with `attachF
 fileAccess: async () => (await import("./service")).canReadMyFile, // (ctx, fileId) => Promise<boolean>
 ```
 
+## Things filed to a floor
+
+If your Block stores a `levelId` (a photo, a sheet, an inspection), say how many things are on a level, so a floor is only deleted when it is empty. Count every business and include Recently deleted (separately worded):
+
+```ts
+levelUsage: async () => (await import("./service")).levelUsage, // (levelId) => Promise<{ count, one, many }[]>
+```
+
 ## Errors
 
 Throw `badRequest`, `forbidden`, `notFound` or `conflict` from `@grid/core`. The app checks them with `isHttpError()`, not `instanceof`, because the bundler can load a second copy of the core module for a Block.

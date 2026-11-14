@@ -36,5 +36,5 @@ export default defineBlock({
   routeTargets: {
     Site: (id) => `/sites/${id}`,
   },
-  emits: ["sites.created", "sites.building.converted"],
+  emits: ["sites.created", "sites.building.converted", "sites.level.deleted"],
 });

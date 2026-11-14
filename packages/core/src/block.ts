@@ -187,10 +187,23 @@ export interface BlockDefinition {
    */
   cleanup?: () => Promise<BlockCleanup>;
   /**
+   * What this block has filed to a level (photos, notes, plan sheets, jobs
+   * that cover it), counting anything still in Recently deleted. A floor is
+   * only deleted when every block says it has nothing there. Lazy.
+   */
+  levelUsage?: () => Promise<(levelId: string) => Promise<LevelUsage[]>>;
+  /**
    * Background work this block does, keyed by queue name, which must start
    * with the block id ("plans.render"). Lazy. Queue with app().jobs.send().
    */
   jobs?: () => Promise<Record<string, BlockJob>>;
+}
+
+/** "12 photos", "1 plan sheet in Recently deleted": a count with its words. */
+export interface LevelUsage {
+  count: number;
+  one: string;
+  many: string;
 }
 
 export interface BlockJob {

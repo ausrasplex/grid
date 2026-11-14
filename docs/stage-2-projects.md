@@ -26,6 +26,7 @@ Navigation, breadcrumbs, search and quick routes are specified in `navigation.md
 - **Level:** belongs to a multi-level building. Full name ("Level 5") plus a short label ("L5") for phone breadcrumbs.
 - **Zones** inside a level are optional and come later (plant room, east wing). The model leaves room for them.
 - **Every level in a building has its own name (decided Nov 2026).** Two levels can't share a name; case and extra spaces don't count ("Level 3" = "level  3"). The server refuses a clash when adding or renaming (`levelNameClashes` in `blocks/sites/address.ts`), and the Add levels and Rename sheets say so before you save. Short names are unique too: a typed one must be free; a worked-out one gets a number added ("Carp", "Carp2"). Levels named the same from before this get a warning on Buildings & levels. Different buildings can still both have a "Level 1".
+- **Deleting a floor (decided Nov 2026): only empty floors.** Delete level is in each floor's edit sheet on Buildings & levels (owner company, `sites.structure.edit`). Grid first asks every Block what is filed to it (`levelUsage` in the Block manifest: photos and notes, plan sheets, jobs whose Covers name that floor), counting Recently deleted too, from any business. If anything is there it says what ("12 photos, 1 job covers it") and won't delete; an empty floor is deleted for good after a confirm. Remembered places on it fall back to the building (`sites.level.deleted`).
 
 ### 1b. Project Covers
 

@@ -3,8 +3,10 @@
 // Buildings and levels of a site (docs/stage-2-projects.md §1a).
 // Only the company that looks after the site can change them. Every level in
 // a building needs its own name and short name (the server checks too).
+// A floor can be deleted (from its edit sheet) only when nothing is filed to it.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { Trash2 } from "lucide-react";
 import {
   Alert,
   Button,
@@ -160,7 +162,9 @@ function LevelRow({
               return null;
             }}
             onSave={(name, shortName) => run(() => api(`/sites/levels/${level.id}`, { method: "PATCH", body: { name, shortName } }))}
-          />
+          >
+            <DeleteLevel level={level} run={run} />
+          </RenameButton>
         </span>
       )}
     </li>
@@ -173,6 +177,7 @@ function RenameButton({
   extra,
   problem,
   onSave,
+  children,
 }: {
   label: string;
   current: string;
@@ -181,6 +186,8 @@ function RenameButton({
   /** Why the name can't be saved (e.g. another level has it), or null. */
   problem?: (name: string, shortName: string) => string | null;
   onSave: (name: string, shortName?: string) => Promise<unknown>;
+  /** More under the form (e.g. Delete level). */
+  children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(current);
@@ -209,8 +216,54 @@ function RenameButton({
             <Button type="submit" size="lg" disabled={!!issue}>Save</Button>
           </FormActions>
         </form>
+        {children}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/**
+ * Delete a floor. First asks the server what's filed to it: an empty floor
+ * can go (after a confirm); otherwise it says what's there.
+ */
+function DeleteLevel({ level, run }: { level: Level; run: Run }) {
+  const [check, setCheck] = useState<{ inUse: string[] } | "checking" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const look = async () => {
+    setCheck("checking");
+    setError(null);
+    try {
+      setCheck(await api<{ name: string; inUse: string[] }>(`/sites/levels/${level.id}/usage`));
+    } catch (failure) {
+      setCheck(null);
+      setError((failure as Error).message);
+    }
+  };
+  return (
+    <div className="mt-6 flex flex-col gap-3 border-t px-2 pt-4">
+      {check === null || check === "checking" ? (
+        <Button type="button" variant="ghost" className="self-start text-destructive" disabled={check === "checking"} onClick={() => void look()}>
+          <Trash2 /> {check === "checking" ? "Checking…" : "Delete level"}
+        </Button>
+      ) : check.inUse.length ? (
+        <Alert variant="error">
+          {level.name} can&apos;t be deleted: it still has {check.inUse.join(", ")}. Move or remove them first, then try again.
+        </Alert>
+      ) : (
+        <>
+          <p className="text-sm">Nothing is filed to {level.name}. Delete it? This can&apos;t be undone.</p>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => setCheck(null)}>
+              Keep it
+            </Button>
+            <Button type="button" variant="destructive" onClick={() => void run(() => api(`/sites/levels/${level.id}`, { method: "DELETE" }))}>
+              Delete {level.name}
+            </Button>
+          </div>
+        </>
+      )}
+      <Alert variant="error">{error}</Alert>
+    </div>
   );
 }
 

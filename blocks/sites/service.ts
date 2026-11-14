@@ -493,6 +493,53 @@ export async function updateLevel(ctx: RequestContext, levelId: string, input: {
   });
 }
 
+/** Payload of "sites.level.deleted". */
+export interface LevelDeletedEvent {
+  levelId: string;
+  buildingId: string;
+  siteId: string;
+}
+
+/** What's filed to a level, from every block ("12 photos", "1 job covers it"). Empty when it can be deleted. */
+async function usageOf(levelId: string): Promise<string[]> {
+  const counts = await Promise.all(
+    app()
+      .registry.blocks.filter((block) => block.levelUsage)
+      .map(async (block) => (await block.levelUsage!())(levelId)),
+  );
+  return counts.flat().filter((usage) => usage.count > 0).map((usage) => `${usage.count} ${usage.count === 1 ? usage.one : usage.many}`);
+}
+
+/** Before deleting: what's on the level (nothing means it can go). */
+export async function levelUsage(ctx: RequestContext, levelId: string): Promise<{ name: string; inUse: string[] }> {
+  const { level } = await ownedLevel(db, ctx, levelId);
+  return { name: level.name, inUse: await usageOf(levelId) };
+}
+
+/**
+ * Deletes a floor, only when nothing is filed to it: no photos, notes,
+ * plan sheets or jobs covering it (Recently deleted counts too). Gone for
+ * good, so nothing can come back pointing at it.
+ */
+export async function deleteLevel(ctx: RequestContext, levelId: string) {
+  const { level, building, site, companyId } = await ownedLevel(db, ctx, levelId);
+  const inUse = await usageOf(levelId);
+  if (inUse.length) throw conflict(`${level.name} still has ${listWords(inUse)} on it. Move or remove them first.`);
+  await db.$transaction(async (tx) => {
+    await tx.userSiteLocation.updateMany({ where: { levelId }, data: { levelId: null } });
+    await tx.level.delete({ where: { id: levelId } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Level", entityId: levelId, action: "deleted", diff: { name: level.name, shortName: level.shortName, building: building.name } });
+  });
+  const payload: LevelDeletedEvent = { levelId, buildingId: building.id, siteId: site.id };
+  await emit("sites.level.deleted", payload, ctx);
+  return { id: levelId, deleted: true };
+}
+
+/** "a, b and c". */
+function listWords(items: string[]): string {
+  return items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
+
 /** Swaps a level with the one above or below it. */
 export async function moveLevel(ctx: RequestContext, levelId: string, direction: "up" | "down") {
   return db.$transaction(async (tx) => {

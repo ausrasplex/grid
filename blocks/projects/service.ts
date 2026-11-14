@@ -4,7 +4,7 @@
 // ACTIVE or COMPLETED. In 2a that's always the host; 2b adds invited
 // companies down the contract chain.
 
-import { app, badRequest, conflict, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
+import { app, badRequest, conflict, forbidden, notFound, requireCompany, type LevelUsage, type RequestContext } from "@grid/core";
 import { audit, db, ensureRouteCode, type Prisma, type Tx } from "@grid/db";
 import {
   addressKey,
@@ -18,6 +18,7 @@ import {
   type SiteStructure,
 } from "@grid/block-sites";
 import { requireClient, type ClientRenamedEvent } from "@grid/block-clients";
+import type { LevelDeletedEvent } from "@grid/block-sites";
 import type { CoverInput, CreateProjectInput, UpdateProjectInput } from "./validation";
 
 const MOD = "projects";
@@ -651,4 +652,15 @@ export async function search(ctx: RequestContext, typed: string): Promise<{ exac
   }));
 
   return { exact, jobs: jobs.filter((job) => job.id !== exact?.id), sites: siteResults };
+}
+
+/** Jobs (any business, finished ones too) that cover a level by name, so an empty floor can be deleted. */
+export async function levelUsage(levelId: string): Promise<LevelUsage[]> {
+  const jobs = await db.projectCover.count({ where: { levelId, project: { deletedAt: null } } });
+  return [{ count: jobs, one: "job covers it", many: "jobs cover it" }];
+}
+
+/** A floor was deleted: "last area" on a job falls back to its building. */
+export async function levelDeleted(event: LevelDeletedEvent) {
+  await db.userProjectLevel.updateMany({ where: { levelId: event.levelId }, data: { levelId: null } });
 }

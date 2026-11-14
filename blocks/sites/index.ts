@@ -11,6 +11,7 @@ export {
   siteRouteCode,
   type SiteStructure,
   type SiteNoteView,
+  type LevelDeletedEvent,
   type SiteListRow,
   type SitesTab,
 } from "./service";

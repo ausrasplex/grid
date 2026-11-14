@@ -22,6 +22,7 @@ export default defineBlock({
   },
   fileAccess: async () => (await import("./service")).canReadPlanFile,
   cleanup: async () => ({ purgeDeleted: (await import("./service")).purgeDeleted }),
+  levelUsage: async () => (await import("./service")).levelUsage,
   jobs: async () => ({
     "plans.render": {
       handler: async (data) => (await import("./service")).renderVersion(String(data.versionId)),

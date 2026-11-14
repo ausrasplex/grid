@@ -33,6 +33,9 @@ export const routes: Routes = {
     permission: "sites.notes.edit",
     handler: (ctx, request) => svc.orderSiteNotes(ctx, request.params.siteId!, siteNoteOrderSchema.parse(request.body).ids),
   },
+  // Deleting a floor: see what's on it first; only an empty one can go.
+  "GET /levels/:levelId/usage": { permission: "sites.structure.edit", handler: (ctx, request) => svc.levelUsage(ctx, request.params.levelId!) },
+  "DELETE /levels/:levelId": { permission: "sites.structure.edit", handler: (ctx, request) => svc.deleteLevel(ctx, request.params.levelId!) },
   "PATCH /notes/:noteId": { permission: "sites.notes.edit", handler: (ctx, request) => svc.updateSiteNote(ctx, request.params.noteId!, siteNoteSchema.parse(request.body)) },
   "DELETE /notes/:noteId": { permission: "sites.notes.edit", handler: (ctx, request) => svc.deleteSiteNote(ctx, request.params.noteId!) },
   "GET /:siteId/code": { permission: "sites.view", handler: (ctx, request) => svc.siteRouteCode(ctx, request.params.siteId!) },

@@ -28,8 +28,11 @@ export default defineBlock({
     Project: (id) => `/jobs/${id}`,
   },
   emits: ["projects.created", "projects.completed", "projects.reopened"],
+  levelUsage: async () => (await import("./service")).levelUsage,
   on: {
     // Jobs keep a copy of the client's name (lists, search, the Sites list).
     "clients.renamed": async (payload) => (await import("./service")).clientRenamed(payload),
+    // Forget a deleted floor as anyone's "last area" on a job.
+    "sites.level.deleted": async (payload) => (await import("./service")).levelDeleted(payload),
   },
 });

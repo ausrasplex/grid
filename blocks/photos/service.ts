@@ -4,7 +4,7 @@
 // Each record belongs to the company that took it. Others on the job only
 // see records marked SHARED (2b); solo businesses never see the choice.
 
-import { HttpError, app, badRequest, conflict, forbidden, notFound, requireCompany, type CleanupItem, type RequestContext } from "@grid/core";
+import { HttpError, app, badRequest, conflict, forbidden, notFound, requireCompany, type CleanupItem, type LevelUsage, type RequestContext } from "@grid/core";
 import { attachFile, audit, db, getStorageSettings, purgeDate, purgeStoredFile, recordCleanup, storedBytes, type Prisma } from "@grid/db";
 import { canSeeJob, getProject, jobLabelsForSystem, type JobView } from "@grid/block-projects";
 import type { AddNoteInput, AddPhotoInput, UpdatePhotoInput } from "./validation";
@@ -589,4 +589,20 @@ export async function purgeDeleted(options: { before: Date; dryRun: boolean }): 
     db.jobNote.findMany({ where, take: 5000 }),
   ]);
   return purge(photos, notes, options.dryRun);
+}
+
+/** Photos and notes filed to a level (any business), so an empty floor can be deleted. */
+export async function levelUsage(levelId: string): Promise<LevelUsage[]> {
+  const [photos, deletedPhotos, notes, deletedNotes] = await Promise.all([
+    db.jobPhoto.count({ where: { levelId, deletedAt: null, purgedAt: null } }),
+    db.jobPhoto.count({ where: { levelId, deletedAt: { not: null }, purgedAt: null } }),
+    db.jobNote.count({ where: { levelId, deletedAt: null, purgedAt: null } }),
+    db.jobNote.count({ where: { levelId, deletedAt: { not: null }, purgedAt: null } }),
+  ]);
+  return [
+    { count: photos, one: "photo", many: "photos" },
+    { count: notes, one: "note", many: "notes" },
+    { count: deletedPhotos, one: "photo in Recently deleted", many: "photos in Recently deleted" },
+    { count: deletedNotes, one: "note in Recently deleted", many: "notes in Recently deleted" },
+  ];
 }

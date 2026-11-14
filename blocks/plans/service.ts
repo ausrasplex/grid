@@ -8,7 +8,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { app, badRequest, conflict, notFound, requireCompany, type CleanupItem, type RequestContext } from "@grid/core";
+import { app, badRequest, conflict, notFound, requireCompany, type CleanupItem, type LevelUsage, type RequestContext } from "@grid/core";
 import { attachFile, audit, db, purgeStoredFile, storedBytes, storedFilePath, type Prisma, type Tx } from "@grid/db";
 import { canSeeJob } from "@grid/block-projects";
 import { disciplineName, disciplineOf, guessSheet } from "./parse";
@@ -462,3 +462,15 @@ export async function purgeDeleted(options: { before: Date; dryRun: boolean }): 
 }
 
 
+
+/** Plan sheets filed to a level (any business), so an empty floor can be deleted. */
+export async function levelUsage(levelId: string): Promise<LevelUsage[]> {
+  const [sheets, deleted] = await Promise.all([
+    db.planSheet.count({ where: { levelId, deletedAt: null, purgedAt: null } }),
+    db.planSheet.count({ where: { levelId, deletedAt: { not: null }, purgedAt: null } }),
+  ]);
+  return [
+    { count: sheets, one: "plan sheet", many: "plan sheets" },
+    { count: deleted, one: "plan sheet in Recently deleted", many: "plan sheets in Recently deleted" },
+  ];
+}

@@ -19,5 +19,6 @@ export default defineBlock({
   routes: async () => (await import("./routes")).routes,
   fileAccess: async () => (await import("./service")).canReadPhotoFile,
   cleanup: async () => ({ purgeDeleted: (await import("./service")).purgeDeleted }),
+  levelUsage: async () => (await import("./service")).levelUsage,
   emits: ["photos.added"],
 });
