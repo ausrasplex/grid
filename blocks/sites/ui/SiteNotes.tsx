@@ -2,11 +2,12 @@
 
 // Site notes: access and hazard info kept with the address, so every job
 // there sees it (docs/navigation.md §4). Separate notes, each with a title:
-// "Security office", "Lockbox", "Parking", "Hazards"…
+// "Security office", "Lockbox", "Parking", "Hazards"… With two or more notes
+// there's a search box that finds notes by their title or details.
 
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Pencil, Plus } from "lucide-react";
-import { Alert, Button, Field, FormActions, Section, api, cn, useAction } from "@grid/ui";
+import { Alert, Button, Field, FormActions, SearchInput, Section, api, cn, useAction } from "@grid/ui";
 
 export interface SiteNoteJson {
   id: string;
@@ -19,13 +20,23 @@ export interface SiteNoteJson {
 /** Titles offered while typing (any title is fine). */
 const SUGGESTED_TITLES = ["Access", "Security office", "Lockbox", "Gate code", "Parking", "Keys", "Site contact", "Switchboard", "Hazards", "Asbestos", "Dogs", "Toilets"];
 
+/** Every word typed must be in the title or details ("lock code" finds "Lockbox: code 4512"). */
+const matches = (note: SiteNoteJson, words: string[]) => {
+  const text = `${note.title}\n${note.body}`.toLowerCase();
+  return words.every((word) => text.includes(word));
+};
+
 const when = (date: string | Date) => new Date(date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
 export function SiteNotes({ siteId, initial, canEdit }: { siteId: string; initial: SiteNoteJson[]; canEdit: boolean }) {
   const [notes, setNotes] = useState(initial);
   /** The note being changed, "new" while adding, or null. */
   const [editing, setEditing] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const action = useAction();
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  // The note being changed stays in the list even if it stops matching.
+  const shown = words.length ? notes.filter((note) => note.id === editing || matches(note, words)) : notes;
 
   const save = async (call: () => Promise<SiteNoteJson[]>) => {
     const next = await action.run(call);
@@ -54,9 +65,22 @@ export function SiteNotes({ siteId, initial, canEdit }: { siteId: string; initia
         ) : undefined
       }
     >
-      {notes.length > 0 && (
-        <ul className="divide-y">
-          {notes.map((note, index) =>
+      {notes.length > 1 && (
+        <div className="px-4 pb-3 sm:px-5">
+          <SearchInput label="Search site notes" placeholder="Search notes, e.g. gate code" value={query} onChange={(event) => setQuery(event.target.value)} className="lg:max-w-2xl" />
+        </div>
+      )}
+      {words.length > 0 && shown.length === 0 && (
+        <p className="border-t px-4 py-6 text-center text-sm text-muted-foreground sm:px-5">
+          No notes match &ldquo;{query.trim()}&rdquo;.{" "}
+          <button type="button" className="font-semibold text-primary hover:underline" onClick={() => setQuery("")}>
+            Show all
+          </button>
+        </p>
+      )}
+      {shown.length > 0 && (
+        <ul className={cn("divide-y", notes.length > 1 && "border-t")}>
+          {shown.map((note) =>
             editing === note.id ? (
               <li key={note.id} className="px-4 py-3 sm:px-5">
                 <NoteForm
@@ -81,12 +105,13 @@ export function SiteNotes({ siteId, initial, canEdit }: { siteId: string; initia
                 </div>
                 {canEdit && (
                   <div className="-my-1 -mr-2 flex shrink-0">
-                    {notes.length > 1 && (
+                    {/* Moving only makes sense with the whole list showing. */}
+                    {notes.length > 1 && !words.length && (
                       <>
-                        <IconButton label={`Move ${note.title} up`} disabled={index === 0 || action.busy} onClick={() => move(index, -1)}>
+                        <IconButton label={`Move ${note.title} up`} disabled={notes.indexOf(note) === 0 || action.busy} onClick={() => move(notes.indexOf(note), -1)}>
                           <ArrowUp />
                         </IconButton>
-                        <IconButton label={`Move ${note.title} down`} disabled={index === notes.length - 1 || action.busy} onClick={() => move(index, 1)}>
+                        <IconButton label={`Move ${note.title} down`} disabled={notes.indexOf(note) === notes.length - 1 || action.busy} onClick={() => move(notes.indexOf(note), 1)}>
                           <ArrowDown />
                         </IconButton>
                       </>
