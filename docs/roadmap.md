@@ -109,6 +109,18 @@ Two separate things, set by different people:
 
 Related but separate: the **apprentice labour rate** in the price book (`quotations-block.md` §2) is a price, not a person.
 
+## Later: AI features and a GPU (noted Nov 2026, not scheduled)
+
+**Not needed now.** Nothing Grid's server does today uses a graphics card: plan PDFs are drawn by poppler (`pdftoppm`) and sharp, photos by sharp, quote and report PDFs by Chromium, plus PostgreSQL and Next.js, all on the processor. The plan viewer and markups already use the GPU of the phone or tablet (WebGL). For faster plan processing, more processor cores and RAM help, not a GPU.
+
+**When it would matter:** if Grid gets AI features that run on the owner's own server, such as:
+- reading sheet numbers and titles off scanned drawings (OCR), so plan uploads guess better;
+- photo captions or tags, or spotting defects in site photos;
+- searching manuals and documents by meaning, or summarising them (with phase 5b);
+- quantities off plans for estimates (take-offs, quotations).
+
+**Decide then:** run them locally (an Nvidia card passed through to a Grid AI container on Unraid: data stays in-house and there are no per-use fees, but the card and its power cost money) or through an online AI service (no hardware, pay per use, data leaves the server). Either way it would be its own optional Block, with any GPU settings in the Unraid template (`unraid/grid.xml`) and `docs/unraid.md`, and Grid must keep working without it.
+
 ## Rules that keep expansion free
 
 Every block follows these from day one, even while only sole traders use the app:
