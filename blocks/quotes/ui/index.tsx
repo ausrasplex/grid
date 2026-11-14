@@ -14,6 +14,7 @@ import { app, can } from "@grid/core";
 import { Icon, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
 import { getProject, type JobAreaPanelProps, type PlaceStartPanelProps } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
+import type { PlaceSite } from "@grid/block-sites/components";
 import { getClient } from "@grid/block-clients";
 import { getQuote, getTaxSettings, listPriceItems, listQuotes, quoteForJob } from "../service";
 import { CustomerQuote, type CustomerViewJson } from "./CustomerQuote";
@@ -46,16 +47,16 @@ export const pages: BlockPages = {
     if (!can(ctx, "quotes.create")) return <p>You can&apos;t write quotes.</p>;
     if (params[0] === "at" && params[1]) {
       const [, siteId, buildingId, levelId] = params;
-      const site = await getSite(ctx, siteId!);
+      const site = json<PlaceSite>(await getSite(ctx, siteId!));
       const building = site.buildings.find((candidate) => candidate.id === buildingId);
       const level = building?.levels.find((candidate) => candidate.id === levelId);
-      const label = [level?.label, site.buildings.length > 1 ? building?.name : null, site.name].filter(Boolean).join(" · ");
       return (
         <NewQuote
           job={null}
-          place={{ siteId: site.id, buildingId: building?.id ?? null, levelId: level?.id ?? null, label, address: site.address }}
+          place={{ site, buildingId: building?.id ?? null, levelId: level?.id ?? null }}
           client={null}
           canAddClient={can(ctx, "clients.add")}
+          canPickSite={can(ctx, "sites.view")}
         />
       );
     }
@@ -63,7 +64,7 @@ export const pages: BlockPages = {
     const job = jobId ? await getProject(ctx, jobId) : null;
     // Start with the job's client.
     const client = job?.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;
-    return <NewQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} />;
+    return <NewQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} canPickSite={can(ctx, "sites.view")} />;
   },
 
   // /quotes/upload, or /quotes/upload/<job> ("Attach a quote PDF" on a job without a quote).

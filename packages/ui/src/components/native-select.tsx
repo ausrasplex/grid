@@ -42,9 +42,9 @@ export interface NativeSelectProps {
   "aria-invalid"?: boolean | "true" | "false";
 }
 
-// Radix doesn't allow "" as an item value; "" options ("Everyone", "None") use this instead.
+// Radix doesn't allow "" as an item value; "" options ("Everyone", "Whole building") use this instead.
+// A value of "" with no "" option means nothing is chosen yet: the placeholder shows.
 const EMPTY = "__grid_empty__";
-const toRadix = (value: string | undefined) => (value === "" ? EMPTY : value);
 const fromRadix = (value: string) => (value === EMPTY ? "" : value);
 
 export function NativeSelect({
@@ -62,6 +62,8 @@ export function NativeSelect({
   "aria-describedby": describedBy,
   "aria-invalid": invalid,
 }: NativeSelectProps) {
+  const hasEmpty = options.some((option) => option.value === "");
+  const toRadix = (current: string | undefined) => (current === "" && hasEmpty ? EMPTY : current);
   return (
     <SelectPrimitive.Root
       value={toRadix(value)}
@@ -113,7 +115,7 @@ export function NativeSelect({
             {options.map((option) => (
               <SelectPrimitive.Item
                 key={option.value}
-                value={toRadix(option.value)!}
+                value={option.value === "" ? EMPTY : option.value}
                 disabled={option.disabled}
                 className={cn(
                   "relative flex min-h-touch cursor-default items-center gap-2 rounded-lg py-2 pr-9 pl-3 text-base outline-none select-none",
