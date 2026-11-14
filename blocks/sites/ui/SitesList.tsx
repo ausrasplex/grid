@@ -51,7 +51,8 @@ export function SitesList({ solo, canCreateJob, canCreateSite }: { solo: boolean
         title="Sites"
         actions={
           <>
-            {canCreateSite && !solo && (
+            {/* Sole traders too: set a site out before its first job (decided Nov 2026). */}
+            {canCreateSite && (
               <ActionButton variant="outline" icon={<Icon name="building" />} label="New site" onClick={() => (window.location.href = "/sites/new")} />
             )}
             {canCreateJob && <ActionButton icon={<Icon name="plus" />} label="New job" onClick={() => (window.location.href = "/jobs/new")} />}
@@ -80,7 +81,9 @@ export function SitesList({ solo, canCreateJob, canCreateSite }: { solo: boolean
                 ? "Try part of the street name or the client's surname."
                 : tab === "archived"
                   ? "A site moves here by itself when its last job is finished."
-                  : "Start a job with an address and its site appears here."}
+                  : canCreateSite
+                    ? "Start a job with an address and its site appears here, or add a site first with New site."
+                    : "Start a job with an address and its site appears here."}
             </EmptyState>
           </Section>
         ) : (

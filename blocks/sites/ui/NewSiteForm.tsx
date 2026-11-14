@@ -1,7 +1,8 @@
 "use client";
 
-// A managed site: a precinct, shopping centre, school or block of units.
-// (Houses don't need this: a job's address makes its site automatically.)
+// A managed site: a precinct, shopping centre, school or block of units, set
+// out before any job there. (A house doesn't need this: a job's address makes
+// its site automatically.) Shown to sole traders as well as teams.
 
 import { useState } from "react";
 import { Alert, Button, Field, FormActions, PageHeader, Section, api, useAction } from "@grid/ui";
@@ -14,7 +15,7 @@ export function NewSiteForm() {
     <>
       <PageHeader
         title="New site"
-        subtitle="For precincts, centres, schools and multi-storey jobs. Set out its buildings and levels next. A house doesn't need this: starting a job at the address makes its site."
+        subtitle="Set a site up before any jobs there: a precinct, centre, school or multi-storey build. You set out its buildings and levels next. A house doesn't need this: starting a job at the address makes its site."
       />
       <Section>
         <form
