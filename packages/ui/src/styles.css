@@ -15,7 +15,7 @@
 /* ---------- Default: concept C (dark, hi-vis) ---------- */
 :root {
   color-scheme: dark;
-  --radius: 1rem; /* soft, rounded look throughout */
+  --radius: 0.625rem; /* 10px: lightly rounded throughout (was 16px, reduced Nov 2026) */
 
   --background: oklch(0.16 0.005 250); /* page, sidebar, rail, headers */
   --foreground: oklch(0.96 0.003 90);
@@ -135,11 +135,11 @@
   --color-nav-active: var(--nav-active);
   --color-dock: var(--dock);
 
-  --radius-sm: calc(var(--radius) - 6px); /* 10px: badges, small chips */
-  --radius-md: calc(var(--radius) - 4px); /* 12px: inputs, small buttons */
-  --radius-lg: var(--radius); /* 16px: list highlights, menu items */
-  --radius-xl: calc(var(--radius) + 4px); /* 20px: cards */
-  --radius-2xl: calc(var(--radius) + 8px); /* 24px: sheets, hero cards */
+  --radius-sm: calc(var(--radius) - 6px); /* 4px: badges, small chips */
+  --radius-md: calc(var(--radius) - 4px); /* 6px: inputs, small buttons */
+  --radius-lg: var(--radius); /* 10px: list highlights, menu items */
+  --radius-xl: calc(var(--radius) + 4px); /* 14px: cards */
+  --radius-2xl: calc(var(--radius) + 8px); /* 18px: sheets, hero cards */
 
   /* Touch-target sizes used across components */
   --spacing-touch: 2.75rem; /* 44px: Apple/Google minimum */
