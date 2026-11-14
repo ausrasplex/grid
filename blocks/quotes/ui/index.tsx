@@ -3,19 +3,19 @@
 //   /quotes/new[/<job>]     start a quote (optionally for an existing job)
 //   /quotes/<id>            the quote: editor while draft, outcome once sent
 //   /quotes/price-book      labour and materials
-//   /quotes/clients         clients
+//   /quotes/clients         → /clients (one list for jobs and quotes)
 //   /quotes/settings        tax & currency
 //   /q/<token>                the customer's page (public; rewrites to /p/quotes/q/<token>)
 //   panel "job.area"          "Quote Q-1001 · $4,180" link on the job it became
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { app, can } from "@grid/core";
 import { type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
 import { getProject, type JobAreaPanelProps } from "@grid/block-projects";
-import { getQuote, getTaxSettings, listClients, listPriceItems, listQuotes, quoteForJob } from "../service";
-import { Clients } from "./Clients";
+import { getClient } from "@grid/block-clients";
+import { getQuote, getTaxSettings, listPriceItems, listQuotes, quoteForJob } from "../service";
 import { CustomerQuote, type CustomerViewJson } from "./CustomerQuote";
-import type { ClientJson } from "./ClientPicker";
 import { NewQuote } from "./NewQuote";
 import { PriceBook, type PriceItemRow } from "./PriceBook";
 import { QuoteEditor, type QuoteJson } from "./QuoteEditor";
@@ -39,7 +39,9 @@ export const pages: BlockPages = {
   new: async ({ ctx, params: [jobId] }) => {
     if (!can(ctx, "quotes.create")) return <p>You can&apos;t write quotes.</p>;
     const job = jobId ? await getProject(ctx, jobId) : null;
-    return <NewQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "", clientName: job.clientName }} />;
+    // Start with the job's client.
+    const client = job?.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;
+    return <NewQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} />;
   },
 
   "price-book": async ({ ctx }) => {
@@ -58,9 +60,7 @@ export const pages: BlockPages = {
     );
   },
 
-  clients: async ({ ctx }) => (
-    <Clients initial={json<ClientJson[]>(await listClients(ctx))} canManage={can(ctx, "quotes.clients.manage")} canAdd={can(ctx, "quotes.create")} />
-  ),
+  clients: async () => redirect("/clients"),
 
   settings: async ({ ctx }) => {
     if (!can(ctx, "quotes.settings.manage")) return <p>Only the Owner can change tax and currency.</p>;

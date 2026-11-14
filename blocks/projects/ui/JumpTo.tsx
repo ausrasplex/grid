@@ -36,7 +36,7 @@ export function JumpTo() {
 
   return (
     <>
-      <PageHeader title="Jump to" subtitle="Job number, job, customer, site or address." />
+      <PageHeader title="Jump to" subtitle="Job number, job, client, site or address." />
       <Stack>
         <form
           onSubmit={(event) => {
@@ -67,7 +67,7 @@ export function JumpTo() {
         )}
         {response && query.trim() && !response.exact && !response.jobs.length && !response.sites.length && (
           <Section>
-            <EmptyState title="Nothing found">Try a different number, or part of the street or customer's name.</EmptyState>
+            <EmptyState title="Nothing found">Try a different number, or part of the street or client's name.</EmptyState>
           </Section>
         )}
       </Stack>

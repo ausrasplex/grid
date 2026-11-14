@@ -31,7 +31,10 @@ model Project {
   /// The company at the root of the contract chain.
   hostCompanyId String
   name          String
-  /// The customer, for a sole trader's own jobs ("Mrs Nguyen"). Quotes link proper client records later.
+  /// Who the job is for: a Client (clients block) of the host company.
+  clientId      String?
+  /// A copy of the client's name, for lists and search. Kept in step when
+  /// the client is renamed ("clients.renamed").
   clientName    String?
   description   String?
   status        ProjectStatus  @default(ACTIVE)
@@ -49,6 +52,7 @@ model Project {
 
   @@index([siteId, status])
   @@index([hostCompanyId, status])
+  @@index([clientId])
 }
 
 /// A building (levelId null = the whole building, including levels added

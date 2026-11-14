@@ -28,7 +28,7 @@ import {
   useAction,
 } from "@grid/ui";
 import { calculate, formatMoney, groupBySection } from "../money";
-import { ClientPicker, type ClientJson } from "./ClientPicker";
+import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { StatusBadge } from "./StatusBadge";
 
 export interface LineJson {
@@ -62,7 +62,7 @@ export interface QuoteJson {
   acceptedHow: string | null;
   acceptedNote: string | null;
   acceptedOptions: number[];
-  /** With the extras the customer chose (when they chose any). */
+  /** With the extras the client chose (when they chose any). */
   acceptedTotalCents: number | null;
   viewedAt: string | null;
   link: {
@@ -331,9 +331,9 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
                 <Field label="Site address" value={form.siteAddress} onChange={(event) => setForm({ ...form, siteAddress: event.target.value })} />
                 <Field label="Valid until" type="date" value={form.validUntil} onChange={(event) => setForm({ ...form, validUntil: event.target.value })} />
                 <div className="flex flex-col gap-2">
-                  <Label>What the customer sees</Label>
+                  <Label>What the client sees</Label>
                   <Segmented
-                    label="What the customer sees"
+                    label="What the client sees"
                     value={form.clientView}
                     onChange={(value) => setForm({ ...form, clientView: value })}
                     items={[
@@ -350,7 +350,7 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
                   </span>
                   <Switch checked={form.pricesIncludeTax} onCheckedChange={(checked) => setForm({ ...form, pricesIncludeTax: checked })} />
                 </label>
-                <TextArea label="Note to the customer" hint="Shown above the prices" value={form.intro} onChange={(value) => setForm({ ...form, intro: value })} />
+                <TextArea label="Note to the client" hint="Shown above the prices" value={form.intro} onChange={(value) => setForm({ ...form, intro: value })} />
                 <TextArea label="Terms" value={form.terms} onChange={(value) => setForm({ ...form, terms: value })} rows={5} />
                 <TextArea label="Internal notes" hint="Only your business sees these. Never on the PDF." value={form.internalNotes} onChange={(value) => setForm({ ...form, internalNotes: value })} />
               </div>
@@ -750,7 +750,7 @@ function CopyLink({ url }: { url: string }) {
         ref={input}
         readOnly
         value={url}
-        aria-label="Customer link"
+        aria-label="Client link"
         onFocus={(event) => event.currentTarget.select()}
         className="h-touch min-w-0 flex-1 rounded-md border border-input bg-muted px-3 text-sm"
       />
@@ -796,12 +796,12 @@ function Outcome({ quote, permissions, onAnswer, reload }: { quote: QuoteJson; p
             <p>
               Rev {latest?.label} sent {latest && when(latest.sentAt)}
               {latest?.sentTo ? ` to ${latest.sentTo}` : " (sent by you)"}.{" "}
-              {quote.viewedAt ? <strong>The customer opened it {when(quote.viewedAt)}.</strong> : "Waiting for an answer."}
+              {quote.viewedAt ? <strong>The client opened it {when(quote.viewedAt)}.</strong> : "Waiting for an answer."}
             </p>
             {link?.status === "OPEN" && link.url ? (
               <div className="flex flex-col gap-2">
                 <p className="text-sm text-muted-foreground">
-                  The customer can accept and sign, or decline, on this link until {new Date(link.expiresAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}. Codes go to {link.recipientEmail}.
+                  The client can accept and sign, or decline, on this link until {new Date(link.expiresAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}. Codes go to {link.recipientEmail}.
                   {!latest?.sentTo && " Text or email it with the PDF."}
                 </p>
                 <CopyLink url={link.url} />
@@ -843,7 +843,7 @@ function Outcome({ quote, permissions, onAnswer, reload }: { quote: QuoteJson; p
           </div>
         )}
         {quote.status === "DECLINED" && <p>Declined{quote.declineReason ? `: ${quote.declineReason}` : "."}</p>}
-        {quote.status === "WITHDRAWN" && <p>Withdrawn. The customer&apos;s link no longer works.</p>}
+        {quote.status === "WITHDRAWN" && <p>Withdrawn. The client&apos;s link no longer works.</p>}
         <Alert variant="error">{action.error}</Alert>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {quote.status === "SENT" && permissions.send && (
@@ -880,7 +880,7 @@ function AnswerSheet({ quote, kind, onClose, onDone }: { quote: QuoteJson; kind:
     <Sheet open onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         title={kind === "accept" ? "Record acceptance" : "Record decline"}
-        description={kind === "accept" ? "For a yes by phone, email or on paper. The customer's link stops working." : "The customer's link stops working."}
+        description={kind === "accept" ? "For a yes by phone, email or on paper. The client's link stops working." : "The client's link stops working."}
       >
         <form
           className="flex flex-col gap-3 px-2"

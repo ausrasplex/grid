@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 import { can, notFound, type RequestContext } from "@grid/core";
 import { Alert, Badge, Icon, LinkRow, List, PageHeader, Section, Stack, buttonVariants, cn, type BlockPages, type PanelRenderer } from "@grid/ui";
 import { SiteNotes } from "@grid/block-sites/components";
+import { getClient } from "@grid/block-clients";
 import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
 import { getProject, jobsAt, recordArea, resumeOnSite, type Area } from "../service";
 import { CopyLink, FinishJob } from "./JobActions";
@@ -286,7 +287,7 @@ async function JobPage({
         <Section title="Details" flush>
           <dl className="divide-y">
             <Detail label="Address" value={site.address} href={siteHref(site.id)} />
-            {job.clientName && <Detail label="Customer" value={job.clientName} />}
+            {job.clientName && <Detail label="Client" value={job.clientName} />}
             {job.jobNumber && <Detail label="Job number" value={job.jobNumber} />}
             <Detail label="Started" value={date(job.startedAt)} />
             {!plain && <Detail label="Covers" value={coversText(job.covers, site)} />}
@@ -323,15 +324,20 @@ function coversText(covers: { buildingId: string; levelId: string | null }[], si
     .join("; ");
 }
 
+/** What the client picker on job forms may do: see the list, add to it. */
+const clientAccess = (ctx: RequestContext) => ({ canPick: can(ctx, "clients.view"), canAdd: can(ctx, "clients.add") });
+
 export const pages: BlockPages = {
   "": async ({ ctx, params: [jobId, sub, buildingId, levelId], panels }) => {
     if (!jobId) redirect("/sites");
     if (sub === "settings") {
       const job = await getProject(ctx, jobId);
+      const client = job.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;
       return (
         <JobSettings
-          job={{ id: job.id, name: job.name, clientName: job.clientName, jobNumber: job.jobNumber, covers: job.covers }}
+          job={{ id: job.id, name: job.name, client: job.clientId ? (client ?? { id: job.clientId, name: job.clientName ?? "Client" }) : null, jobNumber: job.jobNumber, covers: job.covers }}
           site={job.site}
+          clients={clientAccess(ctx)}
         />
       );
     }
@@ -350,7 +356,7 @@ export const pages: BlockPages = {
   new: async ({ ctx, params: [siteId] }) => {
     if (!can(ctx, "projects.create")) return <Alert variant="error">You don't have permission to start jobs.</Alert>;
     const site = siteId ? await getSite(ctx, siteId) : null;
-    return <NewJobForm site={site} />;
+    return <NewJobForm site={site} clients={clientAccess(ctx)} />;
   },
 
   search: () => <JumpTo />,

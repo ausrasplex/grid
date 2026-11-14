@@ -61,27 +61,6 @@ model TaxCode {
   @@index([companyId])
 }
 
-/// Who a quote goes to: a homeowner, property manager, builder…
-model Client {
-  id          String    @id @default(uuid())
-  companyId   String
-  name        String
-  contactName String?
-  email       String?
-  phone       String?
-  address     String?
-  /// Business number (ABN etc.) for business clients.
-  abn         String?
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-
-  quotes Quote[]
-
-  @@index([companyId, name])
-}
-
 model PriceItem {
   id           String        @id @default(uuid())
   companyId    String
@@ -109,6 +88,7 @@ model Quote {
   /// "Q-1001": unique per company.
   number           String
   title            String
+  /// Who it's for: a Client (clients block).
   clientId         String?
   siteAddress      String?
   status           QuoteStatus     @default(DRAFT)
@@ -140,7 +120,6 @@ model Quote {
   updatedAt        DateTime        @updatedAt
   deletedAt        DateTime?
 
-  client    Client?         @relation(fields: [clientId], references: [id])
   lines     QuoteLine[]
   revisions QuoteRevision[]
   events    QuoteEvent[]

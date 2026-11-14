@@ -3,11 +3,20 @@
 // Start a quote: what it's for, who for, where. Lines come next.
 import { useState } from "react";
 import { Alert, Button, Field, FormActions, PageHeader, Section, api, useAction } from "@grid/ui";
-import { ClientPicker, type ClientJson } from "./ClientPicker";
+import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 
-export function NewQuote({ job }: { job: { id: string; name: string; address: string; clientName: string | null } | null }) {
+export function NewQuote({
+  job,
+  client: jobClient,
+  canAddClient,
+}: {
+  job: { id: string; name: string; address: string } | null;
+  /** The job's client, to start with. */
+  client: ClientJson | null;
+  canAddClient: boolean;
+}) {
   const [title, setTitle] = useState(job?.name ?? "");
-  const [client, setClient] = useState<ClientJson | null>(null);
+  const [client, setClient] = useState<ClientJson | null>(jobClient);
   const [address, setAddress] = useState(job?.address ?? "");
   const [touched, setTouched] = useState(!!job);
   const action = useAction();
@@ -28,6 +37,7 @@ export function NewQuote({ job }: { job: { id: string; name: string; address: st
           <Field label="What's the job?" placeholder="e.g. Switchboard upgrade" value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus />
           <ClientPicker
             value={client}
+            canAdd={canAddClient}
             onChange={(value) => {
               setClient(value);
               if (value?.address && !touched) setAddress(value.address);

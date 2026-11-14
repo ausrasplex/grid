@@ -4,7 +4,6 @@ import type { Routes } from "@grid/core";
 import * as svc from "./service";
 import {
   acceptSchema,
-  clientSchema,
   createQuoteSchema,
   declineSchema,
   priceItemSchema,
@@ -25,11 +24,6 @@ export const routes: Routes = {
   "POST /settings/codes": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.saveTaxCode(ctx, null, taxCodeSchema.parse(request.body)) },
   "PUT /settings/codes/:id": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.saveTaxCode(ctx, request.params.id!, taxCodeSchema.parse(request.body)) },
 
-  // Clients
-  "GET /clients": { permission: "quotes.view", handler: (ctx, request) => svc.listClients(ctx, queryParams(request).q ?? "") },
-  "POST /clients": { permission: "quotes.create", handler: (ctx, request) => svc.saveClient(ctx, null, clientSchema.parse(request.body)) },
-  "PUT /clients/:id": { permission: "quotes.clients.manage", handler: (ctx, request) => svc.saveClient(ctx, request.params.id!, clientSchema.parse(request.body)) },
-  "DELETE /clients/:id": { permission: "quotes.clients.manage", handler: (ctx, request) => svc.deleteClient(ctx, request.params.id!) },
 
   // Price book
   "GET /items": { permission: "quotes.view", handler: (ctx, request) => svc.listPriceItems(ctx, itemsQuery.parse(queryParams(request))) },

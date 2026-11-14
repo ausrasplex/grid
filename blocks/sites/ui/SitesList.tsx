@@ -63,7 +63,7 @@ export function SitesList({ solo, canCreateJob, canCreateSite }: { solo: boolean
           <Segmented label="Which sites" items={tabs} value={tab} onChange={setTab} />
           <SearchInput
             label="Search sites"
-            placeholder="Address, customer or site name"
+            placeholder="Address, client or site name"
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
             className="flex-1"
@@ -77,7 +77,7 @@ export function SitesList({ solo, canCreateJob, canCreateSite }: { solo: boolean
           <Section>
             <EmptyState title={query ? "No sites match that" : tab === "archived" ? "Nothing archived yet" : "No sites yet"}>
               {query
-                ? "Try part of the street name or the customer's surname."
+                ? "Try part of the street name or the client's surname."
                 : tab === "archived"
                   ? "A site moves here by itself when its last job is finished."
                   : "Start a job with an address and its site appears here."}

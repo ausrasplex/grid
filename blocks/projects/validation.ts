@@ -5,7 +5,8 @@ const cover = z.object({ buildingId: z.string().uuid(), levelId: z.string().uuid
 export const createProjectSchema = z
   .object({
     name: z.string().trim().min(1).max(160),
-    clientName: z.string().trim().max(160).optional(),
+    /** Who it's for (a Client of this company). */
+    clientId: z.string().uuid().nullable().optional(),
     description: z.string().trim().max(5000).optional(),
     jobNumber: z.string().trim().max(40).optional(),
     /** Either an existing site… */
@@ -22,7 +23,7 @@ export const createProjectSchema = z
 export const updateProjectSchema = z
   .object({
     name: z.string().trim().min(1).max(160),
-    clientName: z.string().trim().max(160).nullable(),
+    clientId: z.string().uuid().nullable(),
     description: z.string().trim().max(5000).nullable(),
     jobNumber: z.string().trim().min(1).max(40),
     listing: z.enum(["LISTED", "UNLISTED"]),

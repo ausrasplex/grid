@@ -17,6 +17,7 @@ import {
   syncCompanySite,
   type SiteStructure,
 } from "@grid/block-sites";
+import { requireClient, type ClientRenamedEvent } from "@grid/block-clients";
 import type { CoverInput, CreateProjectInput, UpdateProjectInput } from "./validation";
 
 const MOD = "projects";
@@ -60,6 +61,16 @@ function cleanCovers(site: SiteStructure, covers: CoverInput[]): CoverInput[] {
   // "Whole building" already includes its levels.
   const whole = new Set([...out.values()].filter((value) => !value.levelId).map((value) => value.buildingId));
   return [...out.values()].filter((value) => !value.levelId || !whole.has(value.buildingId));
+}
+
+/** A client was renamed: update the copy of the name on their jobs, and the Sites list's search words. */
+export async function clientRenamed(event: ClientRenamedEvent) {
+  await db.$transaction(async (tx) => {
+    const jobs = await tx.project.findMany({ where: { clientId: event.clientId, hostCompanyId: event.companyId }, select: { siteId: true } });
+    if (!jobs.length) return;
+    await tx.project.updateMany({ where: { clientId: event.clientId, hostCompanyId: event.companyId }, data: { clientName: event.name } });
+    for (const siteId of new Set(jobs.map((job) => job.siteId))) await syncSite(tx, siteId, event.companyId, null);
+  });
 }
 
 /** Keeps the site's per-company counts (and archiving) in step with its jobs. */
@@ -139,6 +150,7 @@ export async function createProject(ctx: RequestContext, input: CreateProjectInp
     }
 
     const site = await tx.site.findUniqueOrThrow({ where: { id: siteId }, select: { kind: true } });
+    const client = input.clientId ? await requireClient(tx, companyId, input.clientId) : null;
     const jobNumber = input.jobNumber?.trim() || (await nextJobNumber(tx, companyId));
     await assertJobNumberFree(tx, companyId, jobNumber);
 
@@ -147,7 +159,8 @@ export async function createProject(ctx: RequestContext, input: CreateProjectInp
         siteId,
         hostCompanyId: companyId,
         name: input.name,
-        clientName: input.clientName || null,
+        clientId: client?.id ?? null,
+        clientName: client?.name ?? null,
         description: input.description || null,
         listing: site.kind === "MANAGED" ? "LISTED" : "UNLISTED",
         createdById: ctx.userId,
@@ -238,6 +251,7 @@ export function areasOf(site: SiteStructure, covers: { buildingId: string; level
 export interface JobSummary {
   id: string;
   name: string;
+  clientId: string | null;
   clientName: string | null;
   status: "ACTIVE" | "COMPLETED";
   jobNumber: string | null;
@@ -251,6 +265,7 @@ const summarySelect = (companyId: string) =>
   ({
     id: true,
     name: true,
+    clientId: true,
     clientName: true,
     status: true,
     startedAt: true,
@@ -266,6 +281,7 @@ function toSummary(row: SummaryRow, siteName: string): JobSummary {
   return {
     id: row.id,
     name: row.name,
+    clientId: row.clientId,
     clientName: row.clientName,
     status: row.status,
     jobNumber: row.references[0]?.value ?? null,
@@ -296,6 +312,7 @@ export async function getProject(ctx: RequestContext, projectId: string): Promis
   return {
     id: project.id,
     name: project.name,
+    clientId: project.clientId,
     clientName: project.clientName,
     description: project.description,
     status: project.status,
@@ -436,6 +453,9 @@ export async function updateProject(ctx: RequestContext, projectId: string, inpu
   return db.$transaction(async (tx) => {
     const project = await accessibleProject(tx, companyId, projectId);
     assertHost(companyId, project);
+    // A different client (or none). Keeping the same one is fine even if it's since been removed from the list.
+    const client =
+      input.clientId === undefined || input.clientId === project.clientId ? undefined : input.clientId ? await requireClient(tx, companyId, input.clientId) : null;
     if (input.jobNumber !== undefined) {
       const value = input.jobNumber.trim();
       await assertJobNumberFree(tx, companyId, value, projectId);
@@ -457,12 +477,12 @@ export async function updateProject(ctx: RequestContext, projectId: string, inpu
       where: { id: projectId },
       data: {
         name: input.name,
-        clientName: input.clientName === undefined ? undefined : input.clientName || null,
+        ...(client === undefined ? {} : { clientId: client?.id ?? null, clientName: client?.name ?? null }),
         description: input.description === undefined ? undefined : input.description || null,
         listing: input.listing,
       },
     });
-    if (input.name !== undefined || input.clientName !== undefined) await syncSite(tx, project.siteId, companyId, ctx.userId);
+    if (input.name !== undefined || client !== undefined) await syncSite(tx, project.siteId, companyId, ctx.userId);
     await audit(tx, {
       blockId: MOD,
       actorId: ctx.userId,

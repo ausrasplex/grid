@@ -12,7 +12,7 @@ Status: **3a built** (November 2026): tax & currency settings, clients, price bo
 - **Costs and margin** only reach people with `quotes.costs.view` (stripped server-side). Repeated taps on the same price-book item add to its quantity.
 - **Sections** group lines on screen and on the PDF in the order each section first appears ("Other" for lines without one). Optional extras are listed separately and are never in the total.
 - **Permissions:** `quotes.view`, `.create`, `.send`, `.costs.view`, `.pricebook.manage`, `.clients.manage`, `.settings.manage`. Owner has all; Foreman gets view/create for now.
-- **Pages:** `/quotes` (list), `/quotes/new[/<jobId>]`, `/quotes/<id>`, `/quotes/price-book`, `/quotes/clients`, `/quotes/settings`. API at `/api/quotes/...` (see `routes.ts`).
+- **Pages:** `/quotes` (list), `/quotes/new[/<jobId>]`, `/quotes/<id>`, `/quotes/price-book`, `/quotes/settings`. Clients are the shared list at `/clients` (`/quotes/clients` forwards there). API at `/api/quotes/...` (see `routes.ts`).
 Requires: `templates` (core block, PDFs and online quote view). Uses (when on): `projects` (accepted quotes create/join projects), plans + markups + measurement (take-offs), `variations` (accepted quote is the baseline), `documents` (attachments), stage 6 email/notifications.
 Suggested placement: after stage 4 (markups), so take-offs work; quick quotes don't need plans and can ship earlier.
 
@@ -42,6 +42,9 @@ Suggested placement: after stage 4 (markups), so take-offs work; quick quotes do
 
 ## 1. Clients
 
+- **One list for jobs and quotes (decided Nov 2026).** Clients live in the core `clients` Block (`/clients`, Settings › Clients, API `/api/clients`), not in Quotes, so they work with Quotes switched off. A job's **Client** and a quote's **Client** pick from the same list (or add to it on the spot). Starting a quote from a job starts with the job's client; an accepted quote's client goes on the job it makes. Screens always say "client", never "customer".
+- Permissions: `clients.view`, `clients.add` (Foreman gets both), `clients.manage` (change and remove; Owner). `quotes.clients.manage` became `clients.manage`; the migration carried custom roles over.
+- Removing a client takes them off the list only: jobs and quotes that name them keep their details.
 - A quote goes to a **client**: a company already on the app (e.g. a builder) or an external contact (homeowner, property manager, strata).
 - Client record: name, contacts, billing/site addresses, ABN (business clients), default terms, quote history, win rate.
 - Clients on the app receive quotes in-app; external clients receive a secure link + PDF.
@@ -242,7 +245,7 @@ The client can **decline** instead, with an optional reason. The quote becomes `
 - `quotes.send`: send to clients, withdraw (Owner, Estimator)
 - `quotes.costs.view`: see cost and margin (Owner, Estimator; off for Foremen by default)
 - `quotes.pricebook.manage`: price book, assemblies, supplier imports, templates (Owner, Estimator)
-- `quotes.clients.manage`: client records (Owner, Estimator)
+- Client records: `clients.manage` in the clients Block (Owner; Estimator later)
 - `quotes.reports.view`
 
 **Estimator is a built-in role** (decided). When this block is built, add `ESTIMATOR` to the core system roles (`packages/core/src/block.ts` `SYSTEM_ROLES`), give it a display name in the companies block, and let blocks declare `grants.ESTIMATOR`. Default Estimator grants: all `quotes.*` permissions except company-wide settings it doesn't need, plus `companies.members.view`. Companies can still copy it into custom roles.

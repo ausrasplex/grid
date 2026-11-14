@@ -65,7 +65,7 @@ Navigation, breadcrumbs, search and quick routes are specified in `navigation.md
   - A site **archives itself** when its last active project (for the viewing company) closes.
   - Starting a new job at an archived address **reactivates** that site instead of creating a duplicate. Earlier jobs and site notes come back with it.
   - **Earlier jobs live on the site page, never inside a project.**
-- **Sites list:** Active · Mine · Archived tabs, search by address, customer or site name, most recently opened first (see `navigation.md` §4).
+- **Sites list:** Active · Mine · Archived tabs, search by address, client or site name, most recently opened first (see `navigation.md` §4).
 
 ### 1f. Site QR code (gate sign)
 
@@ -77,6 +77,7 @@ Navigation, breadcrumbs, search and quick routes are specified in `navigation.md
 ### 1g. Project setup (host)
 
 - Create project: name, site (pick an existing site, create a managed site, or let a private site be created from the job address), Covers, then plans.
+- **Client (Nov 2026):** a job's client is picked from (or added to) the shared Clients list (core `clients` Block, see `quotations-block.md` §1). `Project.clientId` points at it; `Project.clientName` is a copy of the name for lists and search, kept in step by the `clients.renamed` event. Picking a client with an address fills in an empty job address. Jobs made before this got a client record each (matched by name) in the migration.
 - Host's own staff are added directly (same company).
 
 ## 2. Inviting a company
@@ -181,12 +182,12 @@ When a company's request reaches the host, the host chooses where it sits:
 **What 2a built, and decisions made while building it:**
 - Blocks `sites` ("Sites") and `projects` (shown as "Jobs"), both `required: true`. The code keeps "project"; screens say "job".
 - **Private sites** come from the job address (`addressKey` matching: "Street"/"St", state names, unit numbers). The same address reuses the company's site, reactivating it if archived. A new one gets one single-level building, "House".
-- **Per-company site state** (`SiteCompanyState`): active/total job counts, archived date and search keywords (customer and job names), kept up to date by the projects block. This is what the Sites list reads.
+- **Per-company site state** (`SiteCompanyState`): active/total job counts, archived date and search keywords (client and job names), kept up to date by the projects block. This is what the Sites list reads.
 - **Job numbers:** `ProjectReference` with label "Job no.". Blank means the next one (J-1001, J-1002…); a typed number must be unique within the company.
 - **"Mine" tab** = sites you've opened, until phase 7 adds people on jobs; hidden while solo.
 - **Structure editing:** add buildings (single or multi-level), add a full set of floors in one go (roof, levels, ground, basements) or one level above/below, rename, reorder, convert single → multi-level (creates "Ground" and emits `sites.building.converted`). Deleting buildings and levels is not built yet (needs a "what's on it" check across Blocks).
 - **Quick routes:** `RouteCode` table (core), `/go/<code>` page, Copy link on site and job pages. Blocks declare `routeTargets` in their manifest.
-- **Jump to:** `/jobs/search`, the header search (a box with Ctrl K from tablet up). Matches job numbers (exact first, "1042" finds "J-1042"), job names, customers, sites and addresses.
+- **Jump to:** `/jobs/search`, the header search (a box with Ctrl K from tablet up). Matches job numbers (exact first, "1042" finds "J-1042"), job names, clients, sites and addresses.
 - Not yet: the camera scanner (Scan is still a placeholder page), plan sheets and quotes in search (they come with those Blocks), and "Outside current areas" (needs work items).
 
 **2b. Multi-company (when teams and builders come on):**

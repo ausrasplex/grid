@@ -8,13 +8,13 @@
 import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db, readStoredFile, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
 import { createProject } from "@grid/block-projects";
+import { clientIdsNamed, clientsById, requireClient, type ClientRow } from "@grid/block-clients";
 import { createSignRequest, latestSignRequest, maskEmail, revokeSignRequests } from "@grid/block-signatures";
 import { calculate, formatMoney, type LineInput } from "./money";
 import { totalsFor, type QuoteSnapshot } from "./snapshot";
 
 export type { QuoteSnapshot } from "./snapshot";
 import type {
-  ClientInput,
   CreateQuoteInput,
   PriceItemInput,
   SendInput,
@@ -92,54 +92,6 @@ export async function saveTaxCode(ctx: RequestContext, id: string | null, input:
 }
 
 // ---------------------------------------------------------------------
-// Clients
-// ---------------------------------------------------------------------
-
-export async function listClients(ctx: RequestContext, query = "") {
-  const companyId = requireCompany(ctx);
-  const words = query.trim().split(/\s+/).filter(Boolean).slice(0, 5);
-  return db.client.findMany({
-    where: {
-      companyId,
-      deletedAt: null,
-      AND: words.map((word) => ({
-        OR: [
-          { name: { contains: word, mode: "insensitive" as const } },
-          { contactName: { contains: word, mode: "insensitive" as const } },
-          { email: { contains: word, mode: "insensitive" as const } },
-          { address: { contains: word, mode: "insensitive" as const } },
-        ],
-      })),
-    },
-    orderBy: { name: "asc" },
-    take: 200,
-  });
-}
-
-export async function saveClient(ctx: RequestContext, id: string | null, input: ClientInput) {
-  const companyId = requireCompany(ctx);
-  return db.$transaction(async (tx) => {
-    let client;
-    if (id) {
-      const result = await tx.client.updateMany({ where: { id, companyId, deletedAt: null }, data: input });
-      if (!result.count) throw notFound("Client not found");
-      client = await tx.client.findUniqueOrThrow({ where: { id } });
-    } else {
-      client = await tx.client.create({ data: { companyId, ...input } });
-    }
-    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Client", entityId: client.id, action: id ? "updated" : "created" });
-    return client;
-  });
-}
-
-export async function deleteClient(ctx: RequestContext, id: string) {
-  const companyId = requireCompany(ctx);
-  const result = await db.client.updateMany({ where: { id, companyId, deletedAt: null }, data: { deletedAt: new Date() } });
-  if (!result.count) throw notFound("Client not found");
-  return { id, deleted: true };
-}
-
-// ---------------------------------------------------------------------
 // Price book
 // ---------------------------------------------------------------------
 
@@ -209,18 +161,19 @@ export async function deletePriceItem(ctx: RequestContext, id: string) {
 // ---------------------------------------------------------------------
 
 const quoteInclude = {
-  client: true,
   lines: { orderBy: { sort: "asc" } },
   revisions: { orderBy: { sentAt: "asc" }, select: { id: true, label: true, sentAt: true, sentTo: true, pdfFileId: true, sentById: true } },
   events: { orderBy: { at: "desc" }, take: 50 },
 } satisfies Prisma.QuoteInclude;
 
-type QuoteRow = Prisma.QuoteGetPayload<{ include: typeof quoteInclude }>;
+/** A quote with its client (from the clients block; removed clients still show). */
+type QuoteRow = Prisma.QuoteGetPayload<{ include: typeof quoteInclude }> & { client: ClientRow | null };
 
 async function ownQuote(tx: Tx, companyId: string, id: string): Promise<QuoteRow> {
   const quote = await tx.quote.findFirst({ where: { id, companyId, deletedAt: null }, include: quoteInclude });
   if (!quote) throw notFound("Quote not found");
-  return quote;
+  const client = (await clientsById(tx, companyId, [quote.clientId])).get(quote.clientId ?? "") ?? null;
+  return { ...quote, client };
 }
 
 /** "Q-1001", "Q-1002"… (numbers typed by hand are skipped over). */
@@ -265,33 +218,35 @@ export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | 
   const status: Prisma.QuoteWhereInput["status"] =
     tab === "draft" ? "DRAFT" : tab === "sent" ? "SENT" : tab === "won" ? "ACCEPTED" : tab === "open" ? { in: ["DRAFT", "SENT"] } : undefined;
   const words = (options.q ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 5);
+  const clientsNamed = await Promise.all(words.map((word) => clientIdsNamed(companyId, word)));
   const rows = await db.quote.findMany({
     where: {
       companyId,
       deletedAt: null,
       ...(status ? { status } : {}),
-      AND: words.map((word) => ({
+      AND: words.map((word, index) => ({
         OR: [
           { number: { contains: word, mode: "insensitive" as const } },
           { title: { contains: word, mode: "insensitive" as const } },
           { siteAddress: { contains: word, mode: "insensitive" as const } },
-          { client: { name: { contains: word, mode: "insensitive" as const } } },
+          { clientId: { in: clientsNamed[index]! } },
         ],
       })),
     },
-    include: { client: { select: { name: true } }, lines: true },
+    include: { lines: true },
     orderBy: { updatedAt: "desc" },
     take: 200,
   });
   const settings = await taxSettings(companyId);
   const agreed = await acceptedTotals(rows);
+  const clients = await clientsById(db, companyId, rows.map((row) => row.clientId));
   return rows.map((row) => {
     const totals = calculate(linesForMaths(row.lines), { pricesIncludeTax: row.pricesIncludeTax, rounding: settings.rounding as "LINE" | "TOTAL", codes: settings.codes });
     return {
       id: row.id,
       number: row.number,
       title: row.title,
-      clientName: row.client?.name ?? null,
+      clientName: clients.get(row.clientId ?? "")?.name ?? null,
       siteAddress: row.siteAddress,
       status: row.status,
       totalCents: agreed.get(row.currentRevisionId ?? "") ?? totals.totalCents,
@@ -308,8 +263,7 @@ export async function createQuote(ctx: RequestContext, input: CreateQuoteInput) 
   const companyId = requireCompany(ctx);
   const quote = await db.$transaction(async (tx) => {
     const settings = await taxSettings(companyId, tx);
-    if (input.clientId && !(await tx.client.findFirst({ where: { id: input.clientId, companyId, deletedAt: null } }))) throw badRequest("Client not found");
-    const client = input.clientId ? await tx.client.findUnique({ where: { id: input.clientId } }) : null;
+    const client = input.clientId ? await requireClient(tx, companyId, input.clientId) : null;
     const quote = await tx.quote.create({
       data: {
         companyId,
@@ -395,7 +349,8 @@ export async function updateQuote(ctx: RequestContext, id: string, input: Update
   await db.$transaction(async (tx) => {
     const quote = await ownQuote(tx, companyId, id);
     if (quote.status !== "DRAFT") throw conflict("This quote has been sent. Tap Edit to make a new revision.");
-    if (input.clientId && !(await tx.client.findFirst({ where: { id: input.clientId, companyId, deletedAt: null } }))) throw badRequest("Client not found");
+    // A different client must be one on the list (keeping a since-removed one is fine).
+    if (input.clientId && input.clientId !== quote.clientId) await requireClient(tx, companyId, input.clientId);
     const { lines, ...fields } = input;
     await tx.quote.update({ where: { id }, data: fields });
     if (lines) {
@@ -620,11 +575,14 @@ export async function reopenQuote(ctx: RequestContext, id: string) {
 }
 
 /** Makes the job an accepted quote turns into (at its site address). */
-export async function makeJobFromQuote(ctx: RequestContext, quote: { title: string; number: string; siteAddress: string | null; client: { name: string } | null }) {
+export async function makeJobFromQuote(ctx: RequestContext, quote: { title: string; number: string; siteAddress: string | null; clientId: string | null }) {
   if (!quote.siteAddress) throw badRequest("Add the site address to the quote, so the job knows where it is");
+  // The quote's client goes on the job, unless they've since been removed from the list.
+  const companyId = requireCompany(ctx);
+  const clientId = quote.clientId ? await requireClient(db, companyId, quote.clientId).then((client) => client.id, () => null) : null;
   const job = await createProject(ctx, {
     name: quote.title,
-    clientName: quote.client?.name,
+    clientId,
     address: quote.siteAddress,
     references: [{ label: "Quote", value: quote.number }],
   });

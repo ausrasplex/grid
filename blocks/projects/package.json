@@ -10,6 +10,7 @@
     "./components": "./ui/components.ts"
   },
   "dependencies": {
+    "@grid/block-clients": "workspace:*",
     "@grid/block-companies": "workspace:*",
     "@grid/block-sites": "workspace:*",
     "@grid/core": "workspace:*",

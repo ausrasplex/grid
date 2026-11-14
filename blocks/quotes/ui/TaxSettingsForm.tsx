@@ -123,10 +123,10 @@ export function TaxSettingsForm({ initial }: { initial: TaxSettingsJson }) {
               <p className="text-sm text-muted-foreground">Added to every new quote. You can change them on each quote.</p>
             </div>
           </Section>
-          <Section title="Accepting online" description="Quote emails include a private link where the customer can read the quote, tick extras, and sign or decline. They confirm with a code emailed to them.">
+          <Section title="Accepting online" description="Quote emails include a private link where the client can read the quote, tick extras, and sign or decline. They confirm with a code emailed to them.">
             <div className="flex flex-col gap-4">
               <label className="flex items-center justify-between gap-3">
-                <span className="font-medium">Let customers accept and sign online</span>
+                <span className="font-medium">Let clients accept and sign online</span>
                 <Switch checked={form.onlineAccept} onCheckedChange={(checked) => setForm({ ...form, onlineAccept: checked })} />
               </label>
               {form.onlineAccept && (

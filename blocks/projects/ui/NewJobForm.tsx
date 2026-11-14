@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { Alert, Button, Field, FormActions, Icon, PageHeader, Section, Stack, api, useAction, useApi } from "@grid/ui";
+import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { CoversPicker, type Cover } from "./CoversPicker";
 
 interface Site {
@@ -30,9 +31,9 @@ function defaultCovers(site: Site | null): Cover[] {
   return [];
 }
 
-export function NewJobForm({ site }: { site: Site | null }) {
+export function NewJobForm({ site, clients }: { site: Site | null; clients: { canPick: boolean; canAdd: boolean } }) {
   const [name, setName] = useState("");
-  const [clientName, setClientName] = useState("");
+  const [client, setClient] = useState<ClientJson | null>(null);
   const [jobNumber, setJobNumber] = useState("");
   const [address, setAddress] = useState("");
   const [covers, setCovers] = useState<Cover[]>(defaultCovers(site));
@@ -63,7 +64,7 @@ export function NewJobForm({ site }: { site: Site | null }) {
           event.preventDefault();
           const body = {
             name,
-            ...(clientName.trim() ? { clientName } : {}),
+            ...(client ? { clientId: client.id } : {}),
             ...(jobNumber.trim() ? { jobNumber } : {}),
             ...(site ? { siteId: site.id, covers } : { address }),
           };
@@ -98,7 +99,18 @@ export function NewJobForm({ site }: { site: Site | null }) {
           <Section title="The job">
             <div className="flex flex-col gap-4">
               <Field label="Job name" placeholder="e.g. Switchboard upgrade" value={name} onChange={(event) => setName(event.target.value)} required />
-              <Field label="Customer" hint="Optional. Lets you find the job by their name." autoComplete="off" value={clientName} onChange={(event) => setClientName(event.target.value)} />
+              {clients.canPick && (
+                <ClientPicker
+                  value={client}
+                  canAdd={clients.canAdd}
+                  hint="Optional. Lets you find the job by their name."
+                  onChange={(picked) => {
+                    setClient(picked);
+                    // Their address is often the job's.
+                    if (picked?.address && !site && !address.trim()) setAddress(picked.address);
+                  }}
+                />
+              )}
               <Field label="Job number" hint="Leave blank for the next number (J-1001, J-1002…)." autoComplete="off" value={jobNumber} onChange={(event) => setJobNumber(event.target.value)} />
             </div>
           </Section>

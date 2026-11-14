@@ -7,7 +7,7 @@ The owner is a worker electrician, not a full-time developer. Explain changes in
 ## Words
 
 - **Grid**: the app. **Block**: a feature package in `blocks/` (was "module"; never use that word). **Store**: where a business adds/removes Blocks (`/business/store`).
-- **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Sites & Jobs**, and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
+- **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Clients**, **Sites & Jobs**, and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
 
 ## Naming (project rule)
 
@@ -57,7 +57,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, sites, projects, signatures, templates (core); photos, quotes, plans, markups (optional)
+blocks/        users, companies, clients, sites, projects, signatures, templates (core); photos, quotes, plans, markups (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -91,5 +91,6 @@ prisma/        base, core and auth schemas; migrations
 - PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.
 - Throw errors with `badRequest`/`forbidden`/`notFound`/`conflict` and check them with `isHttpError()`, never `instanceof` (Blocks can get their own copy of the core module).
 - The screens say "job"; the code says "project". Keep it that way.
+- The screens say "client", never "customer" (one shared Clients list for jobs and quotes, core `clients` Block).
 
 - In `docs/templates-block.md`, a template is built from **elements**; "Block" always means a Grid feature package.

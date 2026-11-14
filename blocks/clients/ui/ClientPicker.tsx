@@ -1,6 +1,7 @@
 "use client";
 
-// Pick a client, or add one on the spot (name is enough to start).
+// Pick a client, or add one on the spot (name is enough to start). Used when
+// starting a job, in a job's details and on quotes.
 import { useEffect, useState } from "react";
 import { Alert, Button, Field, FormActions, Label, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
 
@@ -15,7 +16,18 @@ export interface ClientJson {
   notes: string | null;
 }
 
-export function ClientPicker({ value, onChange }: { value: ClientJson | null; onChange: (client: ClientJson | null) => void }) {
+export function ClientPicker({
+  value,
+  onChange,
+  canAdd = true,
+  hint,
+}: {
+  value: Pick<ClientJson, "id" | "name"> & Partial<ClientJson> | null;
+  onChange: (client: ClientJson | null) => void;
+  /** Has clients.add: offer "+ New client". */
+  canAdd?: boolean;
+  hint?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<ClientJson[]>([]);
@@ -24,7 +36,7 @@ export function ClientPicker({ value, onChange }: { value: ClientJson | null; on
   useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => {
-      api<ClientJson[]>(`/quotes/clients?q=${encodeURIComponent(query)}`)
+      api<ClientJson[]>(`/clients?q=${encodeURIComponent(query)}`)
         .then(setRows)
         .catch(() => setRows([]));
     }, 200);
@@ -34,6 +46,7 @@ export function ClientPicker({ value, onChange }: { value: ClientJson | null; on
   return (
     <div className="flex flex-col gap-2">
       <Label>Client</Label>
+      {hint && <p className="-mt-1 text-sm text-muted-foreground">{hint}</p>}
       <Sheet open={open} onOpenChange={(open) => (setOpen(open), setAdding(false))}>
         <button
           type="button"
@@ -63,9 +76,11 @@ export function ClientPicker({ value, onChange }: { value: ClientJson | null; on
           ) : (
             <div className="flex flex-col gap-3 px-2">
               <SearchInput label="Search clients" placeholder="Name, email or address" value={query} onChange={(event) => setQuery(event.target.value)} autoFocus />
-              <Button variant="outline" onClick={() => setAdding(true)}>
-                + New client{query ? `: ${query}` : ""}
-              </Button>
+              {canAdd && (
+                <Button variant="outline" onClick={() => setAdding(true)}>
+                  + New client{query ? `: ${query}` : ""}
+                </Button>
+              )}
               <ul className="divide-y rounded-lg border">
                 {rows.map((row) => (
                   <li key={row.id}>
@@ -129,7 +144,7 @@ export function ClientForm({
         // a form the picker sits in (New quote). Keep it here.
         event.stopPropagation();
         const client = await action.run(() =>
-          initial.id ? api<ClientJson>(`/quotes/clients/${initial.id}`, { method: "PUT", body: form }) : api<ClientJson>("/quotes/clients", { body: form }),
+          initial.id ? api<ClientJson>(`/clients/${initial.id}`, { method: "PUT", body: form }) : api<ClientJson>("/clients", { body: form }),
         );
         if (client) onSaved(client);
       }}
@@ -140,6 +155,10 @@ export function ClientForm({
       <Field label="Phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} />
       <Field label="Address" value={form.address} onChange={set("address")} />
       <Field label="ABN" hint="For business clients" value={form.abn} onChange={set("abn")} />
+      <label className="flex flex-col gap-1.5 text-sm font-medium">
+        Notes
+        <textarea rows={3} value={form.notes} onChange={set("notes")} placeholder="e.g. Gate code 4512, dog in the yard" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
+      </label>
       <Alert variant="error">{action.error}</Alert>
       <FormActions>
         {onDelete && (

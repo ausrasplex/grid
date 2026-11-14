@@ -1,6 +1,6 @@
 "use client";
 
-// Clients: the people and businesses you quote for.
+// Clients: the people and businesses you work for, one list for jobs and quotes.
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { ActionButton, Avatar, EmptyState, List, PageHeader, SearchInput, Section, Sheet, SheetContent, Stack, TapRow, api } from "@grid/ui";
@@ -10,7 +10,7 @@ export function Clients({ initial, canManage, canAdd }: { initial: ClientJson[];
   const [rows, setRows] = useState(initial);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Partial<ClientJson> | null>(null);
-  const load = async () => setRows(await api<ClientJson[]>(`/quotes/clients?q=${encodeURIComponent(query)}`));
+  const load = async () => setRows(await api<ClientJson[]>(`/clients?q=${encodeURIComponent(query)}`));
   useEffect(() => {
     const timer = setTimeout(() => void load().catch(() => {}), 200);
     return () => clearTimeout(timer);
@@ -27,7 +27,7 @@ export function Clients({ initial, canManage, canAdd }: { initial: ClientJson[];
         <SearchInput label="Search clients" placeholder="Name, email or address" value={query} onChange={(event) => setQuery(event.target.value)} />
         <Section flush>
           {rows.length === 0 ? (
-            <EmptyState title={query ? "No clients match" : "No clients yet"}>{!query && "Clients are added when you write a quote, or here."}</EmptyState>
+            <EmptyState title={query ? "No clients match" : "No clients yet"}>{!query && "Clients are added when you start a job or write a quote, or here."}</EmptyState>
           ) : (
             <List>
               {rows.map((row) => (
@@ -52,8 +52,8 @@ export function Clients({ initial, canManage, canAdd }: { initial: ClientJson[];
               onDelete={
                 editing.id
                   ? async () => {
-                      if (!window.confirm(`Remove ${editing.name}? Quotes already written keep their details.`)) return;
-                      await api(`/quotes/clients/${editing.id}`, { method: "DELETE" });
+                      if (!window.confirm(`Remove ${editing.name}? Jobs and quotes that name them keep their details.`)) return;
+                      await api(`/clients/${editing.id}`, { method: "DELETE" });
                       setEditing(null);
                       await load();
                     }

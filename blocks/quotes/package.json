@@ -10,6 +10,7 @@
     "./money": "./money.ts"
   },
   "dependencies": {
+    "@grid/block-clients": "workspace:*",
     "@grid/block-projects": "workspace:*",
     "@grid/block-signatures": "workspace:*",
     "@grid/block-templates": "workspace:*",

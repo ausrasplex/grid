@@ -8,7 +8,7 @@ export default defineBlock({
   version: "1.0.0",
   description: "Jobs on sites: what each job covers, job numbers, finishing and reopening, and Jump to search. Part of the core.",
   required: true,
-  dependsOn: ["companies", "sites"],
+  dependsOn: ["companies", "clients", "sites"],
   permissions: [
     { key: "projects.view", label: "See jobs" },
     { key: "projects.create", label: "Start jobs" },
@@ -28,4 +28,8 @@ export default defineBlock({
     Project: (id) => `/jobs/${id}`,
   },
   emits: ["projects.created", "projects.completed", "projects.reopened"],
+  on: {
+    // Jobs keep a copy of the client's name (lists, search, the Sites list).
+    "clients.renamed": async (payload) => (await import("./service")).clientRenamed(payload),
+  },
 });

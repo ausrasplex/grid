@@ -310,7 +310,7 @@ function SitePicker({ site, iconOnly }: { site: Props["site"]; iconOnly: boolean
       }
     >
       <div className="flex flex-col gap-2">
-        <SearchInput label="Search sites" placeholder="Address, customer or site" value={query} onChange={(event) => setQuery(event.target.value)} className="px-1" />
+        <SearchInput label="Search sites" placeholder="Address, client or site" value={query} onChange={(event) => setQuery(event.target.value)} className="px-1" />
         <ItemList
           items={(data ?? []).map((option) => ({
             key: option.id,

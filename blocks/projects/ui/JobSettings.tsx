@@ -4,22 +4,24 @@
 
 import { useState } from "react";
 import { Alert, Button, Field, FormActions, PageHeader, Section, Stack, api, useAction } from "@grid/ui";
+import { ClientPicker } from "@grid/block-clients/components";
 import { CoversPicker, type Cover } from "./CoversPicker";
 
 interface Props {
   job: {
     id: string;
     name: string;
-    clientName: string | null;
+    client: { id: string; name: string } | null;
     jobNumber: string | null;
     covers: Cover[];
   };
+  clients: { canPick: boolean; canAdd: boolean };
   site: { name: string; buildings: { id: string; name: string; kind: "MULTI" | "SINGLE"; levels: { id: string; name: string; shortName: string }[] }[] };
 }
 
-export function JobSettings({ job, site }: Props) {
+export function JobSettings({ job, site, clients }: Props) {
   const [name, setName] = useState(job.name);
-  const [clientName, setClientName] = useState(job.clientName ?? "");
+  const [client, setClient] = useState(job.client);
   const [jobNumber, setJobNumber] = useState(job.jobNumber ?? "");
   const [covers, setCovers] = useState<Cover[]>(job.covers);
   const action = useAction();
@@ -34,7 +36,7 @@ export function JobSettings({ job, site }: Props) {
           const ok = await action.run(() =>
             api(`/projects/${job.id}`, {
               method: "PATCH",
-              body: { name, clientName: clientName.trim() || null, jobNumber, ...(simple ? {} : { covers }) },
+              body: { name, ...(clients.canPick ? { clientId: client?.id ?? null } : {}), jobNumber, ...(simple ? {} : { covers }) },
             }),
           );
           if (ok) window.location.href = `/jobs/${job.id}`;
@@ -44,7 +46,11 @@ export function JobSettings({ job, site }: Props) {
           <Section title="Details">
             <div className="flex flex-col gap-4">
               <Field label="Job name" value={name} onChange={(event) => setName(event.target.value)} required />
-              <Field label="Customer" value={clientName} onChange={(event) => setClientName(event.target.value)} />
+              {clients.canPick ? (
+                <ClientPicker value={client} onChange={setClient} canAdd={clients.canAdd} />
+              ) : (
+                client && <Field label="Client" value={client.name} readOnly disabled />
+              )}
               <Field label="Job number" value={jobNumber} onChange={(event) => setJobNumber(event.target.value)} required />
             </div>
           </Section>

@@ -1,0 +1,21 @@
+/// Who the work is for: a homeowner, property manager, builder… One list
+/// for the whole business: jobs (Project.clientId) and quotes (Quote.clientId)
+/// both point here. Removing a client keeps it for the jobs and quotes that
+/// already name it.
+model Client {
+  id          String    @id @default(uuid())
+  companyId   String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  /// Business number (ABN etc.) for business clients.
+  abn         String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([companyId, name])
+}

@@ -60,7 +60,7 @@ export async function customerView(token: string, caller: Caller) {
     const first = await markViewed(signRequest, caller);
     if (first) {
       await db.quote.updateMany({ where: { id: quote.id, viewedAt: null }, data: { viewedAt: new Date() } });
-      await db.quoteEvent.create({ data: { quoteId: quote.id, type: "VIEWED", note: `Opened by the customer (Rev ${revision.label})` } });
+      await db.quoteEvent.create({ data: { quoteId: quote.id, type: "VIEWED", note: `Opened by the client (Rev ${revision.label})` } });
     }
   }
   const [{ themeFor }, settings] = await Promise.all([import("@grid/block-templates"), taxSettings(signRequest.companyId)]);
@@ -137,8 +137,7 @@ async function sign(token: string, body: unknown, caller: Caller) {
   let jobNote: string | null = null;
   if (!projectId) {
     try {
-      const client = quote.clientId ? await db.client.findUnique({ where: { id: quote.clientId }, select: { name: true } }) : null;
-      projectId = await makeJobFromQuote(actingFor(revision.sentById, signRequest.companyId), { ...quote, client });
+      projectId = await makeJobFromQuote(actingFor(revision.sentById, signRequest.companyId), quote);
     } catch (error) {
       jobNote = (error as Error).message;
       console.error(`[quotes] signed ${quote.number} but couldn't make the job`, error);
@@ -197,13 +196,13 @@ async function decline(token: string, body: unknown, caller: Caller) {
   await declineRequest(signRequest, reason ?? null, caller);
   await db.$transaction(async (tx) => {
     await tx.quote.update({ where: { id: quote.id }, data: { status: "DECLINED", declinedAt: new Date(), declineReason: reason ?? null } });
-    await tx.quoteEvent.create({ data: { quoteId: quote.id, type: "DECLINED", note: `Declined online by the customer${reason ? `: ${reason}` : ""}` } });
+    await tx.quoteEvent.create({ data: { quoteId: quote.id, type: "DECLINED", note: `Declined online by the client${reason ? `: ${reason}` : ""}` } });
   });
   await emailBusiness(
     quote.id,
     revision.sentById,
     `Declined: ${snapshot.number} ${snapshot.title}`,
-    `The customer declined ${snapshot.tax.documentTitle.toLowerCase()} ${snapshot.number} Rev ${revision.label} online.\n${reason ? `Reason: ${reason}\n` : ""}\nOpen the quote: ${appUrl(`/quotes/${quote.id}`)}\n`,
+    `The client declined ${snapshot.tax.documentTitle.toLowerCase()} ${snapshot.number} Rev ${revision.label} online.\n${reason ? `Reason: ${reason}\n` : ""}\nOpen the quote: ${appUrl(`/quotes/${quote.id}`)}\n`,
   );
   return { declined: true };
 }

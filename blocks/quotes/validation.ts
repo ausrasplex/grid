@@ -42,18 +42,6 @@ export const taxCodeSchema = z
   })
   .strict();
 
-export const clientSchema = z
-  .object({
-    name: z.string().trim().min(1).max(160),
-    contactName: optText(160),
-    email: z.union([z.literal(""), z.string().trim().email("Check the email address")]).nullable().optional().transform((value) => (value ? value : null)),
-    phone: optText(40),
-    address: optText(300),
-    abn: optText(40),
-    notes: optText(5000),
-  })
-  .strict();
-
 export const priceItemSchema = z
   .object({
     kind: z.enum(["LABOUR", "MATERIAL"]),
@@ -129,7 +117,6 @@ export const declineSchema = z.object({ reason: z.string().trim().max(2000).opti
 
 export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
 export type TaxCodeInput = z.infer<typeof taxCodeSchema>;
-export type ClientInput = z.infer<typeof clientSchema>;
 export type PriceItemInput = z.infer<typeof priceItemSchema>;
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export type UpdateQuoteInput = z.infer<typeof updateQuoteSchema>;
