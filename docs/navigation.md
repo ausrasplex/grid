@@ -77,8 +77,8 @@ Shown once a project is selected and it covers more than one area.
 **Tablet (left rail):** Home · Sites · My work · More, with a yellow Scan button under them and your avatar at the bottom.
 
 **Desktop (sidebar):**
-- **Items:** Home · Sites · My work · Quotes · More. My work shows a count badge.
-- **More:** expands in place to Assets, Documents, Inductions, Templates, Members and Settings. It stays open, with the current page highlighted, when you're on one of those pages.
+- **Items:** Home · Sites · My work · Quotes, then a thin line and every other item (Assets, Documents, Inductions, Templates, Settings…). My work shows a count badge.
+- **No More on desktop (decided Nov 2026):** there's room, so every menu item shows; the sidebar scrolls if a business has a lot of Blocks. More stays on phone and tablet.
 - **Footer:** your avatar and role sit at the bottom.
 - **Top of the page:** the page title, and the Jump to search (with Scan) and notifications on the right. There's no separate shaded header bar.
 

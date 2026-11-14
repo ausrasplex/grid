@@ -7,14 +7,15 @@
 //                      (yellow bar over the active item, raised Scan button)
 //   Tablet (768px+):   flat top bar · 88px rail on the left (Home, primary,
 //                      More, Scan, avatar) · content
-//   Desktop (1024px+): 232px sidebar (company, Home, primary, main, More ▾,
-//                      you) · flat top row with header actions · content
+//   Desktop (1024px+): 232px sidebar (company, Home, primary, main, then
+//                      everything else: no More, every item shows, you)
+//                      · flat top row with header actions · content
 //
 // Chrome uses the page colour; the rail and sidebar have a thin right
 // border. Nothing shows a scrollbar on phones/tablets (Scroller fades).
 // Everything respects iPhone/Android safe areas.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Icon, Scroller, Sheet, SheetContent, SheetTrigger, cn } from "@grid/ui";
@@ -212,9 +213,6 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
   const barPrimary = primary.slice(0, 2);
   const compactMore = [...primary.slice(2), ...main, ...more];
   const moreActive = compactMore.some((item) => isActive(pathname, item));
-  // Desktop: More opens in place, and stays open while you're on one of its pages.
-  const desktopMoreActive = more.some((item) => isActive(pathname, item));
-  const [moreOpen, setMoreOpen] = useState(desktopMoreActive);
 
   const companyBlock = (
     <span className="min-w-0">
@@ -364,44 +362,26 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
                 </li>
               );
             })}
-            {more.length > 0 && (
-              <li>
-                <button
-                  type="button"
-                  aria-expanded={moreOpen}
-                  onClick={() => setMoreOpen((currentMoreOpen) => !currentMoreOpen)}
-                  className={cn(
-                    "flex min-h-touch w-full items-center gap-3 rounded-lg px-3.5 text-left text-[15px] font-medium hover:bg-muted",
-                    moreOpen ? "text-foreground" : "text-nav-foreground",
-                  )}
-                >
-                  <Icon name="more" className="size-5" />
-                  <span className="flex-1">More</span>
-                  <Icon name={moreOpen ? "chevron-down" : "chevron-right"} className="size-4 text-muted-foreground" />
-                </button>
-                {moreOpen && (
-                  <ul className="mt-1 flex flex-col gap-1">
-                    {more.map((item) => {
-                      const active = isActive(pathname, item);
-                      return (
-                        <li key={item.id}>
-                          <a
-                            href={item.href}
-                            aria-current={active ? "page" : undefined}
-                            className={cn(
-                              "flex min-h-10 items-center rounded-lg pr-3.5 pl-11 text-sm font-medium",
-                              active ? "bg-accent font-semibold text-accent-foreground" : "text-nav-foreground hover:bg-muted",
-                            )}
-                          >
-                            {item.label}
-                          </a>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </li>
-            )}
+            {/* Desktop shows every item: what's under More on phones and tablets follows, after a line. */}
+            {more.length > 0 && <li aria-hidden className="mx-3.5 my-1 border-t" />}
+            {more.map((item) => {
+              const active = isActive(pathname, item);
+              return (
+                <li key={item.id}>
+                  <a
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-touch items-center gap-3 rounded-lg px-3.5 text-[15px] font-medium transition-colors",
+                      active ? "bg-accent font-semibold text-accent-foreground" : "text-nav-foreground hover:bg-muted",
+                    )}
+                  >
+                    <Icon name={item.icon} className="size-5" />
+                    <span className="truncate">{item.label}</span>
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </Scroller>
         <AccountSheet
