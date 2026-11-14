@@ -44,7 +44,7 @@ export function ClientPicker({
   }, [open, query]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 lg:max-w-2xl">
       <Label>Client</Label>
       {hint && <p className="-mt-1 text-sm text-muted-foreground">{hint}</p>}
       <Sheet open={open} onOpenChange={(open) => (setOpen(open), setAdding(false))}>

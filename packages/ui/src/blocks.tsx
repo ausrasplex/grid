@@ -64,7 +64,7 @@ export function Stack({ className, children }: { className?: string; children: R
 
 /** One column on phones, two from tablet width. */
 export function Grid({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("grid gap-4 md:grid-cols-2 sm:gap-6", className)}>{children}</div>;
+  return <div className={cn("grid gap-4 md:grid-cols-2 sm:gap-6 2xl:grid-cols-3", className)}>{children}</div>;
 }
 
 /** A card with an optional heading. `flush` removes padding for lists that run edge to edge. */

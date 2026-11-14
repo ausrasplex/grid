@@ -186,7 +186,7 @@ export function JobFeed({ job, areas, area, initial, canAdd, canManage, userId }
         {pending.length > 0 && (
           <div>
             <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">On this phone</h3>
-            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-6">
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
               {pending.map((upload) => (
                 <div key={upload.id} className="relative aspect-square overflow-hidden rounded-md bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -281,7 +281,7 @@ function DayItems({
     <div className="flex flex-col gap-2">
       {blocks.map((block, index) =>
         Array.isArray(block) ? (
-          <div key={index} className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-6">
+          <div key={index} className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
             {block.map((item) => {
               const photo = item as Item & { kind: "photo" };
               return (

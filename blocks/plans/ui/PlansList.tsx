@@ -207,7 +207,7 @@ export function PlansList({
         ) : shown.length === 0 ? (
           <EmptyState title="No sheets match" />
         ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {shown.map((row) => (
               <li key={row.id}>
                 <a href={`/plans/sheet/${row.id}`} className="group flex h-full flex-col overflow-hidden rounded-xl border bg-card hover:border-primary">

@@ -242,6 +242,7 @@ async function JobPage({
           </>
         }
       />
+      <div className="flex flex-col gap-4 sm:gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_26rem]">
       <Stack>
         {job.status === "COMPLETED" && job.completedAt && (
           <Alert>Finished on {date(job.completedAt)}. It's listed under earlier jobs at {site.name}; reopen it to carry on.</Alert>
@@ -283,7 +284,9 @@ async function JobPage({
             </p>
           </Section>
         )}
+      </Stack>
 
+      <Stack>
         <Section title="Details" flush>
           <dl className="divide-y">
             <Detail label="Address" value={site.address} href={siteHref(site.id)} />
@@ -298,6 +301,7 @@ async function JobPage({
 
         {canFinish && <FinishJob jobId={job.id} status={job.status} siteName={site.name} lastActiveHere={finishLeavesSiteEmpty} />}
       </Stack>
+      </div>
     </>
   );
 }

@@ -24,7 +24,7 @@ export function Field({ label, hint, error, id, ...props }: InputHTMLAttributes<
   const inputId = id ?? auto;
   const helpId = `${inputId}-help`;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 lg:max-w-2xl">
       <Label htmlFor={inputId}>{label}</Label>
       <Input id={inputId} aria-invalid={!!error || undefined} aria-describedby={hint || error ? helpId : undefined} {...props} />
       <Help id={helpId} hint={hint} error={error} />
@@ -44,7 +44,7 @@ export function SelectField({
   const selectId = id ?? auto;
   const helpId = `${selectId}-help`;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 lg:max-w-2xl">
       <Label htmlFor={selectId}>{label}</Label>
       <NativeSelect id={selectId} options={options} aria-describedby={hint || error ? helpId : undefined} {...props} />
       <Help id={helpId} hint={hint} error={error} />

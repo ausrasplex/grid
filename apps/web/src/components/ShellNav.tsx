@@ -390,7 +390,7 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
       </nav>
 
       {/* ---------- Content ---------- */}
-      <main className="mx-auto w-full max-w-5xl px-4 pt-shell pb-shell sm:px-6 md:pb-10 lg:mx-0 lg:px-12">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-4 pt-shell pb-shell sm:px-6 md:pb-10 lg:mx-0 lg:max-w-[110rem] lg:px-10 xl:px-12">{children}</main>
 
       {/* ---------- Phone bottom bar ---------- */}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t bg-dock pb-safe md:hidden">
