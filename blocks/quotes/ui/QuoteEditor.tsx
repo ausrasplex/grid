@@ -269,10 +269,21 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
               target="_blank"
               rel="noopener"
               onClick={async (event) => {
-                if (!draft || json === lastSaved.current) return;
+                if (!draft) return;
+                // The preview is drawn from what's saved, so save what's on screen first.
+                // The tab opens straight away (browsers block one opened after waiting) and
+                // gets the PDF once the save is done; a failed save shows why instead.
                 event.preventDefault();
-                await flush().catch(() => {});
-                window.open(`/api/quotes/${quote.id}/pdf`, "_blank", "noopener");
+                const tab = window.open("", "_blank");
+                if (tab) tab.opener = null;
+                try {
+                  if (saving.current || json !== lastSaved.current) await flush();
+                  const url = `/api/quotes/${quote.id}/pdf?at=${Date.now()}`;
+                  if (tab) tab.location.href = url;
+                  else window.location.href = url;
+                } catch {
+                  tab?.close();
+                }
               }}
             >
               <FileText />
