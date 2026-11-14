@@ -3,6 +3,7 @@
 import {
   Archive,
   History,
+  IdCard,
   ArrowDown,
   ArrowUp,
   Briefcase,
@@ -83,6 +84,7 @@ export const ICONS: Record<string, LucideIcon> = {
   hardhat: HardHat,
   home: Home,
   history: History,
+  ticket: IdCard,
   layers: Layers,
   "log-out": LogOut,
   map: MapIcon,

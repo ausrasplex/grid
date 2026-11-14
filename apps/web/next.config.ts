@@ -10,6 +10,7 @@ const config: NextConfig = {
     "@grid/block-users",
     "@grid/block-companies",
     "@grid/block-clients",
+    "@grid/block-credentials",
     "@grid/block-sites",
     "@grid/block-projects",
     "@grid/block-photos",

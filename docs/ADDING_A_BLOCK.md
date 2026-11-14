@@ -119,6 +119,14 @@ Upload with `POST /api/files`, then attach the file to your record with `attachF
 fileAccess: async () => (await import("./service")).canReadMyFile, // (ctx, fileId) => Promise<boolean>
 ```
 
+## Background work on a schedule
+
+A block job can also run on a timetable: add `schedule` (a cron line in the server's time zone) to it in `jobs`, e.g. `"credentials.remind": { handler, schedule: "0 7 * * *" }` for 7 am daily. It still runs when queued with `app().jobs.send()`.
+
+## A card on Home
+
+Put a panel in the `home.top` slot (`panels: { "home.top": async ({ ctx }) => … }`): it shows at the top of Home. Return null when there's nothing to say.
+
 ## Things filed to a floor
 
 If your Block stores a `levelId` (a photo, a sheet, an inspection), say how many things are on a level, so a floor is only deleted when it is empty. Count every business and include Recently deleted (separately worded):

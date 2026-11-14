@@ -3,7 +3,7 @@ import { Alert, Button, Grid, Icon, LinkRow, List, PageHeader, Section, Stack, b
 import { myActiveJobs, onSiteNow } from "@grid/block-projects";
 import { JobRows } from "@grid/block-projects/components";
 import { getContext } from "@/lib/context";
-import { registry } from "@/blocks";
+import { registry, renderPanels } from "@/blocks";
 
 export default async function HomePage() {
   const ctx = (await getContext())!; // layout guarantees signed in
@@ -29,6 +29,8 @@ export default async function HomePage() {
   const [now, jobs] = await Promise.all([onSiteNow(ctx), myActiveJobs(ctx, 6)]);
   const canStart = can(ctx, "projects.create");
   const widgets = registry.menusFor("home.widgets", ctx);
+  // Cards Blocks put at the top of Home (panel slot "home.top"), e.g. tickets about to expire.
+  const topCards = await renderPanels(ctx, "home.top", {});
   return (
     <Stack>
       <PageHeader
@@ -47,6 +49,8 @@ export default async function HomePage() {
           ) : undefined
         }
       />
+
+      {topCards}
 
       {now ? (
         <a href={now.href} className="block rounded-xl bg-accent p-4 text-accent-foreground transition-opacity hover:opacity-90 sm:p-5">

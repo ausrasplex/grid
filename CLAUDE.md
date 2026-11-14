@@ -57,7 +57,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, clients, sites, projects, signatures, templates (core); photos, quotes, plans, markups (optional)
+blocks/        users, companies, clients, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -65,7 +65,7 @@ prisma/        base, core and auth schemas; migrations
 
 - **Self-hosting is through Unraid Docker templates** (`unraid/grid.xml`, guide `docs/unraid.md`). Every environment variable Grid reads must be a field in that template and in `.env.example`, in the same change; `pnpm test` (`scripts/env.test.mjs`) fails otherwise. But only start-up and server set-up things are environment variables (database, addresses, secrets, folders). Settings an admin changes day to day live only in the app (`ServerSetting` or the company's settings), with defaults in code: never both. The email server is one of these (Settings › Email); passwords in settings are stored with `encryptSecret()`.
 
-- **Everything is company-scoped.** Services take the RequestContext and only touch `ctx.companyId`. Never trust an id from the URL to pick the company.
+- **Everything is company-scoped.** Services take the RequestContext and only touch `ctx.companyId`. Never trust an id from the URL to pick the company. (The one exception: a person's own tickets and licences, `credentials`, are scoped to `ctx.userId`.)
 - **Permissions are checked on the server** (route `permission`), as `"<block>.<thing>.<action>"`. Menus hiding things is only convenience. Each Block's `grants` set the built-in roles' defaults.
 - **Blocks import only from Blocks they depend on**, via that Block's `index.ts`. Otherwise talk through events.
 - **Every change writes the audit log** (`audit()` from `@grid/db`) inside the same transaction. It adds the request's IP and device itself; Settings › Activity shows it. Add new `entityType`s to `blocks/companies/activity-words.ts` if the camelCase split doesn't read well.
@@ -85,7 +85,8 @@ prisma/        base, core and auth schemas; migrations
   **Phase 3b** (customer signing: `signatures` core block, public pages/API at `/p/<block>` and `/api/public/<block>`, `/q/<token>`, `/verify`) is done too; see "What 3b built" in `docs/quotations-block.md`.
   **Phase 4a** (Plans block: PDF/image upload with a review of guessed sheet numbers and revisions, deep-zoom tiles rendered in the background, OpenSeadragon viewer, revisions) is done too; see `docs/plans-block.md`.
   **Phase 4b** (`markups` Block: pen, highlighter, text, shapes, arrows, clouds, Undo, length and area with a per-revision scale; photo pins in `photos`; the plan overlay in `@grid/ui` that Blocks draw on through the `plans.viewer` slot) is done too; see "What 4b built" in `docs/plans-block.md`.
-- Next: tweaking 4b with the owner, then **Phase 5a, My tickets & licences** (the first part of the wallet: `docs/roadmap.md` "Phase 5a", `docs/inductions-credentials.md` §2), then **Phase 5b, Documents & assets** (`docs/documents-block.md`, `docs/assets-block.md`).
+  **Phase 5a** (`credentials` Block, core: My tickets & licences at `/tickets`, photos, encrypted numbers, expiry badges, the Home card and 7 am reminder emails) is done too; see "Phase 5a" in `docs/roadmap.md`. Block jobs can have a `schedule`; Home has a `home.top` panel slot.
+- Next: tweaking 5a with the owner, then **Phase 5b, Documents & assets** (`docs/documents-block.md`, `docs/assets-block.md`).
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.
 - PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.

@@ -43,6 +43,8 @@ export async function startJobs() {
     await boss.work<Record<string, unknown>>(name, { batchSize: 1 }, async (batch) => {
       for (const queued of batch) await job.handler(queued.data);
     });
+    // Some also run on a schedule (e.g. credentials.remind, every morning).
+    if (job.schedule) await boss.schedule(name, job.schedule, {}, { tz: process.env.TZ || "UTC" });
   }
   console.log("[jobs] scheduled jobs started");
 }

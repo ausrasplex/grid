@@ -7,7 +7,7 @@ import type { Prisma } from "./generated/client";
 
 export interface CleanupItemInput {
   companyId: string | null;
-  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "stray";
+  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "stray";
   label: string;
   refId?: string | null;
   bytes: number;

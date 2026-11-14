@@ -212,12 +212,14 @@ export interface BlockJob {
   expireInSeconds?: number;
   /** Tries after a failure (default 1). */
   retryLimit?: number;
+  /** Also run it on a schedule: a cron line in the server's time zone, e.g. "0 7 * * *" (7 am daily). */
+  schedule?: string;
 }
 
 /** One thing a clean-up removed (or would, in a dry run). */
 export interface CleanupItem {
   companyId: string | null;
-  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "stray";
+  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "stray";
   label: string;
   refId?: string | null;
   bytes: number;
