@@ -33,6 +33,25 @@ function centreButton(ctx: AppContext): NavItem {
   return { id: "core.scan", label: "Scan", href: "/scan", icon: "scan" };
 }
 
+/**
+ * Every page that belongs under Settings, for its "Settings › Backups" trail.
+ * Unlike the Settings page's own list, nothing is left out because it's
+ * hidden right now (team-only while solo, someone else's permission, the
+ * server pages): whoever lands on the page sees the same trail. Plus the
+ * settings-type pages Settings doesn't list (Switch business).
+ */
+function settingsPages(ctx: AppContext): NavItem[] {
+  const fromBlocks = registry.blocks
+    .filter((block) => block.required || ctx.enabledBlocks.has(block.id))
+    .flatMap((block) => block.menus ?? [])
+    .filter((item) => item.slot === "settings.user" || item.slot === "settings.company")
+    // Two items to one page (Members, and "Add a team member" while solo): the page's own name wins.
+    .sort((first, second) => Number(!!first.soloOnly) - Number(!!second.soloOnly))
+    .map((item) => ({ ...toNav(item), label: ctx.solo && item.soloLabel ? item.soloLabel : item.label }));
+  const all = [...fromBlocks, SECURITY, ...SERVER_SETTINGS, { id: "core.switch", label: "Switch business", href: "/business/switch", icon: "building" }];
+  return all.filter((item, index) => all.findIndex((other) => other.href === item.href) === index);
+}
+
 export function AppShell({ ctx, children }: { ctx: AppContext; children: ReactNode }) {
   const items = registry.menusFor("sidebar.main", ctx);
 
@@ -49,12 +68,7 @@ export function AppShell({ ctx, children }: { ctx: AppContext; children: ReactNo
       headerActions={registry.menusFor("header.actions", ctx).map(toNav)}
       account={[...registry.menusFor("settings.user", ctx).map(toNav), SECURITY]}
       // Every page reached from Settings, for its "Settings › …" breadcrumb.
-      settings={[
-        ...registry.menusFor("settings.user", ctx).map(toNav),
-        SECURITY,
-        ...(ctx.company ? registry.menusFor("settings.company", ctx).map(toNav) : []),
-        ...(ctx.user.serverAdmin ? SERVER_SETTINGS : []),
-      ]}
+      settings={settingsPages(ctx)}
       user={ctx.user}
       company={ctx.company}
     >
