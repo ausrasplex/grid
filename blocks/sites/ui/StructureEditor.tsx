@@ -3,7 +3,7 @@
 // Buildings and levels of a site (docs/stage-2-projects.md §1a).
 // Only the company that looks after the site can change them. Every level in
 // a building needs its own name and short name (the server checks too).
-// A floor can be deleted (from its edit sheet) only when nothing is filed to it.
+// A floor can be deleted (the bin on its row) only when nothing is filed to it.
 
 import { useState, type ReactNode } from "react";
 import { Car, Trash2 } from "lucide-react";
@@ -179,9 +179,8 @@ function LevelRow({
               return null;
             }}
             onSave={(name, shortName, use) => run(() => api(`/sites/levels/${level.id}`, { method: "PATCH", body: { name, shortName, use: use?.trim() || null } }))}
-          >
-            <DeleteLevel level={level} run={run} />
-          </RenameButton>
+          />
+          <DeleteLevel level={level} busy={busy} run={run} />
         </span>
       )}
     </li>
@@ -255,47 +254,80 @@ function RenameButton({
 }
 
 /**
- * Delete a floor. First asks the server what's filed to it: an empty floor
- * can go (after a confirm); otherwise it says what's there.
+ * The bin on a floor's row. Opens a sheet that asks the server what's filed
+ * to the floor: an empty floor can go (after a confirm); otherwise it says
+ * what's there.
  */
-function DeleteLevel({ level, run }: { level: Level; run: Run }) {
-  const [check, setCheck] = useState<{ inUse: string[] } | "checking" | null>(null);
+function DeleteLevel({ level, busy, run }: { level: Level; busy: boolean; run: Run }) {
+  const [open, setOpen] = useState(false);
+  const [check, setCheck] = useState<{ inUse: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const look = async () => {
-    setCheck("checking");
+  const [deleting, setDeleting] = useState(false);
+  const start = async () => {
+    setOpen(true);
+    setCheck(null);
     setError(null);
     try {
       setCheck(await api<{ name: string; inUse: string[] }>(`/sites/levels/${level.id}/usage`));
     } catch (failure) {
-      setCheck(null);
       setError((failure as Error).message);
     }
   };
   return (
-    <div className="mt-6 flex flex-col gap-3 border-t px-2 pt-4">
-      {check === null || check === "checking" ? (
-        <Button type="button" variant="ghost" className="self-start text-destructive" disabled={check === "checking"} onClick={() => void look()}>
-          <Trash2 /> {check === "checking" ? "Checking…" : "Delete level"}
-        </Button>
-      ) : check.inUse.length ? (
-        <Alert variant="error">
-          {level.name} can&apos;t be deleted: it still has {check.inUse.join(", ")}. Move or remove them first, then try again.
-        </Alert>
-      ) : (
-        <>
-          <p className="text-sm">Nothing is filed to {level.name}. Delete it? This can&apos;t be undone.</p>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setCheck(null)}>
-              Keep it
-            </Button>
-            <Button type="button" variant="destructive" onClick={() => void run(() => api(`/sites/levels/${level.id}`, { method: "DELETE" }))}>
-              Delete {level.name}
-            </Button>
-          </div>
-        </>
-      )}
-      <Alert variant="error">{error}</Alert>
-    </div>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <Button variant="ghost" size="icon" aria-label={`Delete ${level.name}`} title={`Delete ${level.name}`} disabled={busy} onClick={() => void start()} className="text-muted-foreground hover:text-destructive">
+        <Trash2 />
+      </Button>
+      <SheetContent title={`Delete ${level.name}?`}>
+        <div className="flex flex-col gap-4 px-2">
+          {!check && !error && <p className="text-muted-foreground">Checking what&apos;s on {level.name}…</p>}
+          {check && check.inUse.length > 0 && (
+            <>
+              <Alert variant="error">
+                {level.name} can&apos;t be deleted: it still has {check.inUse.join(", ")}. Move or remove them first, then try again.
+              </Alert>
+              <FormActions>
+                <Button type="button" variant="outline" size="lg" onClick={() => setOpen(false)}>
+                  OK
+                </Button>
+              </FormActions>
+            </>
+          )}
+          {check && check.inUse.length === 0 && (
+            <>
+              <p>Nothing is filed to {level.name}. Delete it? This can&apos;t be undone.</p>
+              <FormActions>
+                <Button type="button" variant="outline" size="lg" onClick={() => setOpen(false)}>
+                  Keep it
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="lg"
+                  disabled={deleting}
+                  onClick={async () => {
+                    setDeleting(true);
+                    setError(null);
+                    try {
+                      await api(`/sites/levels/${level.id}`, { method: "DELETE" });
+                      setOpen(false);
+                      await run(async () => undefined); // reload the buildings
+                    } catch (failure) {
+                      setError((failure as Error).message);
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                >
+                  {deleting ? "Deleting…" : `Delete ${level.name}`}
+                </Button>
+              </FormActions>
+            </>
+          )}
+          <Alert variant="error">{error}</Alert>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
