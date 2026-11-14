@@ -43,6 +43,10 @@ So a house reads `12 Smith St ▾ › Switchboard Upgrade ▾`.
   - a trail that fits is **left-aligned**.
 - The site QR button moves out of the header to sit beside the page title, to give the crumbs room.
 
+### Short trails on other pages
+
+Pages that sit under a site but aren't a place on it get a short trail above the title, built with `Crumbs` from `@grid/ui` (decided Nov 2026): **Buildings & levels** shows **Sites › Riverside Precinct › Buildings & levels**, each part but the last a link back. The Settings trail below uses the same component. (The site › building › level › job trail with pickers is `LocationBar`.)
+
 ### Settings pages
 
 Every page reached from Settings has a short trail above its title: **Settings › Clients** (decided Nov 2026). "Settings" goes back to the Settings page. The pages are the Settings page's own list (`settings.user` and `settings.company` menu items, Sign-in & devices, and the server admin's Email, Backups and Storage), so a Block's settings page gets the trail by adding its menu item; deeper pages (a role, a member) show the page they belong to. Built in `ShellNav` (`SettingsCrumbs`), separate from the site trail above.

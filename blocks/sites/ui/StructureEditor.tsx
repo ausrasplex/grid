@@ -10,6 +10,7 @@ import { Car, Trash2 } from "lucide-react";
 import {
   Alert,
   Button,
+  Crumbs,
   Field,
   FormActions,
   Icon,
@@ -40,6 +41,7 @@ export function StructureEditor({ initial, canEdit }: { initial: SiteStructure; 
 
   return (
     <>
+      <Crumbs items={[{ label: "Sites", href: "/sites", icon: "map" }, { label: site.name, href: `/sites/${site.id}` }, { label: "Buildings & levels" }]} />
       <PageHeader
         title="Buildings & levels"
         meta={site.name}

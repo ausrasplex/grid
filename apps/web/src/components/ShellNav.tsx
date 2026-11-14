@@ -21,7 +21,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { Icon, Scroller, Sheet, SheetContent, SheetTrigger, cn } from "@grid/ui";
+import { Crumbs, Icon, Scroller, Sheet, SheetContent, SheetTrigger, cn } from "@grid/ui";
 import { authClient } from "@/lib/auth-client";
 
 export interface NavItem {
@@ -61,24 +61,7 @@ function settingsPageFor(pathname: string, pages: NavItem[]): NavItem | null {
 
 /** "Settings › Clients" above a settings page (docs/navigation.md §2). */
 function SettingsCrumbs({ page }: { page: NavItem }) {
-  return (
-    <nav aria-label="Breadcrumb" className="-mt-2 mb-2 sm:mb-3">
-      <ol className="flex min-w-0 items-center gap-1 text-sm">
-        <li className="shrink-0">
-          <a href="/settings" className="-ml-2 inline-flex min-h-touch items-center gap-1.5 rounded-md px-2 text-muted-foreground hover:bg-muted hover:text-foreground">
-            <Icon name="settings" className="size-4" />
-            Settings
-          </a>
-        </li>
-        <li aria-hidden className="shrink-0 text-muted-foreground">
-          <Icon name="chevron-right" className="size-4" />
-        </li>
-        <li aria-current="page" className="min-w-0 truncate px-1 font-medium">
-          {page.label}
-        </li>
-      </ol>
-    </nav>
-  );
+  return <Crumbs items={[{ label: "Settings", href: "/settings", icon: "settings" }, { label: page.label }]} />;
 }
 
 function isActive(pathname: string, item: NavItem) {

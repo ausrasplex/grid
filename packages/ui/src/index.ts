@@ -18,6 +18,7 @@ export { Sheet, SheetTrigger, SheetClose, SheetContent } from "./components/shee
 export * from "./blocks";
 export { Field, SelectField } from "./fields";
 export { AddressField, type AddressPick, type SiteMatch } from "./address-field";
+export { Crumbs, type Crumb } from "./crumbs";
 export { Icon, ICONS } from "./icons";
 export { Scroller, useOverflow } from "./scroller";
 
