@@ -6,7 +6,7 @@
 // A floor can be deleted (from its edit sheet) only when nothing is filed to it.
 
 import { useState, type ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { Car, Trash2 } from "lucide-react";
 import {
   Alert,
   Button,
@@ -23,7 +23,7 @@ import {
   api,
   useAction,
 } from "@grid/ui";
-import { levelKey, levelNameClashes, standardLevels } from "../address";
+import { basementAsParking, levelKey, levelNameClashes, levelShortName, standardLevels, type BelowGround } from "../address";
 import type { SiteStructure } from "../service";
 
 type Building = SiteStructure["buildings"][number];
@@ -72,6 +72,7 @@ function BuildingCard({ building, editable, busy, run }: { building: Building; e
   const [adding, setAdding] = useState(false);
   // Levels named the same from before names had to be different.
   const repeated = levelNameClashes([], building.levels.map((level) => level.name));
+  const basements = building.levels.filter((level) => basementAsParking(level.name));
   return (
     <Section
       title={building.name}
@@ -110,6 +111,18 @@ function BuildingCard({ building, editable, busy, run }: { building: Building; e
           ) : (
             <Button variant="outline" disabled={busy} onClick={() => setAdding(true)}>
               <Icon name="plus" /> Add levels
+            </Button>
+          )}
+          {building.kind === "MULTI" && basements.length > 0 && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                const list = basements.map((level) => `${level.name} → ${basementAsParking(level.name)}`).join("\n");
+                if (window.confirm(`Make the basements car parking levels?\n\n${list}`)) void run(() => api(`/sites/buildings/${building.id}/parking`, { body: {} }));
+              }}
+            >
+              <Car /> Basements are parking
             </Button>
           )}
         </div>
@@ -207,7 +220,17 @@ function RenameButton({
             if (await onSave(name, extra !== undefined ? short : undefined)) setOpen(false);
           }}
         >
-          <Field label="Name" value={name} onChange={(event) => setName(event.target.value)} required />
+          <Field
+            label="Name"
+            value={name}
+            onChange={(event) => {
+              const next = event.target.value;
+              // Keep the short name in step while it's still the one worked out from the name ("Parking 2" → P2).
+              if (extra !== undefined && (short === extra || short === levelShortName(name))) setShort(levelShortName(next));
+              setName(next);
+            }}
+            required
+          />
           {extra !== undefined && (
             <Field label="Short name" hint="Shown in breadcrumbs on phones, e.g. L5" maxLength={8} value={short} onChange={(event) => setShort(event.target.value)} />
           )}
@@ -272,13 +295,14 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
   const [mode, setMode] = useState<"standard" | "one">(empty ? "standard" : "one");
   const [above, setAbove] = useState("3");
   const [basements, setBasements] = useState("0");
+  const [below, setBelow] = useState<BelowGround>("basement");
   const [roof, setRoof] = useState(true);
   const [name, setName] = useState("");
   const [position, setPosition] = useState<"above" | "below">("above");
 
   const names =
     mode === "standard"
-      ? standardLevels({ above: Math.max(0, Math.min(150, Number(above) || 0)), basements: Math.max(0, Math.min(10, Number(basements) || 0)), roof })
+      ? standardLevels({ above: Math.max(0, Math.min(150, Number(above) || 0)), basements: Math.max(0, Math.min(10, Number(basements) || 0)), roof, below })
       : name.trim()
         ? [name.trim()]
         : [];
@@ -314,8 +338,19 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
             <>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Levels above ground" inputMode="numeric" value={above} onChange={(event) => setAbove(event.target.value)} />
-                <Field label="Basements" inputMode="numeric" value={basements} onChange={(event) => setBasements(event.target.value)} />
+                <Field label="Levels below ground" inputMode="numeric" value={basements} onChange={(event) => setBasements(event.target.value)} />
               </div>
+              {Number(basements) > 0 && (
+                <SelectField
+                  label="Below ground are"
+                  value={below}
+                  onChange={(event) => setBelow(event.target.value as BelowGround)}
+                  options={[
+                    { value: "basement", label: "Basements (B1, B2…)" },
+                    { value: "parking", label: "Car parking (P1, P2…)" },
+                  ]}
+                />
+              )}
               <label className="flex min-h-touch items-center gap-3">
                 <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={roof} onChange={(event) => setRoof(event.target.checked)} />
                 Include a roof level
@@ -324,7 +359,7 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
             </>
           ) : (
             <>
-              <Field label="Level name" placeholder="e.g. Mezzanine" value={name} onChange={(event) => setName(event.target.value)} required />
+              <Field label="Level name" placeholder="e.g. Mezzanine, Parking 3" value={name} onChange={(event) => setName(event.target.value)} required />
               {!empty && (
                 <SelectField
                   label="Where"

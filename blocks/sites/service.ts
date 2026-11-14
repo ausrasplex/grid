@@ -7,7 +7,7 @@
 
 import { app, badRequest, conflict, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db, ensureRouteCode, type Prisma, type Tx } from "@grid/db";
-import { addressKey, levelKey, levelNameClashes, levelShortName, siteNameFromAddress, uniqueShortName } from "./address";
+import { addressKey, basementAsParking, levelKey, levelNameClashes, levelShortName, siteNameFromAddress, uniqueShortName } from "./address";
 import type { AddBuildingInput, AddLevelsInput, CreateSiteInput, SiteNoteInput, UpdateSiteInput } from "./validation";
 
 const MOD = "sites";
@@ -538,6 +538,44 @@ export async function deleteLevel(ctx: RequestContext, levelId: string) {
 /** "a, b and c". */
 function listWords(items: string[]): string {
   return items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
+
+/**
+ * Turns a building's basements into car parking levels: "Basement 2" becomes
+ * "Parking 2" (P2). All or nothing: refused if a new name is already taken.
+ */
+export async function basementsToParking(ctx: RequestContext, buildingId: string) {
+  return db.$transaction(async (tx) => {
+    const { companyId, building } = await ownedBuilding(tx, ctx, buildingId);
+    const changes = building.levels.flatMap((level) => {
+      const name = basementAsParking(level.name);
+      return name ? [{ level, name }] : [];
+    });
+    if (!changes.length) throw badRequest(`${building.name} has no basements to change`);
+    const changing = new Set(changes.map((change) => change.level.id));
+    const staying = building.levels.filter((level) => !changing.has(level.id));
+    const clashes = levelNameClashes(
+      staying.map((level) => level.name),
+      changes.map((change) => change.name),
+    );
+    if (clashes.length) throw conflict(`${building.name} already has ${clashes.map((name) => `"${name}"`).join(", ")}. Rename that level first.`);
+    const shorts = staying.map((level) => level.shortName);
+    for (const change of changes) {
+      const shortName = uniqueShortName(levelShortName(change.name), shorts);
+      shorts.push(shortName);
+      await tx.level.update({ where: { id: change.level.id }, data: { name: change.name, shortName } });
+    }
+    await audit(tx, {
+      blockId: MOD,
+      actorId: ctx.userId,
+      companyId,
+      entityType: "Building",
+      entityId: buildingId,
+      action: "basements_to_parking",
+      diff: { levels: changes.map((change) => ({ from: change.level.name, to: change.name })) },
+    });
+    return { id: buildingId, changed: changes.length };
+  });
 }
 
 /** Swaps a level with the one above or below it. */

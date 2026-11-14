@@ -42,6 +42,9 @@ export function levelShortName(name: string): string {
   if (match) return `L${match[1]}`;
   match = trimmed.match(/^basement\s*(\d*)$/i);
   if (match) return `B${match[1]}`;
+  // Car parks below ground: "Parking 2", "Car park 2", "Carpark level 2", "P2" → P2.
+  match = trimmed.match(/^(?:parking|car\s*park)(?:\s*level)?\s*(\d*)$/i) ?? trimmed.match(/^p(\d+)$/i);
+  if (match) return `P${match[1]}`;
   if (/^ground(\s*floor)?$/i.test(trimmed)) return "G";
   if (/^lower\s*ground$/i.test(trimmed)) return "LG";
   if (/^upper\s*ground$/i.test(trimmed)) return "UG";
@@ -49,17 +52,31 @@ export function levelShortName(name: string): string {
   return trimmed.length <= 5 ? trimmed : trimmed.slice(0, 4);
 }
 
+/** What the floors below ground are: basements (B1, B2…) or car parking (P1, P2…). */
+export type BelowGround = "basement" | "parking";
+
 /**
  * The usual set of floors, top first: Roof, Level N … Level 1, Ground,
- * then basements. Used by "Add levels" so a 7-storey building is one step.
+ * then the floors below ground, as basements ("Basement", "Basement 2")
+ * or parking ("Parking 1", "Parking 2": P1, P2 like the lift buttons).
+ * Used by "Add levels" so a 7-storey building is one step.
  */
-export function standardLevels(options: { above: number; basements: number; roof: boolean }): string[] {
+export function standardLevels(options: { above: number; basements: number; roof: boolean; below?: BelowGround }): string[] {
   const out: string[] = [];
   if (options.roof) out.push("Roof");
   for (let index = options.above; index >= 1; index--) out.push(`Level ${index}`);
   out.push("Ground");
-  for (let index = 1; index <= options.basements; index++) out.push(options.basements === 1 ? "Basement" : `Basement ${index}`);
+  for (let index = 1; index <= options.basements; index++) {
+    if (options.below === "parking") out.push(`Parking ${index}`);
+    else out.push(options.basements === 1 ? "Basement" : `Basement ${index}`);
+  }
   return out;
+}
+
+/** The parking name for a basement ("Basement 2" → "Parking 2", "Basement" → "Parking 1"), or null if it isn't one. */
+export function basementAsParking(name: string): string | null {
+  const match = name.trim().match(/^basement\s*(\d*)$/i);
+  return match ? `Parking ${match[1] || "1"}` : null;
 }
 
 /** How level names are compared: case and extra spaces don't make two levels different ("Level 3" = "level  3"). */

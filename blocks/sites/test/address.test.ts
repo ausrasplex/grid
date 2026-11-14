@@ -44,3 +44,16 @@ test("short names are kept unique in a building", async () => {
   assert.equal(uniqueShortName("Carp", ["carp", "Carp2"]), "Carp3");
   assert.equal(uniqueShortName("Podium12", ["Podium12"]), "Podium13"); // kept to 8 letters
 });
+
+test("basements can be car parking levels", async () => {
+  const { basementAsParking } = await import("../address.ts");
+  assert.deepEqual(standardLevels({ above: 1, basements: 2, roof: false, below: "parking" }), ["Level 1", "Ground", "Parking 1", "Parking 2"]);
+  assert.deepEqual(standardLevels({ above: 1, basements: 1, roof: false, below: "parking" }), ["Level 1", "Ground", "Parking 1"]);
+  assert.equal(levelShortName("Parking 2"), "P2");
+  assert.equal(levelShortName("Car park 1"), "P1");
+  assert.equal(levelShortName("Carpark level 3"), "P3");
+  assert.equal(levelShortName("p4"), "P4");
+  assert.equal(basementAsParking("Basement 2"), "Parking 2");
+  assert.equal(basementAsParking("Basement"), "Parking 1");
+  assert.equal(basementAsParking("Level 1"), null);
+});

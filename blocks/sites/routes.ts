@@ -33,6 +33,8 @@ export const routes: Routes = {
     permission: "sites.notes.edit",
     handler: (ctx, request) => svc.orderSiteNotes(ctx, request.params.siteId!, siteNoteOrderSchema.parse(request.body).ids),
   },
+  // "Basement 2" → "Parking 2" (P2) for every basement in the building.
+  "POST /buildings/:buildingId/parking": { permission: "sites.structure.edit", handler: (ctx, request) => svc.basementsToParking(ctx, request.params.buildingId!) },
   // Deleting a floor: see what's on it first; only an empty one can go.
   "GET /levels/:levelId/usage": { permission: "sites.structure.edit", handler: (ctx, request) => svc.levelUsage(ctx, request.params.levelId!) },
   "DELETE /levels/:levelId": { permission: "sites.structure.edit", handler: (ctx, request) => svc.deleteLevel(ctx, request.params.levelId!) },
