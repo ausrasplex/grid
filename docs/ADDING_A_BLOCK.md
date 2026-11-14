@@ -44,8 +44,8 @@ export default defineBlock({
   menus: [
     // prominence: "primary" = phone bar + tablet rail + desktop sidebar (the phone bar fits two),
     // "main" = desktop sidebar top list, omitted = under More (docs/navigation.md §5)
-    { id: "sites.list", slot: "sidebar.main", label: "Sites", icon: "building", href: "/b/sites", permission: "projects.view", order: 10, prominence: "primary" },
-    { id: "projects.mywork", slot: "home.widgets", label: "My work", href: "/b/projects/my-work", permission: "projects.view" },
+    { id: "sites.list", slot: "sidebar.main", label: "Sites", icon: "building", href: "/sites", permission: "projects.view", order: 10, prominence: "primary" },
+    { id: "projects.mywork", slot: "home.widgets", label: "My work", href: "/jobs/my-work", permission: "projects.view" },
   ],
   routes: async () => (await import("./routes")).routes,
   emits: ["projects.created", "projects.company.invited"],

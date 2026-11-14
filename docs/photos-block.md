@@ -8,7 +8,7 @@ Status: **built** (phase 2b-lite, November 2026). An optional Block, on in the s
 - **Before / After tags** on photos, with filter tabs and counts on the job page.
 - **On the job page** (a `job.area` panel): "Photos & notes" for the area you're in, or the whole job. Newest first, grouped by day; runs of photos show as a grid, notes as cards between them.
 - **Viewer:** full screen, swipe or arrow keys, caption, tag, area, who and when; download the full-size photo; edit or delete your own (Foreman and Owner can change anyone's).
-- **Photo report** (`/b/photos/report/<job>`): Before, After and Other photos with captions and dates, for the customer or the CES. Print, or save as PDF from the print dialog. Prints without the app's menus.
+- **Photo report** (`/photos/report/<job>`): Before, After and Other photos with captions and dates, for the customer or the CES. Print, or save as PDF from the print dialog. Prints without the app's menus.
 - **Finished jobs are read-only** until reopened.
 
 ## Taking photos

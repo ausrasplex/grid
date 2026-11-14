@@ -128,7 +128,7 @@ export function JobFeed({ job, areas, area, initial, canAdd, canManage, userId }
           : undefined
       }
       actions={
-        <a href={`/b/photos/report/${job.id}`} className="inline-flex h-10 items-center gap-1.5 rounded-md px-3 text-sm font-semibold text-primary hover:bg-muted">
+        <a href={`/photos/report/${job.id}`} className="inline-flex h-10 items-center gap-1.5 rounded-md px-3 text-sm font-semibold text-primary hover:bg-muted">
           <Icon name="file" className="size-4" /> Report
         </a>
       }

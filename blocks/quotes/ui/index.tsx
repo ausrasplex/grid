@@ -1,10 +1,10 @@
 // Quotes pages and the panel it puts on job pages.
-//   /b/quotes                 list
-//   /b/quotes/new[/<job>]     start a quote (optionally for an existing job)
-//   /b/quotes/<id>            the quote: editor while draft, outcome once sent
-//   /b/quotes/price-book      labour and materials
-//   /b/quotes/clients         clients
-//   /b/quotes/settings        tax & currency
+//   /quotes                 list
+//   /quotes/new[/<job>]     start a quote (optionally for an existing job)
+//   /quotes/<id>            the quote: editor while draft, outcome once sent
+//   /quotes/price-book      labour and materials
+//   /quotes/clients         clients
+//   /quotes/settings        tax & currency
 //   /q/<token>                the customer's page (public; rewrites to /p/quotes/q/<token>)
 //   panel "job.area"          "Quote Q-1001 · $4,180" link on the job it became
 
@@ -76,7 +76,7 @@ export const panels: BlockPanels = {
     const quote = await quoteForJob(ctx, job.id);
     if (!quote) return null;
     return (
-      <a href={`/b/quotes/${quote.id}`} className="flex min-h-touch items-center gap-3 rounded-xl border bg-card px-4 py-3 hover:bg-muted">
+      <a href={`/quotes/${quote.id}`} className="flex min-h-touch items-center gap-3 rounded-xl border bg-card px-4 py-3 hover:bg-muted">
         <span className="min-w-0 flex-1">
           <span className="block text-sm text-muted-foreground">Quote</span>
           <span className="flex items-center gap-2 font-semibold">

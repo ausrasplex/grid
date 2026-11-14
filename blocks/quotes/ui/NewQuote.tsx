@@ -22,7 +22,7 @@ export function NewQuote({ job }: { job: { id: string; name: string; address: st
             const created = await action.run(() =>
               api<{ id: string }>("/quotes", { body: { title, clientId: client?.id ?? null, siteAddress: address || null, projectId: job?.id ?? null } }),
             );
-            if (created) window.location.href = `/b/quotes/${created.id}`;
+            if (created) window.location.href = `/quotes/${created.id}`;
           }}
         >
           <Field label="What's the job?" placeholder="e.g. Switchboard upgrade" value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus />

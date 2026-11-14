@@ -9,7 +9,7 @@ import type { RequestContext } from "@grid/core";
 export type PanelRenderer = (slot: string, props: Record<string, unknown>) => Promise<ReactNode[]>;
 
 /**
- * A page a block contributes. Rendered by the app at /b/<blockId>/<path>.
+ * A page a block contributes. Rendered by the app at /<blockId>/<path>.
  * Pages are server components; interactive parts are client components
  * that call the block's API through api()/useApi().
  */

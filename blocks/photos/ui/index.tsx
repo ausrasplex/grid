@@ -1,6 +1,6 @@
 // Photos pages and the panel it puts on job pages.
-//   /b/photos/capture            the centre button's "Take a photo"
-//   /b/photos/report/<job>       printable before/after report
+//   /photos/capture            the centre button's "Take a photo"
+//   /photos/report/<job>       printable before/after report
 //   panel "job.area"             Photos & notes on a job page
 //   panel "plans.viewer"         photo pins on a plan sheet (4b)
 

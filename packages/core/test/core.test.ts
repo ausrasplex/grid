@@ -76,8 +76,8 @@ test("missing dependency is rejected", () => {
 });
 
 test("dependency cycles are rejected", () => {
-  const blockA = defineBlock({ id: "a", name: "A", version: "1", dependsOn: ["b"] });
-  const blockB = defineBlock({ id: "b", name: "B", version: "1", dependsOn: ["a"] });
+  const blockA = defineBlock({ id: "a", name: "A", version: "1", dependsOn: ["c"] });
+  const blockB = defineBlock({ id: "c", name: "C", version: "1", dependsOn: ["a"] });
   assert.throws(() => new BlockRegistry([blockA, blockB]), /cycle/);
 });
 
@@ -223,7 +223,7 @@ test("dispatch enforces permission, company and block enablement", async () => {
 test("event bus runs enabled subscribers and isolates failures", async () => {
   const seen: string[] = [];
   const blockA = defineBlock({ id: "a", name: "A", version: "1", on: { "x.happened": () => { seen.push("a"); } } });
-  const blockB = defineBlock({ id: "b", name: "B", version: "1", on: { "x.happened": () => { throw new Error("boom"); } } });
+  const blockB = defineBlock({ id: "d", name: "D", version: "1", on: { "x.happened": () => { throw new Error("boom"); } } });
   const blockC = defineBlock({ id: "c", name: "C", version: "1", on: { "x.happened": () => { seen.push("c"); } } });
   const registry = new BlockRegistry([blockA, blockB, blockC]);
   const bus = registry.createEventBus((id) => id !== "c");
@@ -232,7 +232,7 @@ test("event bus runs enabled subscribers and isolates failures", async () => {
   (bus as unknown as { log: (message: string) => void }).log = (message) => logged.push(message);
   const result = await bus.emit("x.happened", {}, { emittedBy: "test", companyId: "c1", actorId: "u1" });
   assert.deepEqual(seen, ["a"]);
-  assert.deepEqual(result, { ran: ["a"], failed: ["b"] });
+  assert.deepEqual(result, { ran: ["a"], failed: ["d"] });
   assert.equal(logged.length, 1);
 });
 
@@ -244,4 +244,14 @@ test("isHttpError recognises errors from another copy of the module", async () =
   assert.equal(isHttpError(copy), true);
   assert.equal(isHttpError(new Error("plain")), false);
   assert.equal(isHttpError(null), false);
+});
+
+test("block pages get an address: the id, or a chosen word, never one the app uses", () => {
+  const registry = new BlockRegistry([users, companies, defineBlock({ id: "projects", name: "Projects", version: "1.0.0", address: "jobs" })]);
+  assert.equal(registry.addressOf("users"), "users");
+  assert.equal(registry.addressOf("projects"), "jobs");
+  assert.equal(registry.atAddress("jobs")?.id, "projects");
+  assert.equal(registry.atAddress("projects"), undefined);
+  assert.throws(() => new BlockRegistry([defineBlock({ id: "settings", name: "S", version: "1.0.0" })]), /the app uses it/);
+  assert.throws(() => new BlockRegistry([defineBlock({ id: "a", name: "A", version: "1.0.0", address: "x" }), defineBlock({ id: "x", name: "X", version: "1.0.0" })]), /both use/);
 });

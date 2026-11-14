@@ -16,7 +16,7 @@ export default defineBlock({
       slot: "settings.company",
       label: "Branding",
       icon: "file",
-      href: "/b/templates/branding",
+      href: "/templates/branding",
       permission: "templates.theme.manage",
       order: 40,
     },

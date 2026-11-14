@@ -14,7 +14,7 @@ export function JobRows({ title, jobs, empty, showSite }: { title?: string; jobs
         <List>
           {jobs.map((job) => (
             <li key={job.id}>
-              <a href={`/b/projects/${job.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-3 hover:bg-muted active:bg-muted sm:px-5">
+              <a href={`/jobs/${job.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-3 hover:bg-muted active:bg-muted sm:px-5">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground [&_svg]:size-5">
                   <Icon name={job.status === "COMPLETED" ? "done" : "job"} />
                 </span>

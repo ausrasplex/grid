@@ -22,7 +22,7 @@ export function NewSiteForm() {
           onSubmit={async (event) => {
             event.preventDefault();
             const site = await action.run(() => api<{ id: string }>("/sites", { body: { name, address } }));
-            if (site) window.location.href = `/b/sites/${site.id}/structure`;
+            if (site) window.location.href = `/sites/${site.id}/structure`;
           }}
         >
           <Field label="Site name" placeholder="e.g. Riverside Health Precinct" value={name} onChange={(event) => setName(event.target.value)} required />

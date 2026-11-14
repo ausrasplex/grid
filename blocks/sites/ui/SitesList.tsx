@@ -52,9 +52,9 @@ export function SitesList({ solo, canCreateJob, canCreateSite }: { solo: boolean
         actions={
           <>
             {canCreateSite && !solo && (
-              <ActionButton variant="outline" icon={<Icon name="building" />} label="New site" onClick={() => (window.location.href = "/b/sites/new")} />
+              <ActionButton variant="outline" icon={<Icon name="building" />} label="New site" onClick={() => (window.location.href = "/sites/new")} />
             )}
-            {canCreateJob && <ActionButton icon={<Icon name="plus" />} label="New job" onClick={() => (window.location.href = "/b/projects/new")} />}
+            {canCreateJob && <ActionButton icon={<Icon name="plus" />} label="New job" onClick={() => (window.location.href = "/jobs/new")} />}
           </>
         }
       />
@@ -89,7 +89,7 @@ export function SitesList({ solo, canCreateJob, canCreateSite }: { solo: boolean
               {data.map((site) => (
                 <li key={site.id}>
                   <a
-                    href={`/b/projects/site/${site.id}`}
+                    href={`/jobs/site/${site.id}`}
                     className="flex min-h-touch-lg items-center gap-3 px-4 py-3 transition-colors hover:bg-muted active:bg-muted sm:px-5"
                   >
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground [&_svg]:size-5">

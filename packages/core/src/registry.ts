@@ -14,10 +14,20 @@ import {
 } from "./block.ts";
 import { EventBus, type EnabledCheck } from "./events.ts";
 
+/**
+ * First words of addresses the app itself uses, so no block can take them
+ * for its pages (block pages live at /<address>/..., docs/navigation.md §8).
+ */
+export const RESERVED_ADDRESSES: ReadonlySet<string> = new Set([
+  "api", "b", "p", "q", "go", "verify", "scan", "settings", "sign-in", "setup", "reset-password",
+  "icon", "apple-icon", "manifest.webmanifest", "favicon.ico", "_next",
+]);
+
 export class BlockRegistry {
   /** Blocks in dependency order (a block always comes after what it depends on). */
   readonly blocks: readonly BlockDefinition[];
   private readonly byId: Map<string, BlockDefinition>;
+  private readonly byAddress = new Map<string, BlockDefinition>();
 
   constructor(definitions: BlockDefinition[]) {
     this.byId = new Map();
@@ -65,6 +75,14 @@ export class BlockRegistry {
         permissionKeys.add(permission.key);
       }
     }
+    for (const block of this.blocks) {
+      const address = this.addressOf(block.id);
+      if (!/^[a-z][a-z0-9-]*$/.test(address)) throw new Error(`Block "${block.id}" has an address with odd characters: "${address}"`);
+      if (RESERVED_ADDRESSES.has(address)) throw new Error(`Block "${block.id}" can't use the address "/${address}": the app uses it`);
+      const taken = this.byAddress.get(address);
+      if (taken) throw new Error(`Blocks "${taken.id}" and "${block.id}" both use the address "/${address}"`);
+      this.byAddress.set(address, block);
+    }
     const menus = new Set<string>();
     for (const block of this.blocks) {
       for (const item of block.menus ?? []) {
@@ -79,6 +97,16 @@ export class BlockRegistry {
 
   get(id: string): BlockDefinition | undefined {
     return this.byId.get(id);
+  }
+
+  /** The first word of a block's page addresses: its `address`, or its id. */
+  addressOf(id: string): string {
+    return this.byId.get(id)?.address ?? id;
+  }
+
+  /** The block whose pages live at /<address>/... */
+  atAddress(address: string): BlockDefinition | undefined {
+    return this.byAddress.get(address);
   }
 
   /** Every permission in the app, grouped by block, for the role editor. */

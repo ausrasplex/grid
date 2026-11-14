@@ -7,9 +7,9 @@ import { SitesList } from "./SitesList";
 import { StructureEditor } from "./StructureEditor";
 
 export const pages: BlockPages = {
-  // /b/sites                    the Sites list
-  // /b/sites/<id>               → the site page (projects block)
-  // /b/sites/<id>/structure     buildings and levels
+  // /sites                    the Sites list
+  // /sites/<id>               → the site page (projects block)
+  // /sites/<id>/structure     buildings and levels
   "": async ({ ctx, params: [siteId, sub] }) => {
     if (!siteId) {
       return <SitesList solo={ctx.solo} canCreateJob={can(ctx, "projects.create")} canCreateSite={can(ctx, "sites.create")} />;
@@ -18,7 +18,7 @@ export const pages: BlockPages = {
       const site = await getSite(ctx, siteId);
       return <StructureEditor initial={site} canEdit={can(ctx, "sites.structure.edit")} />;
     }
-    redirect(`/b/projects/site/${siteId}`);
+    redirect(`/jobs/site/${siteId}`);
   },
   new: () => <NewSiteForm />,
 };

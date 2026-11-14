@@ -24,17 +24,17 @@ export default defineBlock({
       slot: "sidebar.main",
       label: "Sites",
       icon: "map",
-      href: "/b/sites",
+      href: "/sites",
       permission: "sites.view",
       prominence: "primary",
       order: 10,
       // Screens inside a site or job highlight Sites (docs/navigation.md §5).
-      activeFor: ["/b/projects"],
+      activeFor: ["/jobs"],
     },
   ],
   routes: async () => (await import("./routes")).routes,
   routeTargets: {
-    Site: (id) => `/b/projects/site/${id}`,
+    Site: (id) => `/jobs/site/${id}`,
   },
   emits: ["sites.created", "sites.building.converted"],
 });

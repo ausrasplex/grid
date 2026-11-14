@@ -55,7 +55,7 @@ export function StructureEditor({ initial, canEdit }: { initial: SiteStructure; 
         {editable && <AddBuilding siteId={site.id} busy={action.busy} run={run} />}
         <div>
           <Button asChild variant="outline" size="lg" block>
-            <a href={`/b/projects/site/${site.id}`}>Back to the site</a>
+            <a href={`/jobs/site/${site.id}`}>Back to the site</a>
           </Button>
         </div>
       </Stack>

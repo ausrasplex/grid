@@ -36,7 +36,7 @@ export function Capture({ job, areas, lastArea, jobs }: Props) {
         <Section>
           <EmptyState title="Start a job first">Photos are filed against a job, so they're easy to find later.</EmptyState>
           <Button asChild size="lg" block>
-            <a href="/b/projects/new">New job</a>
+            <a href="/jobs/new">New job</a>
           </Button>
         </Section>
       </>
@@ -63,7 +63,7 @@ export function Capture({ job, areas, lastArea, jobs }: Props) {
                   setFiles(null);
                   return;
                 }
-                window.location.href = area ? `/b/projects/${jobId}/area/${area.buildingId}${area.levelId ? `/${area.levelId}` : ""}` : `/b/projects/${jobId}`;
+                window.location.href = area ? `/jobs/${jobId}/area/${area.buildingId}${area.levelId ? `/${area.levelId}` : ""}` : `/jobs/${jobId}`;
               }}
               onCancel={() => setFiles(null)}
             />

@@ -8,7 +8,7 @@ import { Store } from "./Store";
 
 const needsCompany = (
   <Alert>
-    Pick a company first. <a href="/b/companies/switch">Choose or create one</a>.
+    Pick a company first. <a href="/business/switch">Choose or create one</a>.
   </Alert>
 );
 

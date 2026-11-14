@@ -20,7 +20,7 @@ const toNav = (item: MenuItem): NavItem => ({ id: item.id, label: item.label, hr
  */
 function centreButton(ctx: AppContext): NavItem {
   if (ctx.solo && ctx.enabledBlocks.has("photos")) {
-    return { id: "core.photo", label: "Take a photo", href: "/b/photos/capture", icon: "camera" };
+    return { id: "core.photo", label: "Take a photo", href: "/photos/capture", icon: "camera" };
   }
   return { id: "core.scan", label: "Scan", href: "/scan", icon: "scan" };
 }

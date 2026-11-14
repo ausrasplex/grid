@@ -12,7 +12,7 @@ Status: **3a built** (November 2026): tax & currency settings, clients, price bo
 - **Costs and margin** only reach people with `quotes.costs.view` (stripped server-side). Repeated taps on the same price-book item add to its quantity.
 - **Sections** group lines on screen and on the PDF in the order each section first appears ("Other" for lines without one). Optional extras are listed separately and are never in the total.
 - **Permissions:** `quotes.view`, `.create`, `.send`, `.costs.view`, `.pricebook.manage`, `.clients.manage`, `.settings.manage`. Owner has all; Foreman gets view/create for now.
-- **Pages:** `/b/quotes` (list), `/b/quotes/new[/<jobId>]`, `/b/quotes/<id>`, `/b/quotes/price-book`, `/b/quotes/clients`, `/b/quotes/settings`. API at `/api/quotes/...` (see `routes.ts`).
+- **Pages:** `/quotes` (list), `/quotes/new[/<jobId>]`, `/quotes/<id>`, `/quotes/price-book`, `/quotes/clients`, `/quotes/settings`. API at `/api/quotes/...` (see `routes.ts`).
 Requires: `templates` (core block, PDFs and online quote view). Uses (when on): `projects` (accepted quotes create/join projects), plans + markups + measurement (take-offs), `variations` (accepted quote is the baseline), `documents` (attachments), stage 6 email/notifications.
 Suggested placement: after stage 4 (markups), so take-offs work; quick quotes don't need plans and can ship earlier.
 

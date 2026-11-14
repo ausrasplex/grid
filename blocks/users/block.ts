@@ -8,7 +8,7 @@ export default defineBlock({
   required: true,
   // Everyone can view and edit their own profile, so no permissions needed.
   menus: [
-    { id: "users.profile", slot: "settings.user", label: "Profile", icon: "user", href: "/b/users/profile", order: 10 },
+    { id: "users.profile", slot: "settings.user", label: "Profile", icon: "user", href: "/users/profile", order: 10 },
   ],
   routes: async () => (await import("./routes")).routes,
   emits: [],

@@ -68,7 +68,7 @@ export function NewJobForm({ site }: { site: Site | null }) {
             ...(site ? { siteId: site.id, covers } : { address }),
           };
           const created = await action.run(() => api<{ id: string }>("/projects", { body }));
-          if (created) window.location.href = `/b/projects/${created.id}`;
+          if (created) window.location.href = `/jobs/${created.id}`;
         }}
       >
         <Stack>
@@ -137,7 +137,7 @@ function ManagedSitePicker() {
     <div className="flex flex-col gap-1">
       {data && managed.length === 0 && <p className="text-sm text-muted-foreground">No managed sites yet. A builder or your office sets them up under Sites.</p>}
       {managed.map((site) => (
-        <a key={site.id} href={`/b/projects/new/${site.id}`} className="flex min-h-touch items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted">
+        <a key={site.id} href={`/jobs/new/${site.id}`} className="flex min-h-touch items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted">
           <Icon name="building" className="size-5 text-muted-foreground" />
           <span className="min-w-0">
             <span className="block font-semibold">{site.name}</span>

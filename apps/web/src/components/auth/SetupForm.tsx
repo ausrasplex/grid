@@ -40,7 +40,7 @@ export function SetupForm({ userName }: { userName: string }) {
           const created = await action.run(() => api<{ id: string }>("/companies", { body }));
           if (!created) return;
           await api("/session/company", { body: { companyId: created.id } });
-          window.location.href = size === "team" ? "/b/companies/members" : "/";
+          window.location.href = size === "team" ? "/business/members" : "/";
         }}
       >
         <Section>

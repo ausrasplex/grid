@@ -1,11 +1,11 @@
 // Pages for jobs and the places they happen.
 //
-//   /b/projects/site/<site>[/<building>[/<level>[/all]]]   site, building and level pages
-//   /b/projects/site/<site>/resume                          back to where you last were on a site
-//   /b/projects/<job>[/area/<building>[/<level>]]           a job, at one of its work areas
-//   /b/projects/<job>/settings                              job details and Covers
-//   /b/projects/new[/<site>]                                start a job
-//   /b/projects/search                                      Jump to
+//   /jobs/site/<site>[/<building>[/<level>[/all]]]   site, building and level pages
+//   /jobs/site/<site>/resume                          back to where you last were on a site
+//   /jobs/<job>[/area/<building>[/<level>]]           a job, at one of its work areas
+//   /jobs/<job>/settings                              job details and Covers
+//   /jobs/new[/<site>]                                start a job
+//   /jobs/search                                      Jump to
 
 import { redirect } from "next/navigation";
 import { can, notFound, type RequestContext } from "@grid/core";
@@ -21,8 +21,8 @@ import { LocationBar, type LocBuilding } from "./LocationBar";
 import { NewJobForm } from "./NewJobForm";
 
 const date = (date: Date) => date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
-const siteHref = (siteId: string, buildingId?: string | null, levelId?: string | null) => `/b/projects/site/${siteId}${buildingId ? `/${buildingId}` : ""}${levelId ? `/${levelId}` : ""}`;
-const areaHref = (job: string, area: { buildingId: string; levelId: string | null }) => `/b/projects/${job}/area/${area.buildingId}${area.levelId ? `/${area.levelId}` : ""}`;
+const siteHref = (siteId: string, buildingId?: string | null, levelId?: string | null) => `/jobs/site/${siteId}${buildingId ? `/${buildingId}` : ""}${levelId ? `/${levelId}` : ""}`;
+const areaHref = (job: string, area: { buildingId: string; levelId: string | null }) => `/jobs/${job}/area/${area.buildingId}${area.levelId ? `/${area.levelId}` : ""}`;
 
 /** Buildings with active-job counts, for the breadcrumb pickers. */
 function locBuildings(site: SiteStructure, counts: Record<string, number>, jobAreas?: Area[]): LocBuilding[] {
@@ -72,7 +72,7 @@ async function SitePage({ ctx, siteId }: { ctx: RequestContext; siteId: string }
         actions={
           <>
             <CopyLink codePath={`/sites/${site.id}/code`} />
-            {can(ctx, "projects.create") && <ActionLink href={`/b/projects/new/${site.id}`} icon="plus" label="New job here" primary />}
+            {can(ctx, "projects.create") && <ActionLink href={`/jobs/new/${site.id}`} icon="plus" label="New job here" primary />}
           </>
         }
       />
@@ -88,7 +88,7 @@ async function SitePage({ ctx, siteId }: { ctx: RequestContext; siteId: string }
           <Section flush>
             <List>
               <LinkRow
-                href={`/b/sites/${site.id}/structure`}
+                href={`/sites/${site.id}/structure`}
                 icon={<Icon name="layers" />}
                 label="Buildings & levels"
                 description={plain ? "Add a granny flat, shed or second storey" : `${site.buildings.length} building${site.buildings.length === 1 ? "" : "s"}`}
@@ -202,7 +202,7 @@ async function JobPage({
     id: job.id,
     name: job.name,
     meta: [job.jobNumber, job.clientName].filter(Boolean).join(" · ") || undefined,
-    href: area ? areaHref(job.id, area) : `/b/projects/${job.id}`,
+    href: area ? areaHref(job.id, area) : `/jobs/${job.id}`,
   }));
   const allHref = area?.levelId ? `${siteHref(site.id, area.buildingId, area.levelId)}/all` : area && site.buildings.length > 1 ? siteHref(site.id, area.buildingId) : siteHref(site.id);
   const canEdit = job.isHost && can(ctx, "projects.edit");
@@ -227,7 +227,7 @@ async function JobPage({
         buildingId={area?.buildingId ?? (new Set(areas.map((area) => area.buildingId)).size === 1 ? areas[0]!.buildingId : null)}
         levelId={area?.levelId ?? null}
         job={{ id: job.id, name: job.name }}
-        jobsHere={jobsHere.some((jobHere) => jobHere.id === job.id) ? jobsHere : [{ id: job.id, name: job.name, href: `/b/projects/${job.id}` }, ...jobsHere]}
+        jobsHere={jobsHere.some((jobHere) => jobHere.id === job.id) ? jobsHere : [{ id: job.id, name: job.name, href: `/jobs/${job.id}` }, ...jobsHere]}
         allHref={allHref}
       />
       <PageHeader
@@ -236,7 +236,7 @@ async function JobPage({
         actions={
           <>
             <CopyLink codePath={`/projects/${job.id}/code`} />
-            {canEdit && <ActionLink href={`/b/projects/${job.id}/settings`} icon="settings" label="Settings" />}
+            {canEdit && <ActionLink href={`/jobs/${job.id}/settings`} icon="settings" label="Settings" />}
           </>
         }
       />
@@ -324,7 +324,7 @@ function coversText(covers: { buildingId: string; levelId: string | null }[], si
 
 export const pages: BlockPages = {
   "": async ({ ctx, params: [jobId, sub, buildingId, levelId], panels }) => {
-    if (!jobId) redirect("/b/sites");
+    if (!jobId) redirect("/sites");
     if (sub === "settings") {
       const job = await getProject(ctx, jobId);
       return (
@@ -339,7 +339,7 @@ export const pages: BlockPages = {
   },
 
   site: async ({ ctx, params: [siteId, buildingId, levelId, mode] }) => {
-    if (!siteId) redirect("/b/sites");
+    if (!siteId) redirect("/sites");
     if (buildingId === "resume") redirect(await resumeOnSite(ctx, siteId));
     if (buildingId && levelId) return <LevelPage ctx={ctx} siteId={siteId} buildingId={buildingId} levelId={levelId} all={mode === "all"} />;
     if (buildingId) return <BuildingPage ctx={ctx} siteId={siteId} buildingId={buildingId} />;

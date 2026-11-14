@@ -16,7 +16,7 @@ export default async function HomePage() {
         <Alert>You've been invited to a business. Accept the invite to start, or set up your own.</Alert>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild size="lg" block>
-            <a href="/b/companies/switch">See invites</a>
+            <a href="/business/switch">See invites</a>
           </Button>
           <Button asChild size="lg" variant="outline" block>
             <a href="/setup">Set up my own business</a>
@@ -37,7 +37,7 @@ export default async function HomePage() {
         actions={
           canStart ? (
             <a
-              href="/b/projects/new"
+              href="/jobs/new"
               aria-label="New job"
               className={cn(buttonVariants(), "size-touch px-0 sm:w-auto sm:px-4")}
             >
@@ -66,7 +66,7 @@ export default async function HomePage() {
           </p>
           {canStart && (
             <Button asChild size="lg">
-              <a href="/b/projects/new">New job</a>
+              <a href="/jobs/new">New job</a>
             </Button>
           )}
         </Section>

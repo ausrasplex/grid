@@ -2,6 +2,8 @@ import { defineBlock } from "@grid/core";
 
 export default defineBlock({
   id: "companies",
+  // Pages at /business/... (the screens say "business").
+  address: "business",
   name: "Companies",
   version: "1.0.0",
   description: "Company details, members, roles and which blocks are switched on.",
@@ -25,7 +27,7 @@ export default defineBlock({
     EMPLOYEE: ["companies.members.view"],
   },
   menus: [
-    { id: "companies.switcher", slot: "header.actions", label: "Switch company", icon: "building", href: "/b/companies/switch", order: 10 },
+    { id: "companies.switcher", slot: "header.actions", label: "Switch company", icon: "building", href: "/business/switch", order: 10 },
     {
       id: "companies.storage",
       slot: "settings.company",
@@ -35,13 +37,13 @@ export default defineBlock({
       permission: "companies.storage.manage",
       order: 60,
     },
-    { id: "companies.details", slot: "settings.company", label: "Company details", soloLabel: "Business details", icon: "building", href: "/b/companies/details", order: 10 },
+    { id: "companies.details", slot: "settings.company", label: "Company details", soloLabel: "Business details", icon: "building", href: "/business/details", order: 10 },
     {
       id: "companies.members",
       slot: "settings.company",
       label: "Members",
       icon: "users",
-      href: "/b/companies/members",
+      href: "/business/members",
       permission: "companies.members.view",
       order: 20,
       teamOnly: true,
@@ -51,7 +53,7 @@ export default defineBlock({
       slot: "settings.company",
       label: "Roles",
       icon: "shield",
-      href: "/b/companies/roles",
+      href: "/business/roles",
       permission: "companies.members.view",
       order: 30,
       teamOnly: true,
@@ -62,7 +64,7 @@ export default defineBlock({
       slot: "settings.company",
       label: "Add a team member",
       icon: "users",
-      href: "/b/companies/members",
+      href: "/business/members",
       permission: "companies.members.invite",
       order: 25,
       soloOnly: true,
@@ -72,7 +74,7 @@ export default defineBlock({
       slot: "settings.company",
       label: "Store",
       icon: "puzzle",
-      href: "/b/companies/store",
+      href: "/business/store",
       permission: "companies.blocks.manage",
       order: 40,
     },

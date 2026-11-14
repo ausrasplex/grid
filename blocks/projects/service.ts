@@ -392,23 +392,23 @@ export async function onSiteNow(ctx: RequestContext) {
 function resumeHref(location: { siteId: string; buildingId: string | null; levelId: string | null; projectId: string | null }) {
   if (location.projectId) {
     return location.buildingId
-      ? `/b/projects/${location.projectId}/area/${location.buildingId}${location.levelId ? `/${location.levelId}` : ""}`
-      : `/b/projects/${location.projectId}`;
+      ? `/jobs/${location.projectId}/area/${location.buildingId}${location.levelId ? `/${location.levelId}` : ""}`
+      : `/jobs/${location.projectId}`;
   }
-  if (location.buildingId) return `/b/projects/site/${location.siteId}/${location.buildingId}${location.levelId ? `/${location.levelId}` : ""}`;
-  return `/b/projects/site/${location.siteId}`;
+  if (location.buildingId) return `/jobs/site/${location.siteId}/${location.buildingId}${location.levelId ? `/${location.levelId}` : ""}`;
+  return `/jobs/site/${location.siteId}`;
 }
 
 /** Switching site returns you to where you last were on it (docs/navigation.md §2). */
 export async function resumeOnSite(ctx: RequestContext, siteId: string): Promise<string> {
   const location = await locationOnSite(ctx, siteId);
-  if (!location) return `/b/projects/site/${siteId}`;
+  if (!location) return `/jobs/site/${siteId}`;
   if (location.projectId) {
     const ok = await db.project.findFirst({
       where: { id: location.projectId, deletedAt: null, companies: { some: { companyId: ctx.companyId!, status: VISIBLE } } },
       select: { id: true },
     });
-    if (!ok) return `/b/projects/site/${siteId}`;
+    if (!ok) return `/jobs/site/${siteId}`;
   }
   return resumeHref(location);
 }
@@ -546,7 +546,7 @@ export interface SearchResult {
 }
 
 function jobHref(id: string) {
-  return `/b/projects/${id}`;
+  return `/jobs/${id}`;
 }
 
 const squash = (text: string) => text.toLowerCase().replace(/[^0-9a-z]/g, "");
@@ -627,7 +627,7 @@ export async function search(ctx: RequestContext, typed: string): Promise<{ exac
     title: siteRow.name,
     meta: siteRow.archivedAt ? `Archived · ${siteRow.totalJobs} earlier job${siteRow.totalJobs === 1 ? "" : "s"}` : `${siteRow.activeJobs} active job${siteRow.activeJobs === 1 ? "" : "s"}`,
     trail: siteRow.address,
-    href: `/b/projects/site/${siteRow.id}`,
+    href: `/jobs/site/${siteRow.id}`,
   }));
 
   return { exact, jobs: jobs.filter((job) => job.id !== exact?.id), sites: siteResults };

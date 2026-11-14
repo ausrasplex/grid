@@ -1,4 +1,6 @@
-// Renders block pages at /b/<blockId>/<page>/<params...>.
+// Renders block pages at /<address>/<page>/<params...>: the block's address
+// (its id, or a chosen word like "jobs") then the page. The app's own pages
+// (/settings, /scan, ...) win over this; RESERVED_ADDRESSES keeps blocks off them.
 // A block's page only renders when the block is on for the active company.
 import { notFound } from "next/navigation";
 import { isHttpError } from "@grid/core";
@@ -9,10 +11,11 @@ import { blockPages, registry, renderPanels } from "@/blocks";
 type Props = { params: Promise<{ block: string; path?: string[] }> };
 
 export default async function BlockPage({ params }: Props) {
-  const { block: blockId, path = [] } = await params;
+  const { block: address, path = [] } = await params;
   const ctx = (await getContext())!;
 
-  const definition = registry.get(blockId);
+  const definition = registry.atAddress(address);
+  const blockId = definition?.id ?? "";
   const load = blockPages[blockId];
   if (!definition || !load) notFound();
 

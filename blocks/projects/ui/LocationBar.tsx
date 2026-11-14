@@ -57,7 +57,7 @@ function useWide() {
   return wide;
 }
 
-const siteBase = (siteId: string) => `/b/projects/site/${siteId}`;
+const siteBase = (siteId: string) => `/jobs/site/${siteId}`;
 
 export function LocationBar({ site, buildings, buildingId, levelId, job, jobsHere = [], allHref }: Props) {
   const building = buildings.find((building) => building.id === buildingId) ?? (buildings.length === 1 ? buildings[0] : undefined);
@@ -320,7 +320,7 @@ function SitePicker({ site, iconOnly }: { site: Props["site"]; iconOnly: boolean
             selected: option.id === site.id,
           }))}
         />
-        <a href="/b/sites" className="flex min-h-touch items-center gap-2 rounded-lg px-3 text-sm font-semibold text-primary hover:bg-muted">
+        <a href="/sites" className="flex min-h-touch items-center gap-2 rounded-lg px-3 text-sm font-semibold text-primary hover:bg-muted">
           All sites, including archived <Badge className="ml-auto">Sites</Badge>
         </a>
       </div>

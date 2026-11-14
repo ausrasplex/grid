@@ -1,6 +1,6 @@
 // Plans pages and the panel on job pages.
-//   /b/plans/job/<projectId>            the job's sheets, upload
-//   /b/plans/sheet/<sheetId>[/<versionId>]  the viewer (current revision unless one is given)
+//   /plans/job/<projectId>            the job's sheets, upload
+//   /plans/sheet/<sheetId>[/<versionId>]  the viewer (current revision unless one is given)
 //   slot "plans.viewer"                 other Blocks draw on the sheet (markups, photo pins)
 //   panel "job.area"                    "Plans · 24 sheets", and the sheets for the level you're on
 
@@ -56,7 +56,7 @@ export const panels: BlockPanels = {
     const list = here.length ? here : recent;
     return (
       <section className="rounded-xl border bg-card" aria-label="Plans">
-        <a href={`/b/plans/job/${job.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-3 hover:bg-muted">
+        <a href={`/plans/job/${job.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-3 hover:bg-muted">
           <FileStack className="size-5 text-primary" />
           <span className="flex-1 font-semibold">Plans</span>
           <span className="text-sm text-muted-foreground">{total ? `${total} sheet${total === 1 ? "" : "s"}` : "Upload plans"}</span>
@@ -65,7 +65,7 @@ export const panels: BlockPanels = {
           <ul className="divide-y border-t">
             {list.slice(0, 5).map((item) => (
               <li key={item.id}>
-                <a href={`/b/plans/sheet/${item.id}`} className="flex min-h-touch items-center gap-3 px-4 py-2 hover:bg-muted">
+                <a href={`/plans/sheet/${item.id}`} className="flex min-h-touch items-center gap-3 px-4 py-2 hover:bg-muted">
                   <span className="w-20 shrink-0 truncate font-semibold">{item.number}</span>
                   <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{item.title || item.disciplineName}</span>
                   {item.current?.revision && <span className="shrink-0 text-xs text-muted-foreground">Rev {item.current.revision}</span>}

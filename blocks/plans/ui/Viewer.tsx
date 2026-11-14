@@ -234,8 +234,8 @@ export function Viewer({
     const onKey = (keyboardEvent: KeyboardEvent) => {
       if ((keyboardEvent.target as HTMLElement)?.closest("input,textarea,select,[role=dialog]")) return;
       if (keyboardEvent.key === "Escape" && toolRef.current) setTool(null);
-      if (keyboardEvent.key === "ArrowLeft" && keyboardEvent.altKey && sheet.prev) window.location.href = `/b/plans/sheet/${sheet.prev.id}`;
-      if (keyboardEvent.key === "ArrowRight" && keyboardEvent.altKey && sheet.next) window.location.href = `/b/plans/sheet/${sheet.next.id}`;
+      if (keyboardEvent.key === "ArrowLeft" && keyboardEvent.altKey && sheet.prev) window.location.href = `/plans/sheet/${sheet.prev.id}`;
+      if (keyboardEvent.key === "ArrowRight" && keyboardEvent.altKey && sheet.next) window.location.href = `/plans/sheet/${sheet.next.id}`;
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -278,7 +278,7 @@ export function Viewer({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-neutral-800 text-white">
       <header className="flex items-center gap-1 border-b border-white/10 bg-neutral-900 px-2 py-1.5 pt-[max(0.375rem,env(safe-area-inset-top))]">
-        <a href={`/b/plans/job/${sheet.projectId}`} className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-white/10" aria-label={`Back to plans for ${jobName}`}>
+        <a href={`/plans/job/${sheet.projectId}`} className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-white/10" aria-label={`Back to plans for ${jobName}`}>
           <ArrowLeft className="size-5" />
         </a>
         <button type="button" onClick={() => setPanel("set")} className="flex min-h-11 min-w-0 flex-1 flex-col justify-center rounded-md px-2 text-left hover:bg-white/10" aria-label="Choose a sheet">
@@ -297,7 +297,7 @@ export function Viewer({
           </button>
         )}
         <a
-          href={sheet.prev ? `/b/plans/sheet/${sheet.prev.id}` : undefined}
+          href={sheet.prev ? `/plans/sheet/${sheet.prev.id}` : undefined}
           aria-disabled={!sheet.prev}
           className={cn("flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-white/10", !sheet.prev && "pointer-events-none opacity-30")}
           aria-label={sheet.prev ? `Previous sheet ${sheet.prev.number}` : "No previous sheet"}
@@ -305,7 +305,7 @@ export function Viewer({
           <ChevronLeft className="size-5" />
         </a>
         <a
-          href={sheet.next ? `/b/plans/sheet/${sheet.next.id}` : undefined}
+          href={sheet.next ? `/plans/sheet/${sheet.next.id}` : undefined}
           aria-disabled={!sheet.next}
           className={cn("flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-white/10", !sheet.next && "pointer-events-none opacity-30")}
           aria-label={sheet.next ? `Next sheet ${sheet.next.number}` : "No next sheet"}
@@ -382,7 +382,7 @@ export function Viewer({
           <ul className="divide-y rounded-lg border">
             {sheet.set.map((entry) => (
               <li key={entry.id}>
-                <a href={`/b/plans/sheet/${entry.id}`} aria-current={entry.id === sheet.id ? "page" : undefined} className={cn("flex min-h-touch-lg flex-col justify-center px-3 py-2 hover:bg-muted", entry.id === sheet.id && "bg-muted")}>
+                <a href={`/plans/sheet/${entry.id}`} aria-current={entry.id === sheet.id ? "page" : undefined} className={cn("flex min-h-touch-lg flex-col justify-center px-3 py-2 hover:bg-muted", entry.id === sheet.id && "bg-muted")}>
                   <span className="font-semibold">{entry.number}</span>
                   <span className="truncate text-sm text-muted-foreground">{entry.title || disciplineName(entry.discipline)}</span>
                 </a>
@@ -538,7 +538,7 @@ function SheetDetails({ sheet, areas, canManage, version, onSaved }: { sheet: Sh
           onClick={async () => {
             if (!window.confirm(`Delete ${sheet.number} and all its revisions? It stays in Recently deleted for a while.`)) return;
             const result = await action.run(() => api(`/plans/sheet/${sheet.id}`, { method: "DELETE" }));
-            if (result) window.location.href = `/b/plans/job/${sheet.projectId}`;
+            if (result) window.location.href = `/plans/job/${sheet.projectId}`;
           }}
         >
           Delete sheet

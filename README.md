@@ -13,7 +13,7 @@ system** and the first two blocks: **Users** and **Companies**.
 | **Grid** | The app. |
 | **Core** | What every business always has. Core blocks are marked `required: true` and can't be switched off. Core = sign-in and accounts, the business, team and roles, **Sites & Jobs**, and the app frame (Home, Settings, Store, centre button, search, notifications). See `docs/roadmap.md`. |
 | **Block** | A feature that expands the core, e.g. Quotations, Assets, Documents. Each one is a package in `blocks/`. |
-| **Store** | The screen (`/b/companies/store`) where a business adds or removes Blocks. Today it's a built-in catalogue of Grid's own Blocks, free on self-hosted. Later the hosted site can charge for some Blocks and list third-party ones. |
+| **Store** | The screen (`/business/store`) where a business adds or removes Blocks. Today it's a built-in catalogue of Grid's own Blocks, free on self-hosted. Later the hosted site can charge for some Blocks and list third-party ones. |
 
 ## Layout
 
@@ -42,7 +42,7 @@ Each block is a package with:
 | `schema.prisma` | Its database tables |
 | `service.ts` | Business logic, exported via `index.ts` for blocks that depend on it |
 | `routes.ts` | API, mounted at `/api/<blockId>/…` |
-| `ui/` | Pages, rendered at `/b/<blockId>/<page>` |
+| `ui/` | Pages, rendered at `/<blockId>/<page>` |
 
 Rules:
 

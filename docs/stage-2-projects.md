@@ -186,7 +186,7 @@ When a company's request reaches the host, the host chooses where it sits:
 - **"Mine" tab** = sites you've opened, until phase 7 adds people on jobs; hidden while solo.
 - **Structure editing:** add buildings (single or multi-level), add a full set of floors in one go (roof, levels, ground, basements) or one level above/below, rename, reorder, convert single → multi-level (creates "Ground" and emits `sites.building.converted`). Deleting buildings and levels is not built yet (needs a "what's on it" check across Blocks).
 - **Quick routes:** `RouteCode` table (core), `/go/<code>` page, Copy link on site and job pages. Blocks declare `routeTargets` in their manifest.
-- **Jump to:** `/b/projects/search`, the header search (a box with Ctrl K from tablet up). Matches job numbers (exact first, "1042" finds "J-1042"), job names, customers, sites and addresses.
+- **Jump to:** `/jobs/search`, the header search (a box with Ctrl K from tablet up). Matches job numbers (exact first, "1042" finds "J-1042"), job names, customers, sites and addresses.
 - Not yet: the camera scanner (Scan is still a placeholder page), plan sheets and quotes in search (they come with those Blocks), and "Outside current areas" (needs work items).
 
 **2b. Multi-company (when teams and builders come on):**

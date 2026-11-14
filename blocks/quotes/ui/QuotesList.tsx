@@ -50,7 +50,7 @@ export function QuotesList({ initial, currency, locale, canCreate }: { initial: 
       <PageHeader
         title="Quotes"
         meta={tab === "open" && total > 0 ? `${formatMoney(total, currency, locale)} waiting for an answer` : undefined}
-        actions={canCreate && <ActionButton icon={<Plus />} label="New quote" onClick={() => (window.location.href = "/b/quotes/new")} />}
+        actions={canCreate && <ActionButton icon={<Plus />} label="New quote" onClick={() => (window.location.href = "/quotes/new")} />}
       />
       <Stack>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -71,7 +71,7 @@ export function QuotesList({ initial, currency, locale, canCreate }: { initial: 
         <Section flush>
           {rows.length === 0 ? (
             <EmptyState title={query ? "No quotes match" : tab === "open" ? "No open quotes" : "Nothing here yet"}>
-              {canCreate && !query && <a href="/b/quotes/new">Write a quote</a>}
+              {canCreate && !query && <a href="/quotes/new">Write a quote</a>}
             </EmptyState>
           ) : (
             <List>
@@ -79,7 +79,7 @@ export function QuotesList({ initial, currency, locale, canCreate }: { initial: 
                 const expired = row.status === "SENT" && new Date(row.validUntil) < new Date();
                 return (
                   <li key={row.id}>
-                    <a href={`/b/quotes/${row.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-2.5 hover:bg-muted active:bg-muted sm:px-5">
+                    <a href={`/quotes/${row.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-2.5 hover:bg-muted active:bg-muted sm:px-5">
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                           <span className="truncate font-semibold">{row.title}</span>

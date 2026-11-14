@@ -58,7 +58,7 @@ export interface MenuItem {
   soloLabel?: string;
   /**
    * Other path prefixes that should highlight this item, e.g. Sites stays
-   * highlighted inside a job: activeFor: ["/b/projects"].
+   * highlighted inside a job: activeFor: ["/jobs"].
    */
   activeFor?: string[];
 }
@@ -139,6 +139,13 @@ export type EventHandler<P = any> = (payload: P, meta: EventMeta) => void | Prom
 export interface BlockDefinition {
   /** Lowercase, e.g. "companies". Also the API prefix: /api/companies. */
   id: string;
+  /**
+   * The first word of this block's page addresses, when it isn't the id:
+   * the projects block's pages are at /jobs/... because the screens say
+   * "job". Default: the id (/sites, /plans/sheet/<id>). Can't be one of
+   * RESERVED_ADDRESSES (the app's own pages).
+   */
+  address?: string;
   name: string;
   version: string;
   description?: string;
@@ -165,7 +172,7 @@ export interface BlockDefinition {
   /**
    * Where a quick-route code (QR / short link, docs/navigation.md §7) for
    * one of this block's things should open. Keyed by RouteCode.entityType,
-   * e.g. { Project: (id) => `/b/projects/${id}` }.
+   * e.g. { Project: (id) => `/jobs/${id}` }.
    */
   routeTargets?: Record<string, (entityId: string) => string>;
   /**

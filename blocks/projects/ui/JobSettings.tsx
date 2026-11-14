@@ -37,7 +37,7 @@ export function JobSettings({ job, site }: Props) {
               body: { name, clientName: clientName.trim() || null, jobNumber, ...(simple ? {} : { covers }) },
             }),
           );
-          if (ok) window.location.href = `/b/projects/${job.id}`;
+          if (ok) window.location.href = `/jobs/${job.id}`;
         }}
       >
         <Stack>
@@ -59,7 +59,7 @@ export function JobSettings({ job, site }: Props) {
           <Alert variant="error">{action.error}</Alert>
           <FormActions>
             <Button asChild variant="outline" size="lg">
-              <a href={`/b/projects/${job.id}`}>Cancel</a>
+              <a href={`/jobs/${job.id}`}>Cancel</a>
             </Button>
             <Button type="submit" size="lg" disabled={action.busy || (!simple && covers.length === 0)}>
               {action.busy ? "Saving…" : "Save"}

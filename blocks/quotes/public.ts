@@ -183,7 +183,7 @@ async function sign(token: string, body: unknown, caller: Caller) {
     `${name} signed ${snapshot.tax.documentTitle.toLowerCase()} ${snapshot.number} Rev ${revision.label} online for ${money} incl. ${snapshot.tax.taxName}.\n` +
       (chosen.length ? `Extras chosen: ${chosen.map((index) => snapshot.lines[index]!.description).join("; ")}\n` : "") +
       (projectId && !quote.projectId ? `The job has been made.\n` : jobNote ? `The job couldn't be made: ${jobNote}\n` : "") +
-      `\nOpen the quote: ${appUrl(`/b/quotes/${quote.id}`)}\nVerify code: ${signed.verifyCode}\n`,
+      `\nOpen the quote: ${appUrl(`/quotes/${quote.id}`)}\nVerify code: ${signed.verifyCode}\n`,
     { filename, content: new Uint8Array(signed.signedPdf) },
   );
   return { signed: true, verifyCode: signed.verifyCode };
@@ -203,7 +203,7 @@ async function decline(token: string, body: unknown, caller: Caller) {
     quote.id,
     revision.sentById,
     `Declined: ${snapshot.number} ${snapshot.title}`,
-    `The customer declined ${snapshot.tax.documentTitle.toLowerCase()} ${snapshot.number} Rev ${revision.label} online.\n${reason ? `Reason: ${reason}\n` : ""}\nOpen the quote: ${appUrl(`/b/quotes/${quote.id}`)}\n`,
+    `The customer declined ${snapshot.tax.documentTitle.toLowerCase()} ${snapshot.number} Rev ${revision.label} online.\n${reason ? `Reason: ${reason}\n` : ""}\nOpen the quote: ${appUrl(`/quotes/${quote.id}`)}\n`,
   );
   return { declined: true };
 }

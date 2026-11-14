@@ -18,7 +18,7 @@ export default defineBlock({
   },
   routes: async () => (await import("./routes")).routes,
   routeTargets: {
-    PlanSheet: (id) => `/b/plans/sheet/${id}`,
+    PlanSheet: (id) => `/plans/sheet/${id}`,
   },
   fileAccess: async () => (await import("./service")).canReadPlanFile,
   cleanup: async () => ({ purgeDeleted: (await import("./service")).purgeDeleted }),

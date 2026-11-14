@@ -170,7 +170,15 @@ Every search bar (Jump to, Documents, a manufacturer page, Assets) has a **scan 
 - **Choosing the Site crumb style:** decide between icon and full label from the number of visible crumbs (icon when there are 4). If needed, measure the real width with a ResizeObserver so long names on narrow phones also get the icon.
 - **Remembering where you were:** store the last location per site per user, on the server so it follows the user across devices, with an offline cache. Use it when switching sites.
 - **Pickers:** use one component, a Popover on wide screens and a Sheet on phone, with the same item list (label, meta, current check, coverage dot, warning chip). Lists longer than about 8 items get a search box.
-- **URLs mirror the trail:** `/sites/:site/b/:building/l/:level/p/:project/...`, with hidden crumbs omitted. Deep links and the back button then behave predictably.
+- **Page addresses (decided Nov 2026):** short and plain, the screen's word first, then the page. Every Block's pages live at `/<address>/...`; the address is the Block's id unless it sets `address` (the screens' word when the code word differs). Deep links and the back button behave predictably.
+  - `/sites` (Sites list), `/sites/<site>/structure`
+  - `/jobs/<job>`, `/jobs/<job>/area/<building>[/<level>]`, `/jobs/<job>/settings`, `/jobs/new`, `/jobs/search`
+  - `/jobs/site/<site>[/<building>[/<level>]]` (site, building and level pages)
+  - `/plans/job/<job>`, `/plans/sheet/<sheet>`, `/photos/capture`, `/quotes/<quote>`
+  - `/business/store`, `/business/members` (the companies Block; screens say "business")
+  - The app's own pages (`/settings`, `/scan`, `/sign-in`, `/go`, `/q`, `/verify`, `/p`, `/api`…) can't be taken by a Block: `RESERVED_ADDRESSES` in `packages/core/src/registry.ts`, checked when the app starts and by `pnpm test`.
+  - Until Nov 2026 Block pages were at `/b/<block id>/...`. Those links still work: `next.config.ts` redirects them (`/b/projects/...` → `/jobs/...`, `/b/companies/...` → `/business/...`).
+  - The earlier idea of addresses that mirror the whole trail (`/sites/:site/b/:building/l/:level/p/:project/...`) was dropped: the breadcrumbs come from the job or location itself, so the address doesn't need to carry them.
 - **Accessibility:** crumbs are buttons with `aria-haspopup`. The trail is a `nav` labelled "Location". The icon-only site crumb has an `aria-label` naming the site.
 - **Search:** use Postgres full-text search (`tsvector`) for names and addresses, plus `pg_trgm` trigram indexes for partial numbers and typos. No separate search server.
   - A small `search_index` table, fed by blocks through a `searchProvider` in their manifest, gives Projects, Quotes, Sheets, RFIs and so on one ranked query.

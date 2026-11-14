@@ -8,7 +8,7 @@ Plans usually come as **one PDF per sheet**, downloaded from the builder's syste
 
 ## Upload and review
 
-1. Pick files on the job's Plans page (`/b/plans/job/<projectId>`). Each uploads with a progress bar.
+1. Pick files on the job's Plans page (`/plans/job/<projectId>`). Each uploads with a progress bar.
 2. Grid reads each page (`POST /api/plans/job/<id>/preview`): sheet number, title and revision from the **file name** (`E-101 Lighting Layout Rev C.pdf`, `E101_C_…`, `1234-ELE-DWG-E101[C].pdf`, `SK-E-01-P2.pdf`), and from the **title block** text (`pdftotext` of the bottom-right corner, then the whole page) to fill gaps. In a multi-page set the title block names each page. `parse.ts` is pure and unit-tested.
 3. Each page is matched to the job's sheets by number: **New sheet**, **New revision of E-101 (now Rev B)**, or **Skip** (same file, or that revision is already there). You can fix the number, title and revision before saving.
 4. `POST …/import` files the uploads, makes sheets and versions, makes each new upload current, and queues `plans.render` for each.
@@ -20,7 +20,7 @@ The discipline comes from the number's letters (E Electrical, M Mechanical, H Hy
 - `plans.render` (a background job: blocks can now declare `jobs` in their manifest, run by pg-boss) renders the page with poppler's `pdftoppm` at up to 250 dpi, capped at 48 megapixels (A1 ≈ 250 dpi, A0 ≈ 175 dpi), then cuts it into 512 px deep-zoom tiles with sharp, plus a thumbnail. About 6 seconds for an A1 sheet.
 - Tiles live in `<files>/.cache/plans/<versionId>/` (`plan.dzi`, `plan_files/`, `thumb.jpg`). They can always be made again from the original, so **backups and the stray-file sweep skip `.cache`**.
 - Served by `GET /api/plans/tiles/<versionId>/…`, checked against the job (cached for a minute per person and version), and cached by the browser forever (a version never changes).
-- The viewer (`/b/plans/sheet/<sheetId>[/<versionId>]`) is OpenSeadragon, full screen: pinch, drag, double-tap, zoom buttons, previous/next sheet in set order, a sheet picker, and the revision chip. Viewing an older revision shows an amber "Not the current revision" bar.
+- The viewer (`/plans/sheet/<sheetId>[/<versionId>]`) is OpenSeadragon, full screen: pinch, drag, double-tap, zoom buttons, previous/next sheet in set order, a sheet picker, and the revision chip. Viewing an older revision shows an amber "Not the current revision" bar.
 
 ## Sheets and revisions
 

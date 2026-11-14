@@ -6,7 +6,7 @@ The owner is a worker electrician, not a full-time developer. Explain changes in
 
 ## Words
 
-- **Grid**: the app. **Block**: a feature package in `blocks/` (was "module"; never use that word). **Store**: where a business adds/removes Blocks (`/b/companies/store`).
+- **Grid**: the app. **Block**: a feature package in `blocks/` (was "module"; never use that word). **Store**: where a business adds/removes Blocks (`/business/store`).
 - **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Sites & Jobs**, and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
 
 ## Naming (project rule)
@@ -50,7 +50,7 @@ pnpm dev
 ## Layout
 
 ```
-apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), pages (/b/<block>/…)
+apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), pages (/<address>/…, the Block id or its `address`, e.g. /jobs)
   src/blocks.ts        the list of Blocks in this build
   src/lib/auth.ts      Better Auth setup; lib/session.ts is the only place that asks who's signed in
   src/lib/context.ts   builds the RequestContext (user, company, permissions, Blocks, solo)

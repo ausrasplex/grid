@@ -132,7 +132,7 @@ export function PlansList({
       <PageHeader
         title="Plans"
         meta={
-          <a href={`/b/projects/${projectId}`} className="inline-flex items-center gap-1 hover:underline">
+          <a href={`/jobs/${projectId}`} className="inline-flex items-center gap-1 hover:underline">
             <ArrowLeft className="size-3.5" /> {jobName}
           </a>
         }
@@ -210,7 +210,7 @@ export function PlansList({
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {shown.map((row) => (
               <li key={row.id}>
-                <a href={`/b/plans/sheet/${row.id}`} className="group flex h-full flex-col overflow-hidden rounded-xl border bg-card hover:border-primary">
+                <a href={`/plans/sheet/${row.id}`} className="group flex h-full flex-col overflow-hidden rounded-xl border bg-card hover:border-primary">
                   <span className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-white">
                     {row.current?.status === "READY" ? (
                       // eslint-disable-next-line @next/next/no-img-element

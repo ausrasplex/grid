@@ -28,6 +28,16 @@ const config: NextConfig = {
       { source: "/verify/:code", destination: "/p/signatures/verify/:code" },
     ];
   },
+  // Block pages used to live under /b/<block id>/...; old links and
+  // bookmarks still land on the right page (docs/navigation.md §8).
+  // Not permanent, so browsers don't remember it if /b is ever reused.
+  async redirects() {
+    return [
+      { source: "/b/projects/:path*", destination: "/jobs/:path*", permanent: false },
+      { source: "/b/companies/:path*", destination: "/business/:path*", permanent: false },
+      { source: "/b/:path*", destination: "/:path*", permanent: false },
+    ];
+  },
   async headers() {
     const privateHeaders = [
       { key: "Referrer-Policy", value: "no-referrer" },

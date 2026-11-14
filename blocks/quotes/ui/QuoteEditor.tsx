@@ -661,7 +661,7 @@ function PriceBookPicker({
             ))}
             {items?.length === 0 && (
               <li className="px-3 py-4 text-sm text-muted-foreground">
-                {query ? "Nothing matches." : "Your price book is empty."} <a className="font-semibold underline" href="/b/quotes/price-book">Set up your price book</a>
+                {query ? "Nothing matches." : "Your price book is empty."} <a className="font-semibold underline" href="/quotes/price-book">Set up your price book</a>
               </li>
             )}
           </ul>
@@ -835,7 +835,7 @@ function Outcome({ quote, permissions, onAnswer, reload }: { quote: QuoteJson; p
               )}
               {quote.projectId && (
                 <Button variant="outline" asChild>
-                  <a href={`/b/projects/${quote.projectId}`}>Open the job</a>
+                  <a href={`/jobs/${quote.projectId}`}>Open the job</a>
                 </Button>
               )}
             </div>
@@ -893,7 +893,7 @@ function AnswerSheet({ quote, kind, onClose, onDone }: { quote: QuoteJson; kind:
             );
             if (result === undefined) return;
             const projectId = (result as { projectId?: string | null }).projectId;
-            if (kind === "accept" && createJob && projectId && !quote.projectId) window.location.href = `/b/projects/${projectId}`;
+            if (kind === "accept" && createJob && projectId && !quote.projectId) window.location.href = `/jobs/${projectId}`;
             else onDone();
           }}
         >
@@ -994,7 +994,7 @@ function DeleteDraft({ id }: { id: string }) {
         onClick={async () => {
           if (!window.confirm("Delete this draft? It was never sent.")) return;
           const result = await action.run(() => api(`/quotes/${id}`, { method: "DELETE" }));
-          if (result) window.location.href = "/b/quotes";
+          if (result) window.location.href = "/quotes";
         }}
       >
         Delete draft
