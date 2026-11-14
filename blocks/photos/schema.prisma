@@ -70,3 +70,21 @@ model JobNote {
 
   @@index([projectId, createdAt])
 }
+
+/// A dated note on one photo ("Notes" on the photo; called PhotoComment in
+/// code so it isn't mixed up with JobNote, a note on the job). Anyone in the
+/// business who can add photos can add one; a running list, oldest first.
+model PhotoComment {
+  id          String    @id @default(uuid())
+  photoId     String
+  projectId   String
+  companyId   String
+  body        String
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  deletedById String?
+
+  @@index([photoId, createdAt])
+}

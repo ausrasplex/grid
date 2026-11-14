@@ -68,6 +68,7 @@ The discipline comes from the number's letters (E Electrical, M Mechanical, H Hy
 ### Photo pins (`photos` Block)
 
 - **Photo** in the tool bar, tap the spot, then **Take photo** or **Choose**. Photos go through the normal offline outbox: the pin shows dashed straight away and fills in once sent. They're ordinary job photos too (filed at the sheet's level, captioned "On E-101").
+- The "Pin a photo here" card has a **Note** box; tap a pin to read and add dated notes on each photo (`docs/photos-block.md`, "Notes on a photo").
 - Photos at the same spot share one pin with a count. Tap a pin for its photos, **Take another** / **Add from phone** at that spot, or **Unpin** (keeps the photo, takes it off the plan).
 - Pins belong to the sheet, not a revision, so they show on every revision.
 - `JobPhoto` gained `planSheetId?`, `planX?`, `planY?`. `GET /api/photos/pins/<sheetId>?job=<projectId>`; `POST /api/photos` and `PATCH /api/photos/<id>` take `pin` (`null` unpins).

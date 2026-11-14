@@ -4,12 +4,15 @@
 // pick photos. They go through the same offline outbox as every other
 // photo, so a pin dropped in a basement shows (hollow) straight away and
 // fills in once it's sent. Photos pinned to the same spot share one pin.
+// Each photo has its own dated notes; a note typed when pinning becomes the
+// first one (and travels with the photo, so it works offline too).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2, MapPinOff, X } from "lucide-react";
 import { Button, PlanToolButton, Sheet, SheetContent, api, cn, toScreen, usePlanOverlay, usePlanPointer, type PlanPointer, type SheetPoint } from "@grid/ui";
 import { addToOutbox, newId, prepareImage, type OutboxItem } from "./outbox";
 import { useOutbox } from "./useOutbox";
+import { PhotoNotes, type PhotoNoteJson } from "./PhotoNotes";
 
 export interface PinJson {
   id: string;
@@ -21,6 +24,7 @@ export interface PinJson {
   at: string;
   by: string;
   canChange: boolean;
+  notes: PhotoNoteJson[];
 }
 
 interface Pin {
@@ -43,6 +47,8 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
   const { sheet, view, hidden, tool, setTool } = overlay;
   const [photos, setPhotos] = useState(initial);
   const [spot, setSpot] = useState<SheetPoint | null>(null);
+  /** The note typed on the "Pin a photo here" card. */
+  const [pinNote, setPinNote] = useState("");
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,16 +94,19 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
     ),
   );
   useEffect(() => {
-    if (tool !== TOOL) setSpot(null);
+    if (tool !== TOOL) {
+      setSpot(null);
+      setPinNote("");
+    }
   }, [tool]);
 
-  const addPhotos = async (files: FileList | null, at: SheetPoint) => {
+  const addPhotos = async (files: FileList | null, at: SheetPoint, note?: string) => {
     if (!files?.length) return;
     setBusy(true);
     setError(null);
     try {
       const items: OutboxItem[] = [];
-      for (const file of [...files]) {
+      for (const [index, file] of [...files].entries()) {
         const { blob, name } = await prepareImage(file);
         items.push({
           id: newId(),
@@ -109,6 +118,8 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
           caption: `On ${sheet.number}`,
           takenAt: Date.now(),
           pin: { sheetId: sheet.id, x: at[0], y: at[1] },
+          // The note goes on the first photo only, so a pin doesn't show it several times.
+          note: index === 0 && note?.trim() ? note.trim() : undefined,
           blob,
           name,
           state: "waiting",
@@ -116,6 +127,7 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
       }
       await addToOutbox(items);
       setSpot(null);
+      setPinNote("");
       setTool(null);
       setOpenKey(spotKey(at[0], at[1]));
     } catch (error) {
@@ -134,12 +146,14 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
     }
   };
 
-  // Where new photos go: the spot just tapped, or the open pin ("Add a photo here").
-  const target = useRef<SheetPoint | null>(null);
-  const choose = (input: HTMLInputElement | null, at: SheetPoint) => {
-    target.current = at;
+  // Where new photos go: the spot just tapped, or the open pin ("Add a photo here"),
+  // and the note to go with them.
+  const target = useRef<{ at: SheetPoint; note?: string } | null>(null);
+  const choose = (input: HTMLInputElement | null, at: SheetPoint, note?: string) => {
+    target.current = { at, note };
     input?.click();
   };
+  const notesChanged = (photoId: string, notes: PhotoNoteJson[]) => setPhotos((current) => current.map((photo) => (photo.id === photoId ? { ...photo, notes } : photo)));
 
   return (
     <>
@@ -179,11 +193,19 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
                 <X className="size-5" />
               </button>
             </div>
+            <textarea
+              aria-label="Note"
+              rows={2}
+              value={pinNote}
+              onChange={(event) => setPinNote(event.target.value)}
+              placeholder="Note (optional), e.g. Cable run behind wall, 450 mm down"
+              className="w-full rounded-md border bg-background px-3 py-2 text-base"
+            />
             <div className="grid grid-cols-2 gap-2">
-              <Button size="lg" disabled={busy} onClick={() => choose(camera.current, spot)}>
+              <Button size="lg" disabled={busy} onClick={() => choose(camera.current, spot, pinNote)}>
                 <Camera /> Take photo
               </Button>
-              <Button size="lg" variant="outline" disabled={busy} onClick={() => choose(library.current, spot)}>
+              <Button size="lg" variant="outline" disabled={busy} onClick={() => choose(library.current, spot, pinNote)}>
                 <ImagePlus /> Choose
               </Button>
             </div>
@@ -205,8 +227,8 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
         </div>
       )}
 
-      <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => (target.current && void addPhotos(event.target.files, target.current), (event.target.value = ""))} />
-      <input ref={library} type="file" accept="image/*" multiple className="hidden" onChange={(event) => (target.current && void addPhotos(event.target.files, target.current), (event.target.value = ""))} />
+      <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => (target.current && void addPhotos(event.target.files, target.current.at, target.current.note), (event.target.value = ""))} />
+      <input ref={library} type="file" accept="image/*" multiple className="hidden" onChange={(event) => (target.current && void addPhotos(event.target.files, target.current.at, target.current.note), (event.target.value = ""))} />
 
       {canAdd && <PlanToolButton label="Photo" icon={<Camera />} order={20} active={tool === TOOL} onClick={() => setTool(tool === TOOL ? null : TOOL)} />}
 
@@ -219,7 +241,19 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
                   <Loader2 className="size-4 animate-spin" /> {open.waiting.length} still sending from this phone.
                 </p>
               )}
-              <ul className="flex flex-col gap-3">
+              {open.waiting.some((item) => item.note) && (
+                <ul className="flex flex-col gap-2">
+                  {open.waiting
+                    .filter((item) => item.note)
+                    .map((item) => (
+                      <li key={item.id} className="rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-wrap">
+                        {item.note}
+                        <span className="mt-0.5 block text-xs text-muted-foreground">You · sending</span>
+                      </li>
+                    ))}
+                </ul>
+              )}
+              <ul className="flex flex-col gap-5">
                 {[...open.photos].reverse().map((photo) => (
                   <li key={photo.id} className="flex flex-col gap-1.5">
                     <a href={`/api/files/${photo.fileId}?v=original`} target="_blank" rel="noopener" className="block overflow-hidden rounded-lg bg-muted">
@@ -239,6 +273,7 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
                         </Button>
                       )}
                     </div>
+                    <PhotoNotes photoId={photo.id} initial={photo.notes} canAdd={canAdd} onChange={(notes) => notesChanged(photo.id, notes)} />
                   </li>
                 ))}
               </ul>

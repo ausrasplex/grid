@@ -18,6 +18,8 @@ export interface OutboxItem {
   takenAt: number;
   /** Pinned to a spot on a plan sheet (sheet units). */
   pin?: { sheetId: string; x: number; y: number };
+  /** The first note on the photo, typed when it was taken. */
+  note?: string;
   blob: Blob;
   name: string;
   /** Set once the file itself is on the server. */
@@ -133,6 +135,7 @@ async function run() {
             caption: current.caption || undefined,
             takenAt: new Date(current.takenAt).toISOString(),
             pin: current.pin,
+            note: current.note || undefined,
           },
         });
         await remove(current.id);

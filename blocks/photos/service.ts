@@ -63,6 +63,8 @@ export interface PhotoItem {
   levelId: string | null;
   width: number | null;
   height: number | null;
+  /** How many notes the photo has (they load when you open it). */
+  notes: number;
 }
 
 export interface NoteItem {
@@ -104,6 +106,7 @@ export async function feed(
   const allPhotos = options.tag ? await db.jobPhoto.findMany({ where, select: { tag: true } }) : photos;
 
   const files = await db.storedFile.findMany({ where: { id: { in: photos.map((photo) => photo.fileId) } }, select: { id: true, width: true, height: true } });
+  const noteCounts = await photoNoteCounts(photos.map((photo) => photo.id));
   const fileDims = new Map(files.map((file) => [file.id, file]));
   const userIds = [...new Set([...photos.map((photo) => photo.takenById), ...notes.map((note) => note.createdById)])];
   const users = await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } });
@@ -124,6 +127,7 @@ export async function feed(
         levelId: photo.levelId,
         width: fileDims.get(photo.fileId)?.width ?? null,
         height: fileDims.get(photo.fileId)?.height ?? null,
+        notes: noteCounts.get(photo.id) ?? 0,
       }),
     ),
     ...notes.map(
@@ -199,6 +203,9 @@ export async function addPhoto(ctx: RequestContext, input: AddPhotoInput) {
         ...(input.pin ? { planSheetId: input.pin.sheetId, planX: input.pin.x, planY: input.pin.y } : {}),
       },
     });
+    if (input.note) {
+      await tx.photoComment.create({ data: { photoId: input.id, projectId: input.projectId, companyId, body: input.note, createdById: ctx.userId, createdAt: takenAt } });
+    }
     await audit(tx, {
       blockId: MOD,
       actorId: ctx.userId,
@@ -262,6 +269,7 @@ export interface PinnedPhoto {
   by: string;
   /** You took it, or you may manage everyone's: you can move or unpin it. */
   canChange: boolean;
+  notes: PhotoNoteView[];
 }
 
 /**
@@ -277,6 +285,7 @@ export async function pinsForSheet(ctx: RequestContext, projectId: string, sheet
     take: 2000,
   });
   const name = await userNames(photos.map((photo) => photo.takenById));
+  const notes = await notesFor(ctx, photos.map((photo) => photo.id));
   return photos.map((photo) => ({
     id: photo.id,
     fileId: photo.fileId,
@@ -287,7 +296,100 @@ export async function pinsForSheet(ctx: RequestContext, projectId: string, sheet
     at: photo.takenAt,
     by: name.get(photo.takenById) ?? "Someone",
     canChange: photo.companyId === companyId && (photo.takenById === ctx.userId || ctx.permissions.has("photos.manage")),
+    notes: notes.get(photo.id) ?? [],
   }));
+}
+
+// ---------------------------------------------------------------------
+// Notes on a photo: a dated list anyone in the business can add to
+// ---------------------------------------------------------------------
+
+export interface PhotoNoteView {
+  id: string;
+  body: string;
+  by: string;
+  at: Date;
+  edited: boolean;
+  /** You wrote it, or you may manage everyone's. */
+  canChange: boolean;
+}
+
+async function photoNoteCounts(photoIds: string[]): Promise<Map<string, number>> {
+  if (!photoIds.length) return new Map();
+  const rows = await db.photoComment.groupBy({ by: ["photoId"], where: { photoId: { in: photoIds }, deletedAt: null }, _count: { _all: true } });
+  return new Map(rows.map((row) => [row.photoId, row._count._all]));
+}
+
+/** Notes on these photos, oldest first, by photo. Only your business's notes for now (sharing comes with 2b). */
+async function notesFor(ctx: RequestContext, photoIds: string[]): Promise<Map<string, PhotoNoteView[]>> {
+  const companyId = requireCompany(ctx);
+  if (!photoIds.length) return new Map();
+  const rows = await db.photoComment.findMany({ where: { photoId: { in: photoIds }, companyId, deletedAt: null }, orderBy: { createdAt: "asc" } });
+  const name = await userNames(rows.map((row) => row.createdById));
+  const byPhoto = new Map<string, PhotoNoteView[]>();
+  for (const row of rows) {
+    const list = byPhoto.get(row.photoId) ?? [];
+    list.push({
+      id: row.id,
+      body: row.body,
+      by: name.get(row.createdById) ?? "Someone",
+      at: row.createdAt,
+      edited: row.updatedAt.getTime() - row.createdAt.getTime() > 60_000,
+      canChange: row.createdById === ctx.userId || ctx.permissions.has("photos.manage"),
+    });
+    byPhoto.set(row.photoId, list);
+  }
+  return byPhoto;
+}
+
+/** A photo you may see (your business's, or shared with you), not deleted. */
+async function visiblePhoto(ctx: RequestContext, photoId: string) {
+  const companyId = requireCompany(ctx);
+  const photo = await db.jobPhoto.findFirst({ where: { id: photoId, deletedAt: null, ...visibleTo(companyId) } });
+  if (!photo || !(await canSeeJob(ctx, photo.projectId))) throw notFound("Photo not found");
+  return photo;
+}
+
+export async function photoNotes(ctx: RequestContext, photoId: string): Promise<PhotoNoteView[]> {
+  await visiblePhoto(ctx, photoId);
+  return (await notesFor(ctx, [photoId])).get(photoId) ?? [];
+}
+
+export async function addPhotoNote(ctx: RequestContext, photoId: string, body: string): Promise<PhotoNoteView[]> {
+  const companyId = requireCompany(ctx);
+  const photo = await visiblePhoto(ctx, photoId);
+  await jobFor(ctx, photo.projectId, true);
+  await db.$transaction(async (tx) => {
+    const note = await tx.photoComment.create({ data: { photoId, projectId: photo.projectId, companyId, body, createdById: ctx.userId } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, projectId: photo.projectId, entityType: "PhotoComment", entityId: note.id, action: "added", diff: { photoId } });
+  });
+  return photoNotes(ctx, photoId);
+}
+
+async function ownPhotoNote(ctx: RequestContext, noteId: string) {
+  const note = await db.photoComment.findFirst({ where: { id: noteId, deletedAt: null } });
+  if (!note || note.companyId !== ctx.companyId) throw notFound("Note not found");
+  assertCanChange(ctx, { companyId: note.companyId, ownerId: note.createdById });
+  await jobFor(ctx, note.projectId, true);
+  return note;
+}
+
+export async function updatePhotoNote(ctx: RequestContext, noteId: string, body: string): Promise<PhotoNoteView[]> {
+  const note = await ownPhotoNote(ctx, noteId);
+  await db.$transaction(async (tx) => {
+    await tx.photoComment.update({ where: { id: noteId }, data: { body } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId: note.companyId, projectId: note.projectId, entityType: "PhotoComment", entityId: noteId, action: "updated", diff: { before: note.body } });
+  });
+  return photoNotes(ctx, note.photoId);
+}
+
+export async function deletePhotoNote(ctx: RequestContext, noteId: string): Promise<PhotoNoteView[]> {
+  const note = await ownPhotoNote(ctx, noteId);
+  await db.$transaction(async (tx) => {
+    await tx.photoComment.update({ where: { id: noteId }, data: { deletedAt: new Date(), deletedById: ctx.userId } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId: note.companyId, projectId: note.projectId, entityType: "PhotoComment", entityId: noteId, action: "deleted", diff: { body: note.body } });
+  });
+  return photoNotes(ctx, note.photoId);
 }
 
 /** /api/files asks this before handing over a photo. */

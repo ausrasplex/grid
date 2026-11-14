@@ -24,6 +24,7 @@ import type { FeedItem, NoteItem, PhotoItem } from "../service";
 import { AddPhotos } from "./AddPhotos";
 import { areaLabel, type AreaOpt } from "./areas";
 import { OutboxBar } from "./OutboxBar";
+import { PhotoNotes } from "./PhotoNotes";
 import { useOutbox } from "./useOutbox";
 
 type Item = (Omit<PhotoItem, "at"> | Omit<NoteItem, "at">) & { at: string };
@@ -246,6 +247,7 @@ export function JobFeed({ job, areas, area, initial, canAdd, canManage, userId }
           setIndex={setViewing}
           areas={areas}
           canChange={(byId) => writable && (byId === userId || canManage)}
+          canAddNotes={writable}
           onChanged={reload}
         />
       )}
@@ -295,6 +297,12 @@ function DayItems({
                   {photo.tag !== "NONE" && (
                     <span className="absolute top-1 left-1 rounded bg-primary px-1.5 text-[11px] font-bold text-primary-foreground uppercase">
                       {photo.tag === "BEFORE" ? "Before" : "After"}
+                    </span>
+                  )}
+                  {photo.notes > 0 && (
+                    <span className="absolute right-1 bottom-1 flex items-center gap-0.5 rounded bg-black/70 px-1 text-[11px] font-semibold text-white" aria-label={`${photo.notes} note${photo.notes === 1 ? "" : "s"}`}>
+                      <Icon name="note" className="size-3" />
+                      {photo.notes}
                     </span>
                   )}
                 </button>
@@ -426,6 +434,7 @@ function Viewer({
   setIndex,
   areas,
   canChange,
+  canAddNotes,
   onChanged,
 }: {
   photos: (Item & { kind: "photo" })[];
@@ -433,10 +442,15 @@ function Viewer({
   setIndex: (index: number | null) => void;
   areas: AreaOpt[];
   canChange: (byId: string) => boolean;
+  canAddNotes: boolean;
   onChanged: () => void;
 }) {
   const photo = photos[index]!;
   const [editing, setEditing] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  /** Note count after adding or deleting here (the feed catches up on reload). */
+  const [noteCount, setNoteCount] = useState(photo.notes);
+  useEffect(() => setNoteCount(photo.notes), [photo.id, photo.notes]);
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [tag, setTag] = useState(photo.tag);
   const action = useAction();
@@ -450,13 +464,15 @@ function Viewer({
   }, [photo.id, photo.caption, photo.tag]);
   useEffect(() => {
     const onKey = (keyboardEvent: KeyboardEvent) => {
+      // Typing (a caption or a note), or the notes sheet is open: the keys are for that.
+      if (notesOpen || (keyboardEvent.target as HTMLElement)?.closest("input,textarea")) return;
       if (keyboardEvent.key === "Escape") setIndex(null);
       if (keyboardEvent.key === "ArrowRight") step(1);
       if (keyboardEvent.key === "ArrowLeft") step(-1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [step, setIndex]);
+  }, [step, setIndex, notesOpen]);
 
   const where = areaLabel(areas, photo.buildingId, photo.levelId);
   const at = new Date(photo.at);
@@ -532,6 +548,11 @@ function Viewer({
               </div>
               {photo.tag !== "NONE" && <Badge variant="default">{photo.tag === "BEFORE" ? "Before" : "After"}</Badge>}
             </div>
+            {(noteCount > 0 || canAddNotes) && (
+              <Button variant="ghost" className={cn("justify-start text-white hover:bg-white/10", !canChange(photo.byId) && "mb-3")} onClick={() => setNotesOpen(true)}>
+                <Icon name="note" /> {noteCount ? `Notes · ${noteCount}` : "Add a note"}
+              </Button>
+            )}
             {canChange(photo.byId) && (
               <div className="flex gap-2 pb-3">
                 <Button variant="ghost" className="flex-1 text-white hover:bg-white/10" onClick={() => setEditing(true)}>
@@ -556,6 +577,11 @@ function Viewer({
           </>
         )}
       </div>
+      <Sheet open={notesOpen} onOpenChange={setNotesOpen}>
+        <SheetContent title="Notes on this photo" description={photo.caption ?? undefined}>
+          {notesOpen && <PhotoNotes photoId={photo.id} canAdd={canAddNotes} onChange={(notes) => setNoteCount(notes.length)} />}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

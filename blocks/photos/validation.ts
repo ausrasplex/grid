@@ -15,6 +15,8 @@ export const addPhotoSchema = z
     tag: z.enum(["NONE", "BEFORE", "AFTER"]).default("NONE"),
     takenAt: z.coerce.date().optional(),
     pin: pin.optional(),
+    /** The first note on the photo, typed when it was taken (e.g. when pinning it on a plan). */
+    note: z.string().trim().max(10000).optional(),
   })
   .strict();
 
@@ -30,6 +32,9 @@ export const updatePhotoSchema = z
   .strict();
 
 export const pinsQuery = z.object({ job: uuid });
+
+/** A note on a photo. */
+export const photoNoteSchema = z.object({ body: z.string().trim().min(1, "Type a note").max(10000) }).strict();
 
 export const addNoteSchema = z.object({ projectId: uuid, ...area, body: z.string().trim().min(1).max(10000) }).strict();
 export const updateNoteSchema = z.object({ body: z.string().trim().min(1).max(10000) }).strict();

@@ -79,11 +79,21 @@ Two kinds of leftover files build up, and a clean-up handles both every night (2
 
 - `JobPhoto`: `id` (from the phone), `projectId`, `companyId`, `buildingId?`, `levelId?`, `fileId`, `caption?`, `tag` (`NONE | BEFORE | AFTER`), `visibility` (`PRIVATE | SHARED`, default PRIVATE), `takenAt` (from the phone), `takenById`, `deletedAt`, and the photo pin (4b): `planSheetId?`, `planX?`, `planY?`.
 - `JobNote`: `projectId`, `companyId`, area, `body`, `visibility`, `createdById`, `deletedAt`.
+- `PhotoComment` ("Notes" on a photo; named so it isn't mixed up with `JobNote`): `photoId`, `projectId`, `companyId`, `body`, `createdById`, `createdAt`, `updatedAt`, `deletedAt`. See "Notes on a photo" below.
 - **Visibility** is stored now (roadmap rule 6). Others on a job only see SHARED records. The choice appears once there's a contract chain (2b).
 - **Permissions:**
   - `photos.view`: everyone.
   - `photos.add`: Employee and up; includes changing your own.
   - `photos.manage`: Foreman and Owner; change anyone's.
+
+## Notes on a photo
+
+- **Decided (tweaking 4b):** each photo has a running list of **dated notes from anyone in the business** ("Cable run behind wall, 450 mm down"), oldest first, with who wrote it and when. This is separate from the one-line caption.
+- **Plan photo pins:** the "Pin a photo here" card has a Note box. The note travels with the photo through the offline outbox and becomes its first note (on the first photo when several are picked). Tap a pin to read every photo's notes and add more.
+- **Job photos:** the photo viewer has **Notes · 2** (or **Add a note**), opening the list in a sheet. Thumbnails with notes show a small note count.
+- Adding a note needs `photos.add` and an active job (not finished). Change or delete your own; Owner and Foreman (`photos.manage`) can change anyone's. Deleting is soft and audited.
+- Only your business's notes show for now; sharing up the contract chain comes with 2b.
+- API: `GET`/`POST /api/photos/<photoId>/notes`, `PATCH`/`DELETE /api/photos/photo-notes/<noteId>` (each returns the photo's notes); `POST /api/photos` takes `note`.
 
 ## Later
 
