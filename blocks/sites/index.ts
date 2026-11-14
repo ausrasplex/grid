@@ -15,7 +15,7 @@ export {
   type SiteListRow,
   type SitesTab,
 } from "./service";
-export { addressKey, siteNameFromAddress, levelShortName, standardLevels } from "./address";
+export { addressKey, siteNameFromAddress, levelShortName, levelLabel, standardLevels, LEVEL_USES } from "./address";
 
 /** Event payloads. */
 export interface BuildingConvertedEvent {

@@ -57,3 +57,13 @@ test("basements can be car parking levels", async () => {
   assert.equal(basementAsParking("Basement"), "Parking 1");
   assert.equal(basementAsParking("Level 1"), null);
 });
+
+test("a floor can say what it's used for", async () => {
+  const { levelLabel } = await import("../address.ts");
+  assert.equal(levelShortName("Level 40 Plant room"), "L40");
+  assert.equal(levelShortName("Level 40 - Plant room"), "L40");
+  assert.equal(levelShortName("Level 400"), "L400");
+  assert.equal(levelShortName("Basement 2 Storage"), "B2");
+  assert.equal(levelLabel({ name: "Level 40", use: "Plant room" }), "Level 40 · Plant room");
+  assert.equal(levelLabel({ name: "Level 40", use: null }), "Level 40");
+});

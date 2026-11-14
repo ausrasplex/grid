@@ -23,7 +23,7 @@ import {
   api,
   useAction,
 } from "@grid/ui";
-import { basementAsParking, levelKey, levelNameClashes, levelShortName, standardLevels, type BelowGround } from "../address";
+import { LEVEL_USES, basementAsParking, levelKey, levelNameClashes, levelShortName, standardLevels, type BelowGround } from "../address";
 import type { SiteStructure } from "../service";
 
 type Building = SiteStructure["buildings"][number];
@@ -154,7 +154,10 @@ function LevelRow({
   return (
     <li className="flex min-h-touch-lg items-center gap-3 px-4 py-2 sm:px-5">
       <span className="w-12 shrink-0 rounded-md bg-muted py-1 text-center text-sm font-bold">{level.shortName}</span>
-      <span className="min-w-0 flex-1 truncate font-medium">{level.name}</span>
+      <span className="min-w-0 flex-1 truncate">
+        <span className="font-medium">{level.name}</span>
+        {level.use && <span className="text-muted-foreground"> · {level.use}</span>}
+      </span>
       {editable && (
         <span className="flex shrink-0 items-center">
           <Button variant="ghost" size="icon" aria-label={`Move ${level.name} up`} disabled={busy || first} onClick={() => move("up")}>
@@ -167,6 +170,7 @@ function LevelRow({
             label={`Rename ${level.name}`}
             current={level.name}
             extra={level.shortName}
+            use={level.use}
             problem={(name, short) => {
               const sameName = others.find((other) => levelKey(other.name) === levelKey(name));
               if (sameName) return `There's already a level called "${sameName.name}" in this building. Give each level its own name.`;
@@ -174,7 +178,7 @@ function LevelRow({
               if (sameShort) return `"${sameShort.name}" already uses the short name "${sameShort.shortName}". Pick another.`;
               return null;
             }}
-            onSave={(name, shortName) => run(() => api(`/sites/levels/${level.id}`, { method: "PATCH", body: { name, shortName } }))}
+            onSave={(name, shortName, use) => run(() => api(`/sites/levels/${level.id}`, { method: "PATCH", body: { name, shortName, use: use?.trim() || null } }))}
           >
             <DeleteLevel level={level} run={run} />
           </RenameButton>
@@ -188,6 +192,7 @@ function RenameButton({
   label,
   current,
   extra,
+  use,
   problem,
   onSave,
   children,
@@ -196,19 +201,22 @@ function RenameButton({
   current: string;
   /** Short name for levels ("L5"). */
   extra?: string;
+  /** What a level is used for ("Plant room"); levels only. */
+  use?: string | null;
   /** Why the name can't be saved (e.g. another level has it), or null. */
   problem?: (name: string, shortName: string) => string | null;
-  onSave: (name: string, shortName?: string) => Promise<unknown>;
+  onSave: (name: string, shortName?: string, use?: string) => Promise<unknown>;
   /** More under the form (e.g. Delete level). */
   children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(current);
   const [short, setShort] = useState(extra ?? "");
+  const [usedFor, setUsedFor] = useState(use ?? "");
   const issue = name.trim() ? (problem?.(name, short) ?? null) : null;
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <Button variant="ghost" size="icon" aria-label={label} onClick={() => (setName(current), setShort(extra ?? ""), setOpen(true))}>
+      <Button variant="ghost" size="icon" aria-label={label} onClick={() => (setName(current), setShort(extra ?? ""), setUsedFor(use ?? ""), setOpen(true))}>
         <Icon name="edit" />
       </Button>
       <SheetContent title={label}>
@@ -217,7 +225,7 @@ function RenameButton({
           onSubmit={async (event) => {
             event.preventDefault();
             if (issue) return;
-            if (await onSave(name, extra !== undefined ? short : undefined)) setOpen(false);
+            if (await onSave(name, extra !== undefined ? short : undefined, extra !== undefined ? usedFor : undefined)) setOpen(false);
           }}
         >
           <Field
@@ -234,6 +242,7 @@ function RenameButton({
           {extra !== undefined && (
             <Field label="Short name" hint="Shown in breadcrumbs on phones, e.g. L5" maxLength={8} value={short} onChange={(event) => setShort(event.target.value)} />
           )}
+          {extra !== undefined && <UsedForField value={usedFor} onChange={setUsedFor} />}
           <Alert variant="error">{issue}</Alert>
           <FormActions>
             <Button type="submit" size="lg" disabled={!!issue}>Save</Button>
@@ -290,6 +299,29 @@ function DeleteLevel({ level, run }: { level: Level; run: Run }) {
   );
 }
 
+/** "Used for": Plant room, Retail… (suggested; any words are fine). The level keeps its number as its name. */
+function UsedForField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <>
+      <Field
+        label="Used for (optional)"
+        hint="e.g. Level 40 used for Plant room. Shows as “Level 40 · Plant room”."
+        placeholder="e.g. Plant room"
+        list="level-uses"
+        autoComplete="off"
+        maxLength={40}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <datalist id="level-uses">
+        {LEVEL_USES.map((use) => (
+          <option key={use} value={use} />
+        ))}
+      </datalist>
+    </>
+  );
+}
+
 function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; onOpenChange: (open: boolean) => void; building: Building; run: Run }) {
   const empty = building.levels.length === 0;
   const [mode, setMode] = useState<"standard" | "one">(empty ? "standard" : "one");
@@ -299,6 +331,7 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
   const [roof, setRoof] = useState(true);
   const [name, setName] = useState("");
   const [position, setPosition] = useState<"above" | "below">("above");
+  const [usedFor, setUsedFor] = useState("");
 
   const names =
     mode === "standard"
@@ -318,10 +351,11 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
           className="flex flex-col gap-4 px-2"
           onSubmit={async (event) => {
             event.preventDefault();
-            const ok = await run(() => api(`/sites/buildings/${building.id}/levels`, { body: { names, position: mode === "standard" ? "above" : position } }));
+            const ok = await run(() => api(`/sites/buildings/${building.id}/levels`, { body: { names, position: mode === "standard" ? "above" : position, ...(mode === "one" && usedFor.trim() ? { use: usedFor.trim() } : {}) } }));
             if (ok) {
               onOpenChange(false);
               setName("");
+              setUsedFor("");
             }
           }}
         >
@@ -359,7 +393,8 @@ function AddLevelsSheet({ open, onOpenChange, building, run }: { open: boolean; 
             </>
           ) : (
             <>
-              <Field label="Level name" placeholder="e.g. Mezzanine, Parking 3" value={name} onChange={(event) => setName(event.target.value)} required />
+              <Field label="Level name" placeholder="e.g. Level 40, Mezzanine, Parking 3" value={name} onChange={(event) => setName(event.target.value)} required />
+              <UsedForField value={usedFor} onChange={setUsedFor} />
               {!empty && (
                 <SelectField
                   label="Where"

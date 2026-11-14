@@ -17,7 +17,7 @@ interface Building {
   id: string;
   name: string;
   kind: "MULTI" | "SINGLE";
-  levels: { id: string; name: string; shortName: string }[];
+  levels: { id: string; name: string; shortName: string; label?: string }[];
 }
 
 export function CoversPicker({ buildings, value, onChange }: { buildings: Building[]; value: Cover[]; onChange: (covers: Cover[]) => void }) {
@@ -64,7 +64,7 @@ export function CoversPicker({ buildings, value, onChange }: { buildings: Buildi
                         key={level.id}
                         type="button"
                         aria-pressed={on}
-                        title={level.name}
+                        title={level.label ?? level.name}
                         onClick={() =>
                           onChange(on ? value.filter((cover) => cover.levelId !== level.id) : [...value, { buildingId: building.id, levelId: level.id }])
                         }
@@ -116,7 +116,7 @@ function RangePicker({ building, onPick }: { building: Building; onPick: (levelI
   const levels = building.levels;
   const [from, setFrom] = useState(levels.at(-1)!.id);
   const [to, setTo] = useState(levels[0]!.id);
-  const options = levels.map((level) => ({ value: level.id, label: level.name }));
+  const options = levels.map((level) => ({ value: level.id, label: level.label ?? level.name }));
   return (
     <div className="mt-3 flex flex-wrap items-end gap-2">
       <label className="flex flex-col gap-1 text-sm">

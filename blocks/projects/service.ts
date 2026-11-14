@@ -8,6 +8,7 @@ import { app, badRequest, conflict, forbidden, notFound, requireCompany, type Le
 import { audit, db, ensureRouteCode, type Prisma, type Tx } from "@grid/db";
 import {
   addressKey,
+  levelLabel,
   findOrCreatePrivateSite,
   getSite,
   lastLocation,
@@ -239,7 +240,7 @@ export function areasOf(site: SiteStructure, covers: { buildingId: string; level
     const whole = mine.some((cover) => !cover.levelId);
     for (const level of building.levels) {
       if (whole || mine.some((cover) => cover.levelId === level.id)) {
-        out.push({ buildingId: building.id, buildingName: building.name, levelId: level.id, levelName: level.name, shortName: level.shortName });
+        out.push({ buildingId: building.id, buildingName: building.name, levelId: level.id, levelName: level.label, shortName: level.shortName });
       }
     }
     if (whole && building.levels.length === 0) {
@@ -403,7 +404,10 @@ export async function onSiteNow(ctx: RequestContext) {
     job = project;
   }
   let levelName: string | null = null;
-  if (location.levelId) levelName = (await db.level.findUnique({ where: { id: location.levelId }, select: { name: true } }))?.name ?? null;
+  if (location.levelId) {
+    const level = await db.level.findUnique({ where: { id: location.levelId }, select: { name: true, use: true } });
+    levelName = level ? levelLabel(level) : null;
+  }
   return { site: location.site, job, levelName, updatedAt: location.updatedAt, href: resumeHref(location) };
 }
 

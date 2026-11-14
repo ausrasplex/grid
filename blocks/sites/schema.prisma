@@ -60,6 +60,9 @@ model Level {
   buildingId String
   name       String
   shortName  String
+  /// What the floor is used for, when it's worth saying: "Plant room",
+  /// "Retail", "Car park". The name keeps the number ("Level 40", L40).
+  use        String?
   order      Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

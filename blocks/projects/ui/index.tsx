@@ -35,7 +35,7 @@ function locBuildings(site: SiteStructure, counts: Record<string, number>, jobAr
     activeJobs: counts[building.id] ?? 0,
     levels: building.levels.map((level) => ({
       id: level.id,
-      name: level.name,
+      name: level.label,
       shortName: level.shortName,
       activeJobs: counts[level.id] ?? 0,
       covered: jobAreas?.some((jobArea) => jobArea.levelId === level.id),
@@ -114,7 +114,7 @@ function BuildingsSection({ site, counts }: { site: SiteStructure; counts: Recor
                 <li key={level.id}>
                   <a href={siteHref(site.id, building.id, level.id)} className="flex min-h-touch items-center gap-3 px-4 py-2 hover:bg-muted sm:px-5">
                     <span className="w-12 shrink-0 rounded-md bg-muted py-1 text-center text-sm font-bold">{level.shortName}</span>
-                    <span className="min-w-0 flex-1 truncate font-medium">{level.name}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{level.label}</span>
                     {(counts[level.id] ?? 0) > 0 && <Badge variant="default">{counts[level.id]} active</Badge>}
                     <Icon name="chevron-right" className="size-5 text-muted-foreground" />
                   </a>
@@ -164,7 +164,7 @@ async function LevelPage({ ctx, siteId, buildingId, levelId, all }: { ctx: Reque
   return (
     <>
       <LocationBar site={site} buildings={locBuildings(site, counts)} buildingId={buildingId} levelId={levelId} />
-      <PageHeader title={level.name} meta={site.buildings.length > 1 ? `${building.name} · ${site.name}` : site.name} />
+      <PageHeader title={level.name} meta={[level.use, site.buildings.length > 1 ? building.name : null, site.name].filter(Boolean).join(" · ")} />
       <Stack>
         <JobRows title="Jobs on this level" jobs={active} empty="No active jobs on this level" />
         {earlier.length > 0 && <JobRows title={`Finished here (${earlier.length})`} jobs={earlier} />}

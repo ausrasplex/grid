@@ -7,7 +7,7 @@
 
 import { app, badRequest, conflict, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db, ensureRouteCode, type Prisma, type Tx } from "@grid/db";
-import { addressKey, basementAsParking, levelKey, levelNameClashes, levelShortName, siteNameFromAddress, uniqueShortName } from "./address";
+import { addressKey, basementAsParking, levelKey, levelLabel, levelNameClashes, levelShortName, siteNameFromAddress, uniqueShortName } from "./address";
 import type { AddBuildingInput, AddLevelsInput, CreateSiteInput, SiteNoteInput, UpdateSiteInput } from "./validation";
 
 const MOD = "sites";
@@ -63,7 +63,16 @@ export interface SiteStructure {
     id: string;
     name: string;
     kind: "MULTI" | "SINGLE";
-    levels: { id: string; name: string; shortName: string; order: number }[];
+    levels: {
+      id: string;
+      name: string;
+      shortName: string;
+      /** What it's used for ("Plant room"), or null. */
+      use: string | null;
+      /** "Level 40 · Plant room": the name with its use. */
+      label: string;
+      order: number;
+    }[];
   }[];
 }
 
@@ -86,7 +95,7 @@ export async function getSite(ctx: RequestContext, siteId: string, tx: Tx = db):
       id: building.id,
       name: building.name,
       kind: building.kind,
-      levels: building.levels.map((level) => ({ id: level.id, name: level.name, shortName: level.shortName, order: level.order })),
+      levels: building.levels.map((level) => ({ id: level.id, name: level.name, shortName: level.shortName, use: level.use, label: levelLabel(level), order: level.order })),
     })),
   };
 }
@@ -462,7 +471,9 @@ export async function addLevels(ctx: RequestContext, buildingId: string, input: 
       const name = input.names[index]!;
       const shortName = uniqueShortName(levelShortName(name), shorts);
       shorts.push(shortName);
-      created.push(await tx.level.create({ data: { buildingId, name, shortName, order: start - index } }));
+      // A use only makes sense for one level at a time.
+      const use = count === 1 ? input.use || null : null;
+      created.push(await tx.level.create({ data: { buildingId, name, shortName, use, order: start - index } }));
     }
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Building", entityId: buildingId, action: "levels_added", diff: { names: input.names, position: input.position } });
     return created.map((level) => ({ id: level.id, name: level.name }));
@@ -476,7 +487,7 @@ async function ownedLevel(tx: Tx, ctx: RequestContext, levelId: string) {
   return { level, ...owned };
 }
 
-export async function updateLevel(ctx: RequestContext, levelId: string, input: { name: string; shortName?: string }) {
+export async function updateLevel(ctx: RequestContext, levelId: string, input: { name: string; shortName?: string; use?: string | null }) {
   return db.$transaction(async (tx) => {
     const { companyId, level, building } = await ownedLevel(tx, ctx, levelId);
     const others = building.levels.filter((other) => other.id !== levelId);
@@ -487,7 +498,7 @@ export async function updateLevel(ctx: RequestContext, levelId: string, input: {
     const sameShort = typedShort && others.find((other) => other.shortName.toLowerCase() === typedShort.toLowerCase());
     if (sameShort) throw conflict(`"${sameShort.name}" already uses the short name "${sameShort.shortName}". Pick another.`);
     const shortName = typedShort || uniqueShortName(levelShortName(input.name), others.map((other) => other.shortName));
-    await tx.level.update({ where: { id: levelId }, data: { name: input.name, shortName } });
+    await tx.level.update({ where: { id: levelId }, data: { name: input.name, shortName, ...(input.use === undefined ? {} : { use: input.use || null }) } });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Level", entityId: levelId, action: "renamed", diff: { from: level.name, ...input } });
     return { id: levelId };
   });

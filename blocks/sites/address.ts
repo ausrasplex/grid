@@ -38,8 +38,11 @@ export function siteNameFromAddress(address: string): string {
 /** "Level 5" → "L5", "Ground" → "G", "Basement 2" → "B2", "Roof" → "Roof". */
 export function levelShortName(name: string): string {
   const trimmed = name.trim();
-  let match = trimmed.match(/^level\s*(\d+)$/i);
+  // "Level 40", and "Level 40 Plant room" / "Level 40 - Plant room" too.
+  let match = trimmed.match(/^level\s*(\d+)(?:\b|$)/i);
   if (match) return `L${match[1]}`;
+  match = trimmed.match(/^basement\s*(\d+)\b/i);
+  if (match) return `B${match[1]}`;
   match = trimmed.match(/^basement\s*(\d*)$/i);
   if (match) return `B${match[1]}`;
   // Car parks below ground: "Parking 2", "Car park 2", "Carpark level 2", "P2" → P2.
@@ -50,6 +53,14 @@ export function levelShortName(name: string): string {
   if (/^upper\s*ground$/i.test(trimmed)) return "UG";
   if (/^mezzanine$/i.test(trimmed)) return "M";
   return trimmed.length <= 5 ? trimmed : trimmed.slice(0, 4);
+}
+
+/** Uses offered for a floor (any words are fine). */
+export const LEVEL_USES = ["Plant room", "Car park", "Retail", "Office", "Residential", "Mezzanine", "Podium", "Lobby", "Amenities", "Services", "Storage", "Roof terrace"];
+
+/** A floor as people read it: "Level 40 · Plant room", or just "Level 40". */
+export function levelLabel(level: { name: string; use?: string | null }): string {
+  return level.use ? `${level.name} · ${level.use}` : level.name;
 }
 
 /** What the floors below ground are: basements (B1, B2…) or car parking (P1, P2…). */

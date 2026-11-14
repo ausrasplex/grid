@@ -26,11 +26,18 @@ export const addLevelsSchema = z
     /** Top first, e.g. ["Roof", "Level 7", … "Ground"]. */
     names: z.array(z.string().trim().min(1).max(60)).min(1).max(150),
     position: z.enum(["above", "below"]).default("above"),
+    /** What the new level is used for (one level at a time). */
+    use: z.string().trim().max(40).nullable().optional(),
   })
   .strict();
 
 export const updateLevelSchema = z
-  .object({ name: z.string().trim().min(1).max(60), shortName: z.string().trim().max(8).optional() })
+  .object({
+    name: z.string().trim().min(1).max(60),
+    shortName: z.string().trim().max(8).optional(),
+    /** "Plant room", "Retail"…; empty clears it. */
+    use: z.string().trim().max(40).nullable().optional(),
+  })
   .strict();
 
 export const moveLevelSchema = z.object({ direction: z.enum(["up", "down"]) }).strict();
