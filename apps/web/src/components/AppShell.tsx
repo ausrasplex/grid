@@ -15,6 +15,7 @@ export const SERVER_SETTINGS: (NavItem & { description: string })[] = [
   { id: "core.email", label: "Email", href: "/settings/email", icon: "mail", description: "The email server for sign-in links and password resets" },
   { id: "core.backups", label: "Backups", href: "/settings/backups", icon: "archive", description: "Database and photos: schedule, Back up now, downloads" },
   { id: "core.storage", label: "Storage", href: "/settings/storage", icon: "archive", description: "Space used, clean-up settings and history" },
+  { id: "core.maps", label: "Maps", href: "/settings/maps", icon: "map", description: "Google address suggestions while typing an address" },
 ];
 
 const toNav = (item: MenuItem): NavItem => ({ id: item.id, label: item.label, href: item.href, icon: item.icon, activeFor: item.activeFor });

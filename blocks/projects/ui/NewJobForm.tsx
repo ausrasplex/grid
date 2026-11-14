@@ -5,7 +5,7 @@
 // with its history. For a managed site, pick the buildings and levels.
 
 import { useEffect, useState } from "react";
-import { Alert, Button, Field, FormActions, Icon, PageHeader, Section, Stack, api, useAction, useApi } from "@grid/ui";
+import { AddressField, Alert, Button, Field, FormActions, Icon, PageHeader, Section, Stack, api, useAction, useApi } from "@grid/ui";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { CoversPicker, type Cover } from "./CoversPicker";
 
@@ -85,9 +85,8 @@ export function NewJobForm({
           {!site && (
             <Section title="Where's the job?">
               <div className="flex flex-col gap-3">
-                <Field
+                <AddressField
                   label="Address"
-                  autoComplete="street-address"
                   placeholder="12 Smith St, Brunswick VIC 3056"
                   value={address}
                   onChange={(event) => setAddress(event.target.value)}

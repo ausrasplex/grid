@@ -3,7 +3,7 @@
 // Pick a client, or add one on the spot (name is enough to start). Used when
 // starting a job, in a job's details and on quotes.
 import { useEffect, useState } from "react";
-import { Alert, Button, Field, FormActions, Label, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
+import { AddressField, Alert, Button, Field, FormActions, Label, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
 
 export interface ClientJson {
   id: string;
@@ -153,7 +153,7 @@ export function ClientForm({
       <Field label="Contact person" value={form.contactName} onChange={set("contactName")} />
       <Field label="Email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} />
       <Field label="Phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} />
-      <Field label="Address" value={form.address} onChange={set("address")} />
+      <AddressField label="Address" value={form.address} onChange={set("address")} />
       <Field label="ABN" hint="For business clients" value={form.abn} onChange={set("abn")} />
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Notes

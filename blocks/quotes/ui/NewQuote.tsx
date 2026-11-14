@@ -4,7 +4,7 @@
 // "Where" is an existing site (then its building and floor), or just an
 // address. With a site, the job it becomes when accepted goes there.
 import { useState } from "react";
-import { Alert, Button, Field, FormActions, PageHeader, Section, api, useAction } from "@grid/ui";
+import { AddressField, Alert, Button, Field, FormActions, PageHeader, Section, api, useAction } from "@grid/ui";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { PlacePicker, type PlaceValue } from "@grid/block-sites/components";
 
@@ -78,10 +78,9 @@ export function NewQuote({
               }}
             />
           )}
-          <Field
+          <AddressField
             label="Site address"
             hint={place ? "On the quote. Filled in from the site; change it if the quote needs to say something different." : "Where the work is. Needed to make the job when it's accepted."}
-            autoComplete="street-address"
             value={address}
             onChange={(event) => (setAddress(event.target.value), setTouched(true))}
           />

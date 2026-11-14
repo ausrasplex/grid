@@ -29,6 +29,7 @@ Every setting is a field in the template, so there's no `.env` file to edit. Com
    - Apply.
 3. **Open the WebUI** and create the first account. It becomes the server admin. Then "Set up your business".
 4. **Optional: Settings › Email.** Pick your provider (Gmail / Google Workspace, Microsoft 365, Zoho, iCloud or other), enter the login, send a test, save. Sign-in links and password resets then work.
+5. **Optional: Settings › Maps.** Paste a Google Maps API key (with Places API (New) turned on), tap Test, tick "Suggest addresses while typing", save. Address boxes then suggest real addresses. The page has the steps for getting a key.
 
 ## What happens when the container starts
 
@@ -128,7 +129,7 @@ The certificate that seals signed PDFs is made on first use and kept in the data
 | Server code prefix | `INSTANCE_ID` | | more; later |
 | Scheduled jobs | `JOBS` | `on` | more |
 
-**Not in the template:** settings an admin changes day to day live in the app, stored in the database, so they survive updates and need no restart. These are the **email server** (Settings › Email), the clean-up days, on/off and time (Settings › Storage), the backup schedule, contents and how many to keep (Settings › Backups), plus everything per business.
+**Not in the template:** settings an admin changes day to day live in the app, stored in the database, so they survive updates and need no restart. These are the **email server** (Settings › Email), the **Google Maps key** for address suggestions (Settings › Maps), the clean-up days, on/off and time (Settings › Storage), the backup schedule, contents and how many to keep (Settings › Backups), plus everything per business.
 
 ## Adding a setting (for development)
 

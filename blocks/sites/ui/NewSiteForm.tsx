@@ -5,7 +5,7 @@
 // its site automatically.) Shown to sole traders as well as teams.
 
 import { useState } from "react";
-import { Alert, Button, Field, FormActions, PageHeader, Section, api, useAction } from "@grid/ui";
+import { AddressField, Alert, Button, Field, FormActions, PageHeader, Section, api, useAction } from "@grid/ui";
 
 export function NewSiteForm() {
   const [name, setName] = useState("");
@@ -27,7 +27,7 @@ export function NewSiteForm() {
           }}
         >
           <Field label="Site name" placeholder="e.g. Riverside Health Precinct" value={name} onChange={(event) => setName(event.target.value)} required />
-          <Field label="Address" autoComplete="street-address" value={address} onChange={(event) => setAddress(event.target.value)} required />
+          <AddressField label="Address" value={address} onChange={(event) => setAddress(event.target.value)} required />
           <Alert variant="error">{action.error}</Alert>
           <FormActions>
             <Button type="submit" size="lg" disabled={action.busy}>

@@ -4,7 +4,7 @@
 // quote and report. "See a sample PDF" shows the result.
 
 import { useRef, useState } from "react";
-import { Alert, Button, Field, FormActions, PageHeader, Section, Stack, api, useAction } from "@grid/ui";
+import { AddressField, Alert, Button, Field, FormActions, PageHeader, Section, Stack, api, useAction } from "@grid/ui";
 
 interface Theme {
   companyName: string;
@@ -121,7 +121,9 @@ export function Branding({ initial }: { initial: Theme }) {
             <div className="grid gap-4 sm:grid-cols-2">
               {text("phone", "Phone", { type: "tel", autoComplete: "tel" })}
               {text("email", "Email", { type: "email" })}
-              <div className="sm:col-span-2">{text("address", "Address", { autoComplete: "street-address" })}</div>
+              <div className="sm:col-span-2">
+                <AddressField label="Address" value={(theme.address as string | null) ?? ""} onChange={(event) => set("address", event.target.value as never)} />
+              </div>
               {text("website", "Website")}
               <div className="grid grid-cols-[8rem_1fr] gap-2">
                 {text("licenceLabel", "Licence label", { placeholder: "REC" })}

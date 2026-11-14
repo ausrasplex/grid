@@ -119,4 +119,34 @@ export async function setBackupSettings(input: BackupSettings, userId: string, t
   await tx.serverSetting.upsert({ where: { key: BACKUP_KEY }, create: { key: BACKUP_KEY, value, updatedById: userId }, update: { value, updatedById: userId } });
 }
 
+// ---------------------------------------------------------------------
+// Maps (address suggestions from Google): set in Settings › Maps by the
+// server admin. The API key is stored encrypted and only ever used on the
+// server (apps/web/src/lib/places.ts); browsers ask Grid, never Google.
+// ---------------------------------------------------------------------
+
+export interface MapsSettings {
+  enabled: boolean;
+  /** Google Maps Platform key with Places API (New) on. Encrypted (secrets.ts). Never sent to the browser. */
+  apiKeyEnc: string | null;
+  /** Suggest addresses in this country only (two letters, e.g. "au"); "" for anywhere. */
+  country: string;
+}
+
+const MAPS_KEY = "maps";
+
+export function mapsDefaults(): MapsSettings {
+  return { enabled: false, apiKeyEnc: null, country: "au" };
+}
+
+export async function getMapsSettings(tx: Tx = db): Promise<MapsSettings & { updatedAt: Date | null }> {
+  const row = await tx.serverSetting.findUnique({ where: { key: MAPS_KEY } });
+  return { ...mapsDefaults(), ...((row?.value as Partial<MapsSettings> | undefined) ?? {}), updatedAt: row?.updatedAt ?? null };
+}
+
+export async function setMapsSettings(input: MapsSettings, userId: string, tx: Tx = db) {
+  const value = input as unknown as Prisma.InputJsonValue;
+  await tx.serverSetting.upsert({ where: { key: MAPS_KEY }, create: { key: MAPS_KEY, value, updatedById: userId }, update: { value, updatedById: userId } });
+}
+
 export { lastDue, nextDue } from "./schedule";

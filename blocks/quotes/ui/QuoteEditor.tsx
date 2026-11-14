@@ -6,8 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, FileText, Plus, Send, Star } from "lucide-react";
-import {
-  Alert,
+import { AddressField, Alert,
   Badge,
   Button,
   Checkbox,
@@ -352,7 +351,7 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
               <div className="flex flex-col gap-4">
                 <Field label="What's the job?" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
                 <ClientPicker value={form.client} onChange={(value) => setForm({ ...form, client: value, siteAddress: form.siteAddress || value?.address || "" })} />
-                <Field label="Site address" value={form.siteAddress} onChange={(event) => setForm({ ...form, siteAddress: event.target.value })} />
+                <AddressField label="Site address" value={form.siteAddress} onChange={(event) => setForm({ ...form, siteAddress: event.target.value })} />
                 <Field label="Valid until" type="date" value={form.validUntil} onChange={(event) => setForm({ ...form, validUntil: event.target.value })} />
                 <div className="flex flex-col gap-2">
                   <Label>What the client sees</Label>

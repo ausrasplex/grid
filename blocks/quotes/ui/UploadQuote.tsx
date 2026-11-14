@@ -6,7 +6,7 @@
 
 import { useRef, useState } from "react";
 import { FileText, Upload } from "lucide-react";
-import { Alert, Button, Field, FormActions, PageHeader, Section, SelectField, api, useAction } from "@grid/ui";
+import { AddressField, Alert, Button, Field, FormActions, PageHeader, Section, SelectField, api, useAction } from "@grid/ui";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { PlacePicker, type PlaceValue } from "@grid/block-sites/components";
 
@@ -132,10 +132,9 @@ export function UploadQuote({
             />
           )}
           <Field label="Total (incl. tax)" inputMode="decimal" placeholder="e.g. 4180.00" value={total} onChange={(event) => setTotal(event.target.value)} />
-          <Field
+          <AddressField
             label="Site address"
             hint={job ? undefined : "Where the work is. Needed to make the job when it's accepted."}
-            autoComplete="street-address"
             value={address}
             onChange={(event) => setAddress(event.target.value)}
           />
