@@ -79,6 +79,15 @@ bash /tmp/grid-restore.sh /mnt/user/grid-backups/2026-11-07_0300_ab12cd34
 - `--yes` skips the question (for scripts).
 - Different container names or shares: `GRID_CONTAINER=… DB_CONTAINER=… FILES_SHARE=… APPDATA=… SAFETY_DIR=… bash grid-restore.sh …`
 
+## Installing Grid as an app (phone, tablet, computer)
+
+Grid can be installed like an app, with its own icon and a full-screen window without the address bar. Browsers only allow this over **https**, so open Grid through your Cloudflare tunnel or reverse proxy address (e.g. `https://grid.example.com`), not `http://192.168.x.x:3000`.
+
+- **Chrome or Edge (computer, Android):** the install icon in the address bar, or ⋮ › Cast, save and share › **Install page as app**.
+- **iPhone and iPad (Safari):** Share › **Add to Home Screen**.
+
+If the browser still says it can't be installed, check that **Address people use** in the template is the same https address you opened, and that nothing in front of Grid (such as Cloudflare Access) blocks `/manifest.webmanifest` and `/icon/…`.
+
 ## Customer links (signing quotes online)
 
 Quote emails include a private link (`/q/...`) where the customer reads the quote, ticks extras and signs or declines. Signed PDFs have a verify address (`/verify/...`). For these to work from a customer's phone:
