@@ -16,7 +16,7 @@ export interface Crumb {
 
 export function Crumbs({ items, className }: { items: Crumb[]; className?: string }): ReactNode {
   return (
-    <nav aria-label="Breadcrumb" className={className ?? "-mt-2 mb-2 sm:mb-3"}>
+    <nav aria-label="Breadcrumb" className={className ?? "mb-2 sm:mb-3"}>
       <ol className="flex min-w-0 items-center gap-1 text-sm">
         {items.map((item, index) => (
           <li key={`${index}-${item.label}`} className={index === items.length - 1 ? "flex min-w-0 items-center gap-1" : "flex shrink-0 items-center gap-1"}>
