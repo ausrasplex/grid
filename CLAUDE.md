@@ -85,7 +85,7 @@ prisma/        base, core and auth schemas; migrations
   **Phase 3b** (customer signing: `signatures` core block, public pages/API at `/p/<block>` and `/api/public/<block>`, `/q/<token>`, `/verify`) is done too; see "What 3b built" in `docs/quotations-block.md`.
   **Phase 4a** (Plans block: PDF/image upload with a review of guessed sheet numbers and revisions, deep-zoom tiles rendered in the background, OpenSeadragon viewer, revisions) is done too; see `docs/plans-block.md`.
   **Phase 4b** (`markups` Block: pen, highlighter, text, shapes, arrows, clouds, Undo, length and area with a per-revision scale; photo pins in `photos`; the plan overlay in `@grid/ui` that Blocks draw on through the `plans.viewer` slot) is done too; see "What 4b built" in `docs/plans-block.md`.
-- Next: tweaking 4b with the owner, then **Phase 5, Documents & assets** (`docs/documents-block.md`, `docs/assets-block.md`).
+- Next: tweaking 4b with the owner, then **Phase 5a, My tickets & licences** (the first part of the wallet: `docs/roadmap.md` "Phase 5a", `docs/inductions-credentials.md` §2), then **Phase 5b, Documents & assets** (`docs/documents-block.md`, `docs/assets-block.md`).
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.
 - PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.

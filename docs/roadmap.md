@@ -14,11 +14,12 @@ Status: **agreed.** Build for a **sole trader first** and expand to teams, then 
 | **2d. Backups (done)** (core) | Choose database and/or media; daily or weekly; keep the latest N (oldest replaced); Back up now; history with Download per backup | A dead disk or a bad upgrade isn't the end of the business | Off-site copies, encryption, Restore button |
 | **3. Quotes + signing (done: 3a, 3b)** (`templates` basics, `quotes`, `signatures`) | Clients, price book, quick quote on the phone, branded PDF, online client signing with one-time code, signed PDF; an accepted quote creates the job | Quote on site, client signs on their phone, job appears | Estimators, Foreman drafts with Owner review, full estimates with take-offs, signing in person and several signers |
 | **4. Plans, markups, photo pins, measure (done: 4a, 4b)** (`plans`, `markups`) | Upload, tiled viewer, revisions, own markup layer, photo pins, calibrated measuring | Mark up and measure plans on the tablet | Company layers with visibility, plan update requests linked to RFIs |
-| **5. Documents & assets** | Own manual library with search and product catalogue; tools, test & tag, van | Manuals on hand, test-and-tag reminders, van servicing | Sharing libraries with subcontractors, Shared notes, fleet-wide assets |
+| **5a. My tickets & licences (the wallet, first part)** | Your own tickets and licences (White Card, electrical licence, EWP…) with card photos, numbers and expiry dates; reminders before they run out | Every ticket on your phone; never caught out by an expired licence | Sharing with a business, inductions, site requirements and the employer-only section (phase 9) |
+| **5b. Documents & assets** | Own manual library with search and product catalogue; tools, test & tag, van | Manuals on hand, test-and-tag reminders, van servicing | Sharing libraries with subcontractors, Shared notes, fleet-wide assets |
 | **6. Offline sync, notifications, email** | Full offline, push, own SMTP | Works in plant rooms and basements | Team notifications and approvals |
 | **7. Teams** | Members screen, invites, roles in use (including the built-in **Apprentice** role with a year, see below), My work across people, onboarding inductions | — | Foremen, apprentices, per-project roles |
 | **8. Multi-company projects** (stage 2b proper) | Contract chain, company invites, site/project QR access, placement, managed sites, project listing | — | Builders hosting jobs, subcontractors under them |
-| **9. Inductions & credentials** | Site/company/project/area inductions, wallet, sharing, compliance | (A solo trader still uses the wallet for their own tickets.) | Builder inductions, chain inductions, induction builder later |
+| **9. Inductions & credentials** | Site/company/project/area inductions, the rest of the wallet (inductions in it, sharing, requirements), compliance, employment details | — | Builder inductions, chain inductions, induction builder later |
 | **10+.** | RFIs, revision requests, variations, SWMS & forms, reports, hosted site & federation | | |
 
 The centre button grows with the phases too (`navigation.md` §5a): **Scan** today → **Take a photo** for a sole trader once Photos is on (2b-lite) → an **Actions** menu (Scan, Photo, …) for team members checked in to a site (phases 7–8).
@@ -83,6 +84,16 @@ Detailed designs: `photos-block.md`, `backups.md`, `stage-2-projects.md`, `quota
 
 - A **business size** choice sits alongside the trade preset (`startingBlocks(trade, size)` in `blocks/companies/presets.ts`). Blocks that aren't built yet are skipped, so a new company today starts with only the core. Solo turns on: `sites`, `projects`, `photos`, `quotes`, `templates`, `plans`, `markups`, `documents`, `assets`.
 - It leaves the team blocks off (`rfis`, `revisions`, `variations`, `swms`, `forms`, team `inductions`). They're one switch away in Settings › Blocks.
+
+## Phase 5a: my tickets & licences (planned, decided Nov 2026)
+
+The first part of the credentials wallet (`inductions-credentials.md` §2), moved ahead of Documents & assets so a sole trader has their own tickets on hand now. The rest of the wallet stays in phase 9.
+
+- **What it holds:** tickets and licences: type (a list of common Australian ones, e.g. White Card, electrical licence (A-grade, REC), EWP (yellow card), working at heights, confined space, first aid and CPR, test & tag, asbestos awareness, driver's licence, Working with Children, or "Other" with a name), number (encrypted with `encryptSecret()`), issuing body or state, issued and expiry dates, photos of the front and back, notes.
+- **It belongs to the person, not a business.** It's under **Settings › You › My tickets & licences**, kept when they change or leave a business, and nobody else sees it yet: sharing with a business, the access log and site requirements come in phase 9. (So it's the one place scoped to the person, not `ctx.companyId`.)
+- **Expiry:** each ticket shows Current, Expiring soon (within 60 days) or Expired; Home shows a card when one is expiring or expired. Reminder emails at 60, 30 and 7 days before (and on the day), from the scheduled-jobs runner, when the server has email set up. Phase 6 adds push.
+- **Data:** `Credential` (`userId`, `type`, `name`, `numberEnc`, `issuer`, `issuedOn`, `expiresOn`, `frontFileId`, `backFileId`, `notes`, `remindedAt`, timestamps, soft delete). Files are `StoredFile`s only the owner can open. Built so phase 9 adds inductions, `CredentialShare` and the access log without moving anything.
+- **Offline:** viewing your tickets offline (e.g. at a gate with no signal) comes with phase 6's offline sync; until then the page needs a connection.
 
 ## Phase 7: apprentices (planned, decided Nov 2026)
 
