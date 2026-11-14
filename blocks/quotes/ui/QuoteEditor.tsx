@@ -872,7 +872,7 @@ function Outcome({ quote, permissions, onAnswer, reload }: { quote: QuoteJson; p
   );
 }
 
-function AnswerSheet({ quote, kind, onClose, onDone }: { quote: QuoteJson; kind: "accept" | "decline"; onClose: () => void; onDone: () => void }) {
+export function AnswerSheet({ quote, kind, onClose, onDone }: { quote: QuoteJson; kind: "accept" | "decline"; onClose: () => void; onDone: () => void }) {
   const [note, setNote] = useState("");
   const [createJob, setCreateJob] = useState(!quote.projectId);
   const action = useAction();
@@ -903,7 +903,7 @@ function AnswerSheet({ quote, kind, onClose, onDone }: { quote: QuoteJson; kind:
               <Checkbox checked={createJob} onCheckedChange={(checked) => setCreateJob(checked === true)} />
               <span>
                 Make the job now
-                {quote.siteAddress ? <span className="block text-sm text-muted-foreground">At {quote.siteAddress}</span> : <span className="block text-sm text-destructive">Add a site address first (Edit)</span>}
+                {quote.siteAddress ? <span className="block text-sm text-muted-foreground">At {quote.siteAddress}</span> : <span className="block text-sm text-destructive">Add a site address to the quote first</span>}
               </span>
             </label>
           )}

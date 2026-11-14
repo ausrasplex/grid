@@ -104,6 +104,11 @@ model Quote {
   terms            String?
   /// Never on the PDF.
   internalNotes    String?
+  /// A quote made outside Grid: its PDF (StoredFile, block quotes) and the
+  /// total written on it (including tax). It has no lines and no revisions;
+  /// Grid tracks its answer and makes the job like any other quote.
+  uploadedFileId   String?
+  uploadedTotal    Decimal?        @db.Decimal(12, 2)
   /// The job it became (or was quoted for).
   projectId        String?
   createdById      String

@@ -2,7 +2,7 @@
 
 // Quotes list: open quotes first, searchable, one row per quote.
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { ActionButton, Badge, EmptyState, List, PageHeader, SearchInput, Section, Segmented, Stack, api } from "@grid/ui";
 import { formatMoney } from "../money";
 import { StatusBadge } from "./StatusBadge";
@@ -19,6 +19,8 @@ export interface QuoteRowJson {
   sentAt: string | null;
   viewedAt: string | null;
   updatedAt: string;
+  /** Made outside Grid (an uploaded PDF). */
+  uploaded?: boolean;
 }
 
 type Tab = "open" | "draft" | "sent" | "won" | "all";
@@ -50,7 +52,14 @@ export function QuotesList({ initial, currency, locale, canCreate }: { initial: 
       <PageHeader
         title="Quotes"
         meta={tab === "open" && total > 0 ? `${formatMoney(total, currency, locale)} waiting for an answer` : undefined}
-        actions={canCreate && <ActionButton icon={<Plus />} label="New quote" onClick={() => (window.location.href = "/quotes/new")} />}
+        actions={
+          canCreate && (
+            <>
+              <ActionButton variant="outline" icon={<Upload />} label="Upload a quote" onClick={() => (window.location.href = "/quotes/upload")} />
+              <ActionButton icon={<Plus />} label="New quote" onClick={() => (window.location.href = "/quotes/new")} />
+            </>
+          )
+        }
       />
       <Stack>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -87,7 +96,7 @@ export function QuotesList({ initial, currency, locale, canCreate }: { initial: 
                           {expired && <Badge variant="warning">Past valid date</Badge>}
                         </span>
                         <span className="block truncate text-sm text-muted-foreground">
-                          {[row.number, row.clientName, row.siteAddress].filter(Boolean).join(" · ")}
+                          {[row.number, row.uploaded ? "PDF" : null, row.clientName, row.siteAddress].filter(Boolean).join(" · ")}
                         </span>
                       </span>
                       <span className="shrink-0 font-semibold tabular-nums">{formatMoney(row.totalCents, currency, locale)}</span>

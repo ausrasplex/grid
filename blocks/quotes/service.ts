@@ -6,8 +6,8 @@
 // next send is the next revision.
 
 import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
-import { audit, db, readStoredFile, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
-import { createProject } from "@grid/block-projects";
+import { attachFile, audit, db, readStoredFile, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
+import { createProject, getProject } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import { clientIdsNamed, clientsById, requireClient, type ClientRow } from "@grid/block-clients";
 import { createSignRequest, latestSignRequest, maskEmail, revokeSignRequests } from "@grid/block-signatures";
@@ -19,6 +19,7 @@ import type {
   CreateQuoteInput,
   PriceItemInput,
   SendInput,
+  UploadQuoteInput,
   TaxCodeInput,
   TaxSettingsInput,
   UpdateQuoteInput,
@@ -250,7 +251,8 @@ export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | 
       clientName: clients.get(row.clientId ?? "")?.name ?? null,
       siteAddress: row.siteAddress,
       status: row.status,
-      totalCents: agreed.get(row.currentRevisionId ?? "") ?? totals.totalCents,
+      totalCents: row.uploadedTotal != null ? cents(row.uploadedTotal)! : (agreed.get(row.currentRevisionId ?? "") ?? totals.totalCents),
+      uploaded: !!row.uploadedFileId,
       validUntil: row.validUntil,
       sentAt: row.sentAt,
       viewedAt: row.viewedAt,
@@ -344,6 +346,8 @@ export async function getQuote(ctx: RequestContext, id: string) {
     events: quote.events.map((event) => ({ type: event.type, at: event.at, by: event.byUserId ? (names.get(event.byUserId) ?? "Someone") : null, note: event.note })),
     settings: { currency: settings.currency, locale: settings.locale, taxName: settings.taxName, rounding: settings.rounding, defaultTaxCodeId: settings.defaultTaxCodeId, codes: settings.codes },
     canSeeCosts: showCost,
+    /** Made outside Grid: its PDF and the total written on it. */
+    uploaded: quote.uploadedFileId ? { fileId: quote.uploadedFileId, totalCents: quote.uploadedTotal != null ? cents(quote.uploadedTotal)! : null } : null,
   };
 }
 
@@ -504,6 +508,7 @@ function linkExpiry(validUntil: Date) {
 export async function sendQuote(ctx: RequestContext, id: string, input: SendInput) {
   const companyId = requireCompany(ctx);
   const quote = await ownQuote(db, companyId, id);
+  if (quote.uploadedFileId) throw conflict("This quote was made outside Grid. Send its PDF yourself.");
   if (quote.status !== "DRAFT") throw conflict("This quote has already been sent");
   if (!quote.lines.some((line) => !line.optional)) throw badRequest("Add at least one line before sending");
   if (input.how === "email" && !(await app().mail.configured())) {
@@ -572,6 +577,7 @@ export async function reopenQuote(ctx: RequestContext, id: string) {
   const companyId = requireCompany(ctx);
   return db.$transaction(async (tx) => {
     const quote = await ownQuote(tx, companyId, id);
+    if (quote.uploadedFileId) throw conflict("This quote was made outside Grid. Upload a new PDF instead.");
     if (quote.status !== "SENT" && quote.status !== "DECLINED" && quote.status !== "EXPIRED") throw conflict("Only a sent, declined or expired quote can be revised");
     await tx.quote.update({ where: { id }, data: { status: "DRAFT", declinedAt: null, declineReason: null, viewedAt: null } });
     await revokeSignRequests(tx, MOD, id, "Being revised");
@@ -683,11 +689,66 @@ export async function deleteDraft(ctx: RequestContext, id: string) {
   return { id, deleted: true };
 }
 
-/** /api/files asks this before handing over a quote PDF. */
+/** /api/files asks this before handing over a quote PDF (sent revisions, and uploaded quotes). */
 export async function canReadQuoteFile(ctx: RequestContext, fileId: string) {
   if (!ctx.companyId || !ctx.permissions.has("quotes.view")) return false;
   const revision = await db.quoteRevision.findFirst({ where: { pdfFileId: fileId, quote: { companyId: ctx.companyId } } });
-  return !!revision;
+  if (revision) return true;
+  return !!(await db.quote.findFirst({ where: { uploadedFileId: fileId, companyId: ctx.companyId } }));
+}
+
+/**
+ * A quote made outside Grid: its PDF plus the few details Grid needs to
+ * track it (number, client, total, address). Waiting for an answer, or
+ * already accepted (e.g. attached to a job that's under way). Accepting it
+ * later makes the job, the same as a Grid quote.
+ */
+export async function uploadQuote(ctx: RequestContext, input: UploadQuoteInput) {
+  const companyId = requireCompany(ctx);
+  // Attached to a job: it must be one you can see; it fills in the address.
+  const job = input.projectId ? await getProject(ctx, input.projectId) : null;
+  const sentAt = input.sentOn ? new Date(`${input.sentOn}T12:00:00`) : new Date();
+  const quote = await db.$transaction(async (tx) => {
+    const settings = await taxSettings(companyId, tx);
+    const client = input.clientId ? await requireClient(tx, companyId, input.clientId) : null;
+    const number = input.number || (await nextNumber(tx, companyId, settings.quotePrefix));
+    if (await tx.quote.findFirst({ where: { companyId, number } })) throw conflict(`There's already a quote ${number}. Use a different number.`);
+    await attachFile(tx, input.fileId, { companyId, userId: ctx.userId, blockId: MOD });
+    const accepted = input.status === "ACCEPTED";
+    const quote = await tx.quote.create({
+      data: {
+        companyId,
+        number,
+        title: input.title,
+        clientId: client?.id ?? null,
+        siteAddress: input.siteAddress ?? job?.site.address ?? client?.address ?? null,
+        projectId: job?.id ?? null,
+        status: accepted ? "ACCEPTED" : "SENT",
+        pricesIncludeTax: true,
+        validUntil: new Date(sentAt.getTime() + settings.validityDays * 86_400_000),
+        sentAt,
+        createdById: ctx.userId,
+        uploadedFileId: input.fileId,
+        uploadedTotal: input.total ?? null,
+        ...(accepted ? { acceptedAt: new Date(), acceptedHow: "RECORDED_BY_STAFF" } : {}),
+      },
+    });
+    await event(tx, quote.id, "CREATED", ctx.userId, "Uploaded a PDF made outside Grid");
+    if (accepted) await event(tx, quote.id, "ACCEPTED", ctx.userId, "Recorded when uploaded");
+    await audit(tx, {
+      blockId: MOD,
+      actorId: ctx.userId,
+      companyId,
+      projectId: job?.id ?? null,
+      entityType: "Quote",
+      entityId: quote.id,
+      action: "uploaded",
+      diff: { number, title: input.title, total: input.total ?? null, status: quote.status },
+    });
+    return quote;
+  });
+  await emit("quotes.created", { quoteId: quote.id }, ctx);
+  return { id: quote.id, number: quote.number };
 }
 
 /** The quote a job came from (job page panel). */
@@ -698,5 +759,6 @@ export async function quoteForJob(ctx: RequestContext, projectId: string) {
   const settings = await taxSettings(companyId);
   const totals = calculate(linesForMaths(quote.lines), { pricesIncludeTax: quote.pricesIncludeTax, rounding: settings.rounding as "LINE" | "TOTAL", codes: settings.codes });
   const agreed = (await acceptedTotals([quote])).get(quote.currentRevisionId ?? "");
-  return { id: quote.id, number: quote.number, status: quote.status, total: formatMoney(agreed ?? totals.totalCents, settings.currency, settings.locale) };
+  const total = quote.uploadedTotal != null ? cents(quote.uploadedTotal)! : (agreed ?? totals.totalCents);
+  return { id: quote.id, number: quote.number, status: quote.status, total: formatMoney(total, settings.currency, settings.locale) };
 }

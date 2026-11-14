@@ -11,6 +11,7 @@ import {
   taxCodeSchema,
   taxSettingsSchema,
   updateQuoteSchema,
+  uploadQuoteSchema,
 } from "./validation";
 
 const listQuery = z.object({ tab: z.enum(["open", "draft", "sent", "won", "all"]).optional(), q: z.string().max(200).optional() });
@@ -34,6 +35,8 @@ export const routes: Routes = {
   // Quotes
   "GET /": { permission: "quotes.view", handler: (ctx, request) => svc.listQuotes(ctx, listQuery.parse(queryParams(request))) },
   "POST /": { permission: "quotes.create", handler: (ctx, request) => svc.createQuote(ctx, createQuoteSchema.parse(request.body)) },
+  // A quote made outside Grid: upload its PDF first (/api/files), then this.
+  "POST /upload": { permission: "quotes.create", handler: (ctx, request) => svc.uploadQuote(ctx, uploadQuoteSchema.parse(request.body)) },
   "GET /:id": { permission: "quotes.view", handler: (ctx, request) => svc.getQuote(ctx, request.params.id!) },
   "PATCH /:id": { permission: "quotes.create", handler: (ctx, request) => svc.updateQuote(ctx, request.params.id!, updateQuoteSchema.parse(request.body)) },
   "DELETE /:id": { permission: "quotes.create", handler: (ctx, request) => svc.deleteDraft(ctx, request.params.id!) },

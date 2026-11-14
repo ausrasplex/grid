@@ -23,6 +23,8 @@ import { QuoteEditor, type QuoteJson } from "./QuoteEditor";
 import { QuotesList, type QuoteRowJson } from "./QuotesList";
 import { StatusBadge } from "./StatusBadge";
 import { TaxSettingsForm, type TaxSettingsJson } from "./TaxSettingsForm";
+import { UploadQuote } from "./UploadQuote";
+import { UploadedQuote, type UploadedQuoteJson } from "./UploadedQuote";
 
 /** Dates → strings, the way they reach a client component anyway. */
 const json = <T,>(value: unknown): T => JSON.parse(JSON.stringify(value)) as T;
@@ -31,6 +33,8 @@ export const pages: BlockPages = {
   "": async ({ ctx, params: [id] }) => {
     if (id) {
       const [quote, emailReady] = await Promise.all([getQuote(ctx, id), app().mail.configured()]);
+      // Made outside Grid: the PDF and its answer, no editor.
+      if (quote.uploaded) return <UploadedQuote quote={json<UploadedQuoteJson>(quote)} canAnswer={can(ctx, "quotes.send")} />;
       return <QuoteEditor key={quote.id} initial={json<QuoteJson>(quote)} permissions={{ edit: can(ctx, "quotes.create"), send: can(ctx, "quotes.send") }} emailReady={emailReady} />;
     }
     const [rows, settings] = await Promise.all([listQuotes(ctx), getTaxSettings(ctx)]);
@@ -60,6 +64,14 @@ export const pages: BlockPages = {
     // Start with the job's client.
     const client = job?.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;
     return <NewQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} />;
+  },
+
+  // /quotes/upload, or /quotes/upload/<job> ("Attach a quote PDF" on a job without a quote).
+  upload: async ({ ctx, params: [jobId] }) => {
+    if (!can(ctx, "quotes.create")) return <p>You can&apos;t add quotes.</p>;
+    const job = jobId ? await getProject(ctx, jobId) : null;
+    const client = job?.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;
+    return <UploadQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} />;
   },
 
   "price-book": async ({ ctx }) => {
@@ -102,7 +114,19 @@ export const panels: BlockPanels = {
     const { ctx, job } = props as typeof props & JobAreaPanelProps;
     if (!can(ctx, "quotes.view")) return null;
     const quote = await quoteForJob(ctx, job.id);
-    if (!quote) return null;
+    // No quote yet: one made outside Grid can be attached.
+    if (!quote) {
+      if (!can(ctx, "quotes.create")) return null;
+      return (
+        <a href={`/quotes/upload/${job.id}`} className="flex min-h-touch items-center gap-3 rounded-xl border border-dashed px-4 py-3 text-muted-foreground hover:bg-muted">
+          <Icon name="file" className="size-5" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold text-foreground">Attach a quote PDF</span>
+            <span className="block text-sm">For a quote you made outside Grid</span>
+          </span>
+        </a>
+      );
+    }
     return (
       <a href={`/quotes/${quote.id}`} className="flex min-h-touch items-center gap-3 rounded-xl border bg-card px-4 py-3 hover:bg-muted">
         <span className="min-w-0 flex-1">

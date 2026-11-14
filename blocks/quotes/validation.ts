@@ -69,6 +69,26 @@ export const createQuoteSchema = z
   })
   .strict();
 
+/** A quote made outside Grid, uploaded as a PDF. */
+export const uploadQuoteSchema = z
+  .object({
+    fileId: uuid,
+    title: z.string().trim().min(1, "Say what the quote is for").max(200),
+    /** The number on the PDF; blank takes the next one (Q-1005). */
+    number: optText(40),
+    clientId: uuid.nullable().optional(),
+    /** The total on the PDF, including tax, in dollars. */
+    total: z.number().min(0).max(100_000_000).nullable().optional(),
+    siteAddress: optText(300),
+    /** When it was sent (YYYY-MM-DD); today if left out. */
+    sentOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    /** Waiting for an answer, or already accepted. */
+    status: z.enum(["SENT", "ACCEPTED"]).default("SENT"),
+    /** Attached to an existing job. */
+    projectId: uuid.nullable().optional(),
+  })
+  .strict();
+
 export const lineSchema = z
   .object({
     section: optText(100),
@@ -123,6 +143,7 @@ export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
 export type TaxCodeInput = z.infer<typeof taxCodeSchema>;
 export type PriceItemInput = z.infer<typeof priceItemSchema>;
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
+export type UploadQuoteInput = z.infer<typeof uploadQuoteSchema>;
 export type UpdateQuoteInput = z.infer<typeof updateQuoteSchema>;
 export type LineInputData = z.infer<typeof lineSchema>;
 export type SendInput = z.infer<typeof sendSchema>;
