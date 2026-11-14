@@ -8,6 +8,7 @@ import { useRef, useState } from "react";
 import { FileText, Upload } from "lucide-react";
 import { Alert, Button, Field, FormActions, PageHeader, Section, SelectField, api, useAction } from "@grid/ui";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
+import { PlacePicker, type PlaceValue } from "@grid/block-sites/components";
 
 const today = () => {
   const now = new Date();
@@ -28,11 +29,14 @@ export function UploadQuote({
   job,
   client: jobClient,
   canAddClient,
+  canPickSite,
 }: {
   /** Attaching to an existing job. */
   job: { id: string; name: string; address: string } | null;
   client: ClientJson | null;
   canAddClient: boolean;
+  /** May see sites (sites.view): offer the site, building and floor pickers. */
+  canPickSite: boolean;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState(job?.name ?? "");
@@ -40,6 +44,7 @@ export function UploadQuote({
   const [client, setClient] = useState<ClientJson | null>(jobClient);
   const [total, setTotal] = useState("");
   const [address, setAddress] = useState(job?.address ?? "");
+  const [place, setPlace] = useState<PlaceValue | null>(null);
   const [sentOn, setSentOn] = useState(today());
   const [status, setStatus] = useState<"SENT" | "ACCEPTED">(job ? "ACCEPTED" : "SENT");
   const picker = useRef<HTMLInputElement>(null);
@@ -76,6 +81,7 @@ export function UploadQuote({
                   sentOn,
                   status,
                   projectId: job?.id ?? null,
+                  ...(place && !job ? { siteId: place.site.id, buildingId: place.buildingId, levelId: place.levelId } : {}),
                 },
               });
             });
@@ -114,6 +120,17 @@ export function UploadQuote({
           <Field label="What's it for?" placeholder="e.g. Switchboard upgrade" value={title} onChange={(event) => setTitle(event.target.value)} required />
           <Field label="Quote number" hint="As on the PDF. Leave blank for the next number." value={number} onChange={(event) => setNumber(event.target.value)} autoComplete="off" />
           <ClientPicker value={client} onChange={(value) => (setClient(value), value?.address && !address && setAddress(value.address))} canAdd={canAddClient} />
+          {/* For a job, the job says where. */}
+          {!job && canPickSite && (
+            <PlacePicker
+              value={place}
+              hint="If it's at a site you've set up, pick it (and the building and floor). Otherwise just type the address below."
+              onChange={(next) => {
+                setPlace(next);
+                if (next && !address.trim()) setAddress(next.site.address);
+              }}
+            />
+          )}
           <Field label="Total (incl. tax)" inputMode="decimal" placeholder="e.g. 4180.00" value={total} onChange={(event) => setTotal(event.target.value)} />
           <Field
             label="Site address"

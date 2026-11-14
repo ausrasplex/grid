@@ -707,6 +707,8 @@ export async function uploadQuote(ctx: RequestContext, input: UploadQuoteInput) 
   const companyId = requireCompany(ctx);
   // Attached to a job: it must be one you can see; it fills in the address.
   const job = input.projectId ? await getProject(ctx, input.projectId) : null;
+  // At a site you picked (not for a job, which already says where).
+  const place = !job && input.siteId ? await placeFor(ctx, input.siteId, input.buildingId ?? null, input.levelId ?? null) : null;
   const sentAt = input.sentOn ? new Date(`${input.sentOn}T12:00:00`) : new Date();
   const quote = await db.$transaction(async (tx) => {
     const settings = await taxSettings(companyId, tx);
@@ -721,8 +723,11 @@ export async function uploadQuote(ctx: RequestContext, input: UploadQuoteInput) 
         number,
         title: input.title,
         clientId: client?.id ?? null,
-        siteAddress: input.siteAddress ?? job?.site.address ?? client?.address ?? null,
+        siteAddress: input.siteAddress ?? job?.site.address ?? place?.address ?? client?.address ?? null,
         projectId: job?.id ?? null,
+        siteId: place?.siteId ?? null,
+        buildingId: place?.buildingId ?? null,
+        levelId: place?.levelId ?? null,
         status: accepted ? "ACCEPTED" : "SENT",
         pricesIncludeTax: true,
         validUntil: new Date(sentAt.getTime() + settings.validityDays * 86_400_000),

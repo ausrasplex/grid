@@ -72,7 +72,7 @@ export const pages: BlockPages = {
     if (!can(ctx, "quotes.create")) return <p>You can&apos;t add quotes.</p>;
     const job = jobId ? await getProject(ctx, jobId) : null;
     const client = job?.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;
-    return <UploadQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} />;
+    return <UploadQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} canPickSite={can(ctx, "sites.view")} />;
   },
 
   "price-book": async ({ ctx }) => {

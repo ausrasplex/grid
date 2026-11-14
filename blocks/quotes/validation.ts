@@ -86,6 +86,10 @@ export const uploadQuoteSchema = z
     status: z.enum(["SENT", "ACCEPTED"]).default("SENT"),
     /** Attached to an existing job. */
     projectId: uuid.nullable().optional(),
+    /** At an existing site (and building and floor): the job goes there when it's accepted. */
+    siteId: uuid.nullable().optional(),
+    buildingId: uuid.nullable().optional(),
+    levelId: uuid.nullable().optional(),
   })
   .strict();
 
