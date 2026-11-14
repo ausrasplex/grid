@@ -20,7 +20,7 @@ Navigation, breadcrumbs, search and quick routes are specified in `navigation.md
 
 ### 1a. Structure
 
-- **Site:** a precinct, shopping centre, school or house. Name, address, optional geofence, optional site notes (access, hazards: kept with the address so every job there sees them).
+- **Site:** a precinct, shopping centre, school or house. Name, address, optional geofence, site notes (access, hazards: kept with the address so every job there sees them), as separate titled notes (`SiteNote`).
 - **Building:** belongs to a site. Either **multi-level** (ordered levels, highest first, e.g. Roof, Level 7 … Ground, Basement) or **single-level** (no levels).
   - A single-level building can be converted to multi-level later; its existing work moves to "Ground".
 - **Level:** belongs to a multi-level building. Full name ("Level 5") plus a short label ("L5") for phone breadcrumbs.
@@ -149,7 +149,7 @@ When a company's request reaches the host, the host chooses where it sits:
 ## Data model sketch (to refine at build time)
 
 `sites` block:
-- `Site`: `kind` (`MANAGED | PRIVATE`), `ownerCompanyId`, `name`, `address`, `addressKey` (normalised, for duplicate checks), `geofence?`, `notes?`, `createdById`. Archiving is per company (`SiteCompanyState`).
+- `Site`: `kind` (`MANAGED | PRIVATE`), `ownerCompanyId`, `name`, `address`, `addressKey` (normalised, for duplicate checks), `geofence?`, `createdById`. Site notes are `SiteNote` rows (siteId, companyId of whoever added it, title, body, sort, soft delete); the old `Site.notes` text became one note called "Site notes" (migration `20261114170000_site_notes`). Archiving is per company (`SiteCompanyState`).
 - `SiteEditor`: `siteId`, `companyId` (companies the owner appoints to edit structure).
 - `Building`: `siteId`, `name`, `kind` (`MULTI | SINGLE`), `order`.
 - `Level`: `buildingId`, `name`, `shortName`, `order` (highest first). `Zone` later: `levelId`, `name`.

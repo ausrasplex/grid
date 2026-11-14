@@ -23,8 +23,6 @@ model Site {
   address        String
   /// Normalised address for matching ("12 smith st brunswick vic 3056").
   addressKey     String
-  /// Access and hazard notes kept with the address, so every job there sees them.
-  notes          String?
   /// { lat, lng, radiusM } for "near the site" checks (later).
   geofence       Json?
   createdById    String?
@@ -104,4 +102,27 @@ model UserSiteLocation {
 
   @@id([userId, siteId])
   @@index([userId, companyId, updatedAt])
+}
+
+/// A site note: access and hazard info kept with the address, so every job
+/// there sees it. Each has a title ("Security office", "Lockbox", "Parking")
+/// and the details. Everyone who can see the site sees its notes; anyone with
+/// sites.notes.edit can add, change, reorder and delete them.
+model SiteNote {
+  id          String    @id @default(uuid())
+  siteId      String
+  /// The business of whoever added it.
+  companyId   String
+  title       String
+  body        String    @default("")
+  /// Lower shows first.
+  sort        Int       @default(0)
+  createdById String?
+  updatedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  deletedById String?
+
+  @@index([siteId, sort])
 }

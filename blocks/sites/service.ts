@@ -8,7 +8,7 @@
 import { app, badRequest, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db, ensureRouteCode, type Prisma, type Tx } from "@grid/db";
 import { addressKey, levelShortName, siteNameFromAddress } from "./address";
-import type { AddBuildingInput, AddLevelsInput, CreateSiteInput, UpdateSiteInput } from "./validation";
+import type { AddBuildingInput, AddLevelsInput, CreateSiteInput, SiteNoteInput, UpdateSiteInput } from "./validation";
 
 const MOD = "sites";
 
@@ -51,7 +51,8 @@ export interface SiteStructure {
   kind: "MANAGED" | "PRIVATE";
   name: string;
   address: string;
-  notes: string | null;
+  /** Site notes, in order. */
+  notes: SiteNoteView[];
   ownerCompanyId: string;
   /** True when this company looks after the structure. */
   ownedByMe: boolean;
@@ -75,7 +76,7 @@ export async function getSite(ctx: RequestContext, siteId: string, tx: Tx = db):
     kind: site.kind,
     name: site.name,
     address: site.address,
-    notes: site.notes,
+    notes: await notesFor(tx, siteId),
     ownerCompanyId: site.ownerCompanyId,
     ownedByMe: site.ownerCompanyId === companyId,
     archivedAt: state?.archivedAt ?? null,
@@ -174,7 +175,6 @@ export async function createManagedSite(ctx: RequestContext, input: CreateSiteIn
         name: input.name,
         address: input.address,
         addressKey: addressKey(input.address),
-        notes: input.notes ?? null,
         createdById: ctx.userId,
       },
     });
@@ -277,8 +277,8 @@ export async function updateSite(ctx: RequestContext, siteId: string, input: Upd
   const companyId = requireCompany(ctx);
   return db.$transaction(async (tx) => {
     const site = await visibleSite(tx, companyId, siteId);
-    // Notes can be kept by anyone with a job there; name and address belong to the owner.
-    if ((input.name !== undefined || input.address !== undefined) && site.ownerCompanyId !== companyId) {
+    // Name and address belong to the company that looks after the site.
+    if (site.ownerCompanyId !== companyId) {
       throw forbidden("Only the company that looks after this site can rename it");
     }
     const updated = await tx.site.update({
@@ -287,11 +287,101 @@ export async function updateSite(ctx: RequestContext, siteId: string, input: Upd
         name: input.name,
         address: input.address,
         addressKey: input.address !== undefined ? addressKey(input.address) : undefined,
-        notes: input.notes,
       },
     });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Site", entityId: siteId, action: "updated", diff: input as Prisma.InputJsonValue });
     return { id: updated.id };
+  });
+}
+
+// ---------------------------------------------------------------------
+// Site notes: titled notes kept with the address
+// ---------------------------------------------------------------------
+
+export interface SiteNoteView {
+  id: string;
+  title: string;
+  body: string;
+  /** Who last changed it (null for notes from before they were kept), and when. */
+  by: string | null;
+  at: Date;
+}
+
+async function notesFor(tx: Tx, siteId: string): Promise<SiteNoteView[]> {
+  const rows = await tx.siteNote.findMany({ where: { siteId, deletedAt: null }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] });
+  const people = await tx.user.findMany({
+    where: { id: { in: [...new Set(rows.map((row) => row.updatedById ?? row.createdById ?? ""))] } },
+    select: { id: true, name: true },
+  });
+  const name = new Map(people.map((person) => [person.id, person.name]));
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    by: name.get(row.updatedById ?? row.createdById ?? "") ?? null,
+    at: row.updatedAt,
+  }));
+}
+
+/** A note on a site this company can see, or 404. */
+async function visibleNote(tx: Tx, companyId: string, noteId: string) {
+  const note = await tx.siteNote.findFirst({ where: { id: noteId, deletedAt: null } });
+  if (!note) throw notFound("Note not found");
+  await visibleSite(tx, companyId, note.siteId);
+  return note;
+}
+
+export async function siteNotes(ctx: RequestContext, siteId: string): Promise<SiteNoteView[]> {
+  const companyId = requireCompany(ctx);
+  await visibleSite(db, companyId, siteId);
+  return notesFor(db, siteId);
+}
+
+/** Adds a note at the end. Returns the site's notes. */
+export async function addSiteNote(ctx: RequestContext, siteId: string, input: SiteNoteInput): Promise<SiteNoteView[]> {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    await visibleSite(tx, companyId, siteId);
+    const last = await tx.siteNote.findFirst({ where: { siteId, deletedAt: null }, orderBy: { sort: "desc" }, select: { sort: true } });
+    const note = await tx.siteNote.create({
+      data: { siteId, companyId, title: input.title, body: input.body, sort: (last?.sort ?? -1) + 1, createdById: ctx.userId, updatedById: ctx.userId },
+    });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "SiteNote", entityId: note.id, action: "added", diff: { siteId, title: input.title } });
+    return notesFor(tx, siteId);
+  });
+}
+
+export async function updateSiteNote(ctx: RequestContext, noteId: string, input: SiteNoteInput): Promise<SiteNoteView[]> {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    const note = await visibleNote(tx, companyId, noteId);
+    await tx.siteNote.update({ where: { id: noteId }, data: { title: input.title, body: input.body, updatedById: ctx.userId } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "SiteNote", entityId: noteId, action: "updated", diff: { before: { title: note.title, body: note.body } } });
+    return notesFor(tx, note.siteId);
+  });
+}
+
+export async function deleteSiteNote(ctx: RequestContext, noteId: string): Promise<SiteNoteView[]> {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    const note = await visibleNote(tx, companyId, noteId);
+    await tx.siteNote.update({ where: { id: noteId }, data: { deletedAt: new Date(), deletedById: ctx.userId } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "SiteNote", entityId: noteId, action: "deleted", diff: { title: note.title, body: note.body } });
+    return notesFor(tx, note.siteId);
+  });
+}
+
+/** Puts the site's notes in this order (ids not on the site are ignored; missing ones go last). */
+export async function orderSiteNotes(ctx: RequestContext, siteId: string, ids: string[]): Promise<SiteNoteView[]> {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    await visibleSite(tx, companyId, siteId);
+    const notes = await tx.siteNote.findMany({ where: { siteId, deletedAt: null }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }], select: { id: true } });
+    const onSite = new Set(notes.map((note) => note.id));
+    const order = [...new Set(ids.filter((id) => onSite.has(id))), ...notes.map((note) => note.id).filter((id) => !ids.includes(id))];
+    for (const [index, id] of order.entries()) await tx.siteNote.update({ where: { id }, data: { sort: index } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Site", entityId: siteId, action: "notes_reordered", diff: { order } });
+    return notesFor(tx, siteId);
   });
 }
 

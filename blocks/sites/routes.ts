@@ -1,5 +1,5 @@
 // HTTP routes, mounted at /api/sites.
-import { forbidden, type Routes } from "@grid/core";
+import type { Routes } from "@grid/core";
 import * as svc from "./service";
 import {
   addBuildingSchema,
@@ -8,6 +8,8 @@ import {
   listSitesQuery,
   moveLevelSchema,
   renameSchema,
+  siteNoteOrderSchema,
+  siteNoteSchema,
   updateLevelSchema,
   updateSiteSchema,
 } from "./validation";
@@ -20,14 +22,19 @@ export const routes: Routes = {
   "POST /": { permission: "sites.create", handler: (ctx, request) => svc.createManagedSite(ctx, createSiteSchema.parse(request.body)) },
   "GET /:siteId": { permission: "sites.view", handler: (ctx, request) => svc.getSite(ctx, request.params.siteId!) },
   "PATCH /:siteId": {
-    permission: "sites.view", // name/address need ownership, notes need sites.notes.edit (checked below)
-    handler: (ctx, request) => {
-      const input = updateSiteSchema.parse(request.body);
-      const needs = input.name !== undefined || input.address !== undefined ? "sites.structure.edit" : "sites.notes.edit";
-      if (!ctx.permissions.has(needs)) throw forbidden();
-      return svc.updateSite(ctx, request.params.siteId!, input);
-    },
+    permission: "sites.structure.edit", // and the site must be yours (checked in the service)
+    handler: (ctx, request) => svc.updateSite(ctx, request.params.siteId!, updateSiteSchema.parse(request.body)),
   },
+
+  // Site notes (titled: "Security office", "Lockbox"…). Each call returns the site's notes.
+  "GET /:siteId/notes": { permission: "sites.view", handler: (ctx, request) => svc.siteNotes(ctx, request.params.siteId!) },
+  "POST /:siteId/notes": { permission: "sites.notes.edit", handler: (ctx, request) => svc.addSiteNote(ctx, request.params.siteId!, siteNoteSchema.parse(request.body)) },
+  "PUT /:siteId/notes/order": {
+    permission: "sites.notes.edit",
+    handler: (ctx, request) => svc.orderSiteNotes(ctx, request.params.siteId!, siteNoteOrderSchema.parse(request.body).ids),
+  },
+  "PATCH /notes/:noteId": { permission: "sites.notes.edit", handler: (ctx, request) => svc.updateSiteNote(ctx, request.params.noteId!, siteNoteSchema.parse(request.body)) },
+  "DELETE /notes/:noteId": { permission: "sites.notes.edit", handler: (ctx, request) => svc.deleteSiteNote(ctx, request.params.noteId!) },
   "GET /:siteId/code": { permission: "sites.view", handler: (ctx, request) => svc.siteRouteCode(ctx, request.params.siteId!) },
   "POST /:siteId/buildings": {
     permission: "sites.structure.edit",

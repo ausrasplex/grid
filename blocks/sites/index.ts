@@ -10,6 +10,7 @@ export {
   lastLocation,
   siteRouteCode,
   type SiteStructure,
+  type SiteNoteView,
   type SiteListRow,
   type SitesTab,
 } from "./service";

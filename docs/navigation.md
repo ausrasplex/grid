@@ -58,7 +58,7 @@ Shown once a project is selected and it covers more than one area.
 - Starting a new job at an archived address **reactivates** the site, with its history ("Earlier jobs at this address"). It does not create a duplicate.
 - **Earlier jobs live on the site page, never inside a project.**
   - The site page (for a house, reached through Project crumb › All projects here, or from the Sites list) shows current jobs, **Earlier jobs at this address** (archived, read-only, with photos and certificates), and **Site notes**.
-  - Site notes are access and hazard info kept with the address, so every job there sees them.
+  - Site notes are access and hazard info kept with the address, so every job there sees them. They are **separate notes, each with a title** (decided Nov 2026): "Security office", "Lockbox", "Parking", "Hazards"…, with the details under it and who changed it last. Common titles are suggested while typing; any title is fine. Anyone with `sites.notes.edit` can add, change, delete and move notes up or down (the order is the same for everyone).
   - A project view only ever shows that project's own work, because older jobs may not be relevant to it.
 - Domestic companies therefore see a short list of current jobs, and each job opens straight to its work because the Building and Level crumbs are hidden.
 

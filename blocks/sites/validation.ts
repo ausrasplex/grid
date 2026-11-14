@@ -3,14 +3,20 @@ import { z } from "zod";
 const name = z.string().trim().min(1).max(120);
 const address = z.string().trim().min(3).max(300);
 
-export const createSiteSchema = z
-  .object({ name, address, notes: z.string().trim().max(5000).optional() })
+export const createSiteSchema = z.object({ name, address }).strict();
+
+export const updateSiteSchema = z.object({ name, address }).partial().strict();
+
+/** A site note: a title ("Lockbox") and the details ("Code 4512, left of the gate"). */
+export const siteNoteSchema = z
+  .object({
+    title: z.string().trim().min(1, "Give the note a title").max(80),
+    body: z.string().trim().max(5000).default(""),
+  })
   .strict();
 
-export const updateSiteSchema = z
-  .object({ name, address, notes: z.string().trim().max(5000).nullable() })
-  .partial()
-  .strict();
+/** The notes in their new order (every note on the site, by id). */
+export const siteNoteOrderSchema = z.object({ ids: z.array(z.string().uuid()).max(500) }).strict();
 
 export const addBuildingSchema = z.object({ name, kind: z.enum(["MULTI", "SINGLE"]) }).strict();
 export const renameSchema = z.object({ name }).strict();
@@ -38,3 +44,4 @@ export type CreateSiteInput = z.infer<typeof createSiteSchema>;
 export type UpdateSiteInput = z.infer<typeof updateSiteSchema>;
 export type AddBuildingInput = z.infer<typeof addBuildingSchema>;
 export type AddLevelsInput = z.infer<typeof addLevelsSchema>;
+export type SiteNoteInput = z.infer<typeof siteNoteSchema>;
