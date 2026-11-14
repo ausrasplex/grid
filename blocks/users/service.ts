@@ -1,6 +1,6 @@
 // Public service API of the users block. Blocks that depend on
 // "users" import from "@grid/block-users" (index.ts), never deeper.
-import { audit, db, type Prisma, type Tx } from "@grid/db";
+import { audit, avatarUrl, db, type Prisma, type Tx } from "@grid/db";
 import { notFound } from "@grid/core";
 import { emailSchema, type UpdateProfileInput } from "./validation";
 
@@ -20,6 +20,13 @@ export async function getUser(id: string, tx: Tx = db): Promise<PublicUser> {
   const user = await tx.user.findFirst({ where: { id, deletedAt: null }, select: publicFields });
   if (!user) throw notFound("User not found");
   return user;
+}
+
+/** Your own profile, with where your picture is shown from. */
+export async function getMe(id: string) {
+  const user = await getUser(id);
+  const { image } = await db.user.findUniqueOrThrow({ where: { id }, select: { image: true } });
+  return { ...user, avatarUrl: avatarUrl({ ...user, image }) };
 }
 
 export async function findUserByEmail(email: string, tx: Tx = db): Promise<PublicUser | null> {

@@ -28,7 +28,7 @@ import {
 interface Member {
   membershipId: string;
   status: "ACTIVE" | "INVITED";
-  user: { id: string; name: string; email: string; phone: string | null };
+  user: { id: string; name: string; email: string; phone: string | null; avatarUrl: string | null };
   role: { id: string; name: string; systemRole: string | null };
   /** Invited: their join link ("/join/…"), or null when it has run out. Only for people who may invite. */
   invitePath?: string | null;
@@ -106,7 +106,7 @@ export function Members({ canInvite, canManage, myUserId }: { canInvite: boolean
                 {list.map((item) => (
                   <TapRow
                     key={item.membershipId}
-                    leading={<Avatar name={item.user.name} />}
+                    leading={<Avatar name={item.user.name} src={item.user.avatarUrl} />}
                     title={item.user.name}
                     badges={badgesFor(item)}
                     meta={item.role.name}

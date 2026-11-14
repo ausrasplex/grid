@@ -47,7 +47,7 @@ interface Props {
   account: NavItem[];
   /** Pages reached from Settings: they get a "Settings › Clients" breadcrumb. */
   settings: NavItem[];
-  user: { name: string; email: string };
+  user: { name: string; email: string; avatarUrl: string | null };
   company: { name: string; role: string } | null;
   children: ReactNode;
 }
@@ -91,7 +91,8 @@ function Mark({ className }: { className?: string }) {
   return <img src="/icon/96" alt="" width={36} height={36} className={cn("size-9 shrink-0 rounded-md", className)} />;
 }
 
-function UserAvatar({ name, className }: { name: string; className?: string }) {
+function UserAvatar({ name, src, className }: { name: string; src: string | null; className?: string }) {
+  if (src) return <img src={src} alt="" className={cn("size-9 shrink-0 rounded-full bg-muted object-cover", className)} />;
   return (
     <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground", className)}>
       {initials(name)}
@@ -262,7 +263,7 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
             user={user}
             account={account}
             switcher={switcher}
-            trigger={<UserAvatar name={user.name} />}
+            trigger={<UserAvatar name={user.name} src={user.avatarUrl} />}
             triggerClassName="mr-2 inline-flex size-touch items-center justify-center rounded-full md:hidden"
           />
           <span className="hidden w-2 md:block" />
@@ -319,7 +320,7 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
           user={user}
           account={account}
           switcher={switcher}
-          trigger={<UserAvatar name={user.name} className="size-10" />}
+          trigger={<UserAvatar name={user.name} src={user.avatarUrl} className="size-10" />}
           triggerClassName="mb-4 rounded-full"
         />
       </nav>
@@ -386,7 +387,7 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
           triggerClassName="flex min-h-touch items-center gap-2.5 rounded-lg px-2 text-left hover:bg-muted"
           trigger={
             <>
-              <UserAvatar name={user.name} className="size-8 text-xs" />
+              <UserAvatar name={user.name} src={user.avatarUrl} className="size-8 text-xs" />
               <span className="min-w-0 truncate text-sm text-muted-foreground">
                 {user.name}
                 {company ? ` · ${company.role}` : ""}

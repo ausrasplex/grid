@@ -174,8 +174,9 @@ export function TapRow({
   );
 }
 
-/** Round initials avatar for people lists. */
-export function Avatar({ name, className }: { name: string; className?: string }) {
+/** Round avatar for people lists: their picture when they have one, else initials. */
+export function Avatar({ name, src, className }: { name: string; src?: string | null; className?: string }) {
+  if (src) return <img src={src} alt="" aria-hidden className={cn("size-10 shrink-0 rounded-full bg-muted object-cover", className)} />;
   const initials = name
     .split(/\s+/)
     .filter(Boolean)

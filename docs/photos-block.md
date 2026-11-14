@@ -34,6 +34,7 @@ Status: **built** (phase 2b-lite, November 2026). An optional Block, on in the s
 - **Upload:** `POST /api/files` (multipart, JPEG/PNG/WebP, 25 MB at most). The file belongs to nobody until a Block attaches it with `attachFile()`. Only the uploader can attach it, and only once.
 - **Download:** `GET /api/files/<id>?v=thumb|display|original`. The owning Block's `fileAccess` check decides who may see it. Anyone else gets "not found". Files never change, so phones cache them.
 - **Clean-up:** see "Storage clean-up" below.
+- **Profile pictures** (Settings › Profile) are not `StoredFile`s, because a picture belongs to the person, not a business: one 512 px square JPEG (cropped around the face with sharp's "attention") at `avatars/<userId>/<random>.jpg`, kept in `User.avatarKey`. `POST`/`DELETE /api/session/avatar` sets or removes it and deletes the old one straight away; `GET /api/avatars/<userId>/<file>.jpg` serves only the current one, to anyone signed in. `avatarUrl()` (`@grid/db`) falls back to `User.image` from an outside sign-in, else initials. The stray-file sweep counts `avatarKey`s as known.
 
 ## Storage clean-up (built, phase 2c)
 

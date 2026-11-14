@@ -280,3 +280,54 @@ export async function readStoredFile(file: { key: string; mime: string; variants
   for await (const chunk of stream) chunks.push(chunk as Buffer);
   return Buffer.concat(chunks);
 }
+
+// ---------------------------------------------------------------------
+// Profile pictures. One small square JPEG per person, kept at
+// avatars/<userId>/<random>.jpg (User.avatarKey) rather than as a
+// StoredFile: a picture belongs to the person, not to any one business.
+// A new name each time, so the browser can keep each one forever.
+// ---------------------------------------------------------------------
+
+const AVATAR_EDGE = 512;
+
+/** Crops the photo to a square (centred, upright) and stores it. Returns the new key. */
+export async function saveAvatar(userId: string, data: Buffer): Promise<string> {
+  if (data.length > MAX_UPLOAD_BYTES) throw new UploadError("That file is too big (25 MB at most)");
+  let meta: sharp.Metadata;
+  try {
+    meta = await sharp(data).metadata();
+  } catch {
+    throw new UploadError("That doesn't look like a photo");
+  }
+  if (!meta.format || !IMAGE_TYPES[meta.format]) throw new UploadError("Photos need to be JPEG, PNG or WebP");
+  const square = await sharp(data)
+    .rotate()
+    .resize({ width: AVATAR_EDGE, height: AVATAR_EDGE, fit: "cover", position: "attention", withoutEnlargement: false })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer();
+  const key = `avatars/${userId}/${randomUUID()}.jpg`;
+  await put(key, square);
+  return key;
+}
+
+/** Deletes an old picture from disk (gone already is fine). */
+export async function removeAvatar(key: string) {
+  if (key.startsWith("avatars/")) await removeKey(key);
+}
+
+/** Opens a stored picture for streaming. */
+export async function openAvatar(key: string) {
+  const full = resolveKey(key);
+  const stats = await stat(/*turbopackIgnore: true*/ full);
+  return { stream: createReadStream(/*turbopackIgnore: true*/ full), size: stats.size };
+}
+
+/**
+ * Where a person's picture is shown from: their own upload, else the one
+ * from an outside sign-in (Google / Microsoft), else none (initials).
+ */
+export function avatarUrl(user: { id: string; avatarKey?: string | null; image?: string | null }): string | null {
+  if (user.avatarKey) return `/api/avatars/${user.id}/${user.avatarKey.split("/").pop()}`;
+  return user.image ?? null;
+}

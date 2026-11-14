@@ -6,13 +6,14 @@
 import "server-only";
 import { cache } from "react";
 import type { RequestContext } from "@grid/core";
-import { db } from "@grid/db";
+import { avatarUrl, db } from "@grid/db";
 import { defaultCompanyId, resolveAccess } from "@grid/block-companies";
 import { registry } from "@/blocks";
 import { getActiveCompanyId, getSessionUserId } from "./session";
 
 export interface AppContext extends RequestContext {
-  user: { id: string; name: string; email: string; serverAdmin: boolean };
+  /** avatarUrl: their picture, or null for initials. */
+  user: { id: string; name: string; email: string; serverAdmin: boolean; avatarUrl: string | null };
   company: { id: string; name: string; role: string } | null;
 }
 
@@ -20,11 +21,12 @@ export interface AppContext extends RequestContext {
 export const getContext = cache(async (): Promise<AppContext | null> => {
   const userId = await getSessionUserId();
   if (!userId) return null;
-  const user = await db.user.findFirst({
+  const found = await db.user.findFirst({
     where: { id: userId, deletedAt: null },
-    select: { id: true, name: true, email: true, serverAdmin: true },
+    select: { id: true, name: true, email: true, serverAdmin: true, avatarKey: true, image: true },
   });
-  if (!user) return null;
+  if (!found) return null;
+  const user = { id: found.id, name: found.name, email: found.email, serverAdmin: found.serverAdmin, avatarUrl: avatarUrl(found) };
 
   const required = registry.effectiveEnabled([]);
   const base: AppContext = {

@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Alert, Button, Field, FormActions, Loading, Section, Sheet, SheetContent, api, useAction, useApi } from "@grid/ui";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Alert, Avatar, Button, Field, FormActions, Loading, Section, Sheet, SheetContent, api, useAction, useApi } from "@grid/ui";
 
 interface Me {
   id: string;
   email: string;
   name: string;
   phone: string | null;
+  avatarUrl: string | null;
 }
 
 export function ProfileForm() {
@@ -43,6 +45,7 @@ export function ProfileForm() {
           if (ok) setSaved(true);
         }}
       >
+        <ProfilePicture name={name || data.name} initial={data.avatarUrl} />
         <div className="flex flex-col gap-2 lg:max-w-2xl">
           <Field label="Email" value={email ?? data.email} disabled hint="Your sign-in email." />
           <Button type="button" variant="outline" className="self-start" onClick={() => setChangingEmail(true)}>
@@ -77,6 +80,64 @@ export function ProfileForm() {
         }}
       />
     </Section>
+  );
+}
+
+/**
+ * Your picture: shown in the menu and beside your name in the team. Grid
+ * crops it square (it keeps the face in), so any photo will do.
+ */
+function ProfilePicture({ name, initial }: { name: string; initial: string | null }) {
+  const router = useRouter();
+  const picker = useRef<HTMLInputElement>(null);
+  const [url, setUrl] = useState(initial);
+  const action = useAction();
+
+  const apply = async (request: () => Promise<{ avatarUrl: string | null }>) => {
+    const result = await action.run(request);
+    if (result) {
+      setUrl(result.avatarUrl);
+      router.refresh(); // the menu's picture too
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-sm font-medium">Picture</span>
+      <div className="flex items-center gap-4">
+        <Avatar name={name} src={url} className="size-20 text-2xl" />
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" disabled={action.busy} onClick={() => picker.current?.click()}>
+            {action.busy ? "Saving…" : url ? "Change picture" : "Add a picture"}
+          </Button>
+          {url && (
+            <Button type="button" variant="ghost" disabled={action.busy} onClick={() => apply(() => api<{ avatarUrl: string | null }>("/session/avatar", { method: "DELETE" }))}>
+              Remove
+            </Button>
+          )}
+        </div>
+      </div>
+      <input
+        ref={picker}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          void apply(async () => {
+            const form = new FormData();
+            form.append("file", file);
+            const response = await fetch("/api/session/avatar", { method: "POST", body: form, credentials: "same-origin" });
+            const body = (await response.json().catch(() => null)) as { avatarUrl?: string | null; error?: { message?: string } } | null;
+            if (!response.ok || !body) throw new Error(body?.error?.message ?? "Couldn't upload the photo");
+            return { avatarUrl: body.avatarUrl ?? null };
+          });
+        }}
+      />
+      <Alert variant="error">{action.error}</Alert>
+    </div>
   );
 }
 

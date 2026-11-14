@@ -96,6 +96,8 @@ export async function runCleanup(options: { trigger: "schedule" | "manual"; user
         if (page.length < 2000) break;
         cursor = page.at(-1)!.id;
       }
+      // Profile pictures live outside StoredFile (User.avatarKey).
+      for (const user of await db.user.findMany({ where: { avatarKey: { not: null } }, select: { avatarKey: true } })) known.add(user.avatarKey!);
       for (const stray of await findStrayFiles(known, new Date(now - DAY))) {
         if (!dryRun) await removeStrayFile(stray.key);
         items.push({ companyId: null, kind: "stray", label: `File on disk with no record: ${stray.key}`, refId: null, bytes: stray.bytes });
