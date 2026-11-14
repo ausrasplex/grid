@@ -196,6 +196,7 @@ export async function addPhoto(ctx: RequestContext, input: AddPhotoInput) {
         tag: input.tag,
         takenAt,
         takenById: ctx.userId,
+        ...(input.pin ? { planSheetId: input.pin.sheetId, planX: input.pin.x, planY: input.pin.y } : {}),
       },
     });
     await audit(tx, {
@@ -206,7 +207,7 @@ export async function addPhoto(ctx: RequestContext, input: AddPhotoInput) {
       entityType: "JobPhoto",
       entityId: input.id,
       action: "added",
-      diff: { ...area, tag: input.tag },
+      diff: { ...area, tag: input.tag, pinnedTo: input.pin?.sheetId },
     });
   });
   await emit("photos.added", { projectId: input.projectId, photoId: input.id }, ctx);
@@ -224,10 +225,11 @@ async function ownPhoto(ctx: RequestContext, id: string) {
 export async function updatePhoto(ctx: RequestContext, id: string, input: UpdatePhotoInput) {
   const { photo, job } = await ownPhoto(ctx, id);
   const area = input.buildingId !== undefined ? cleanArea(job, input.buildingId, input.levelId) : {};
+  const pin = input.pin === undefined ? {} : input.pin ? { planSheetId: input.pin.sheetId, planX: input.pin.x, planY: input.pin.y } : { planSheetId: null, planX: null, planY: null };
   await db.$transaction(async (tx) => {
     await tx.jobPhoto.update({
       where: { id },
-      data: { caption: input.caption === undefined ? undefined : input.caption || null, tag: input.tag, ...area },
+      data: { caption: input.caption === undefined ? undefined : input.caption || null, tag: input.tag, ...area, ...pin },
     });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId: photo.companyId, projectId: photo.projectId, entityType: "JobPhoto", entityId: id, action: "updated", diff: input as Prisma.InputJsonValue });
   });
@@ -243,6 +245,49 @@ export async function deletePhoto(ctx: RequestContext, id: string) {
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId: photo.companyId, projectId: photo.projectId, entityType: "JobPhoto", entityId: id, action: "deleted" });
   });
   return { id, deleted: true };
+}
+
+// ---------------------------------------------------------------------
+// Photo pins (4b): photos pinned to a spot on a plan sheet
+// ---------------------------------------------------------------------
+
+export interface PinnedPhoto {
+  id: string;
+  fileId: string;
+  x: number;
+  y: number;
+  caption: string | null;
+  tag: "NONE" | "BEFORE" | "AFTER";
+  at: Date;
+  by: string;
+  /** You took it, or you may manage everyone's: you can move or unpin it. */
+  canChange: boolean;
+}
+
+/**
+ * Photos pinned to a plan sheet. The Plans viewer passes the sheet and its
+ * job; only photos of that job show, so a wrong sheet id finds nothing.
+ */
+export async function pinsForSheet(ctx: RequestContext, projectId: string, sheetId: string): Promise<PinnedPhoto[]> {
+  const companyId = requireCompany(ctx);
+  if (!(await canSeeJob(ctx, projectId))) throw notFound("Job not found");
+  const photos = await db.jobPhoto.findMany({
+    where: { projectId, planSheetId: sheetId, deletedAt: null, ...visibleTo(companyId) },
+    orderBy: { takenAt: "asc" },
+    take: 2000,
+  });
+  const name = await userNames(photos.map((photo) => photo.takenById));
+  return photos.map((photo) => ({
+    id: photo.id,
+    fileId: photo.fileId,
+    x: photo.planX ?? 0,
+    y: photo.planY ?? 0,
+    caption: photo.caption,
+    tag: photo.tag,
+    at: photo.takenAt,
+    by: name.get(photo.takenById) ?? "Someone",
+    canChange: photo.companyId === companyId && (photo.takenById === ctx.userId || ctx.permissions.has("photos.manage")),
+  }));
 }
 
 /** /api/files asks this before handing over a photo. */

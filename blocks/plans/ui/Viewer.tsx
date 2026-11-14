@@ -4,11 +4,32 @@
 // zoom right into the fine print. Deep-zoom tiles, so a phone only ever
 // loads the part you're looking at. Prev/next walk the set; the revision
 // chip shows every upload of the sheet.
+//
+// Other Blocks draw over the sheet through the plan overlay (@grid/ui):
+// markups, measuring, photo pins. The viewer tells them where the view is,
+// passes taps on to the tool in use, and holds the tool bar under the plan.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type OpenSeadragonType from "openseadragon";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Info, Loader2, Maximize, Minus, Plus, RotateCw } from "lucide-react";
-import { Alert, Badge, Button, Field, FormActions, SelectField, Sheet, SheetContent, api, cn, useAction } from "@grid/ui";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Info, Loader2, Maximize, Minus, Plus, RotateCw } from "lucide-react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Field,
+  FormActions,
+  PlanOverlayProvider,
+  Scroller,
+  SelectField,
+  Sheet,
+  SheetContent,
+  api,
+  cn,
+  useAction,
+  type PlanOverlayValue,
+  type PlanPointer,
+  type PlanView,
+} from "@grid/ui";
 import { DISCIPLINES, disciplineName } from "../parse";
 
 export interface SheetJson {
@@ -29,6 +50,8 @@ export interface SheetJson {
     widthPx: number | null;
     heightPx: number | null;
     dpi: number | null;
+    pageWidthPt: number | null;
+    pageHeightPt: number | null;
     page: number;
     fileId: string;
     note: string | null;
@@ -50,7 +73,22 @@ export interface AreaJson {
 
 const day = (date: string) => new Date(date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
-export function Viewer({ sheet: initial, versionId, jobName, areas, permissions }: { sheet: SheetJson; versionId: string | null; jobName: string; areas: AreaJson[]; permissions: { manage: boolean; upload: boolean } }) {
+export function Viewer({
+  sheet: initial,
+  versionId,
+  jobName,
+  areas,
+  permissions,
+  overlays = [],
+}: {
+  sheet: SheetJson;
+  versionId: string | null;
+  jobName: string;
+  areas: AreaJson[];
+  permissions: { manage: boolean; upload: boolean };
+  /** Other Blocks' "plans.viewer" panels: markups, photo pins. */
+  overlays?: ReactNode[];
+}) {
   const [sheet, setSheet] = useState(initial);
   const [viewingId, setViewingId] = useState(versionId ?? initial.currentVersionId);
   const version = sheet.versions.find((version) => version.id === viewingId) ?? sheet.versions[0];
@@ -59,6 +97,22 @@ export function Viewer({ sheet: initial, versionId, jobName, areas, permissions 
   const viewer = useRef<OpenSeadragonType.Viewer | null>(null);
   const [loading, setLoading] = useState(true);
   const [panel, setPanel] = useState<"info" | "revs" | "set" | null>(null);
+
+  // The overlay: where the view is, the tool in use, and who's listening for taps.
+  const [view, setView] = useState<PlanView>({ x: 0, y: 0, scale: 1, width: 0, height: 0 });
+  const [tool, setToolState] = useState<string | null>(null);
+  const toolRef = useRef<string | null>(null);
+  const setTool = useCallback((next: string | null) => {
+    toolRef.current = next;
+    setToolState(next);
+  }, []);
+  const [hidden, setHidden] = useState(false);
+  const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
+  const listeners = useRef(new Set<(pointer: PlanPointer) => void>());
+  const onPointer = useCallback((listener: (pointer: PlanPointer) => void) => {
+    listeners.current.add(listener);
+    return () => void listeners.current.delete(listener);
+  }, []);
 
   const reload = async () => {
     const latest = await api<SheetJson>(`/plans/sheet/${sheet.id}`);
@@ -101,6 +155,46 @@ export function Viewer({ sheet: initial, versionId, jobName, areas, permissions 
       zoomViewer.addOnceHandler("tile-loaded", () => setLoading(false));
       zoomViewer.addHandler("open-failed", () => setLoading(false));
       viewer.current = zoomViewer;
+
+      // Keep the overlay lined up with the sheet, once per frame at most.
+      let frame = 0;
+      const measure = () => {
+        frame = 0;
+        const bounds = zoomViewer.viewport.getBoundsNoRotate(true);
+        const size = zoomViewer.viewport.getContainerSize();
+        if (!bounds.width || !size.x) return;
+        setView({ x: bounds.x, y: bounds.y, scale: size.x / bounds.width, width: size.x, height: size.y });
+      };
+      const schedule = () => void (frame ||= requestAnimationFrame(measure));
+      for (const name of ["open", "update-viewport", "resize"] as const) zoomViewer.addHandler(name, schedule);
+
+      // Taps and strokes go to the tool in use. While one's picked, a
+      // one-finger drag draws instead of panning; two fingers still zoom.
+      type CanvasEvent = { position: OpenSeadragonType.Point; preventDefaultAction?: boolean; quick?: boolean };
+      const send = (kind: PlanPointer["kind"], event: CanvasEvent) => {
+        const point = zoomViewer.viewport.pointFromPixel(event.position, true);
+        for (const listener of listeners.current) listener({ kind, point: [point.x, point.y], screen: [event.position.x, event.position.y] });
+      };
+      const whileTool = (kind: PlanPointer["kind"], stopDefault: boolean) => (event: unknown) => {
+        if (!toolRef.current) return;
+        if (stopDefault) (event as CanvasEvent).preventDefaultAction = true;
+        send(kind, event as CanvasEvent);
+      };
+      const on = (name: string, handler: (event: unknown) => void) => zoomViewer.addHandler(name as "canvas-press", handler as never);
+      on("canvas-press", whileTool("press", false));
+      on("canvas-drag", whileTool("drag", true));
+      on("canvas-drag-end", (event) => {
+        if (toolRef.current) (event as CanvasEvent).preventDefaultAction = true;
+      });
+      on("canvas-release", whileTool("release", false));
+      on("canvas-double-click", whileTool("double", true));
+      on("canvas-pinch", whileTool("cancel", false));
+      on("canvas-click", (event) => {
+        const canvasEvent = event as CanvasEvent;
+        if (!canvasEvent.quick) return;
+        if (toolRef.current) canvasEvent.preventDefaultAction = true;
+        send("click", canvasEvent);
+      });
     });
     return () => {
       alive = false;
@@ -113,15 +207,47 @@ export function Viewer({ sheet: initial, versionId, jobName, areas, permissions 
   useEffect(() => {
     const onKey = (keyboardEvent: KeyboardEvent) => {
       if ((keyboardEvent.target as HTMLElement)?.closest("input,textarea,select,[role=dialog]")) return;
+      if (keyboardEvent.key === "Escape" && toolRef.current) setTool(null);
       if (keyboardEvent.key === "ArrowLeft" && keyboardEvent.altKey && sheet.prev) window.location.href = `/b/plans/sheet/${sheet.prev.id}`;
       if (keyboardEvent.key === "ArrowRight" && keyboardEvent.altKey && sheet.next) window.location.href = `/b/plans/sheet/${sheet.next.id}`;
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sheet.prev, sheet.next]);
+  }, [sheet.prev, sheet.next, setTool]);
 
   const zoom = (factor: number) => viewer.current?.viewport.zoomBy(factor).applyConstraints();
   const home = () => viewer.current?.viewport.goHome();
+
+  // Put the tool down when you switch revision.
+  useEffect(() => setTool(null), [version?.id, setTool]);
+
+  const overlay = useMemo<PlanOverlayValue | null>(() => {
+    if (!version) return null;
+    const info = (entry: SheetJson["versions"][number]) => ({
+      id: entry.id,
+      revision: entry.revision,
+      createdAt: entry.createdAt,
+      widthPx: entry.widthPx,
+      heightPx: entry.heightPx,
+      dpi: entry.dpi,
+      pageWidthPt: entry.pageWidthPt,
+      pageHeightPt: entry.pageHeightPt,
+    });
+    return {
+      sheet: { id: sheet.id, projectId: sheet.projectId, number: sheet.number, buildingId: sheet.buildingId, levelId: sheet.levelId },
+      version: info(version),
+      versions: sheet.versions.map(info),
+      isCurrent,
+      aspect: version.widthPx && version.heightPx ? version.heightPx / version.widthPx : 1,
+      view,
+      tool,
+      setTool,
+      hidden,
+      onPointer,
+      toolbar,
+    };
+  }, [sheet, version, isCurrent, view, tool, setTool, hidden, onPointer, toolbar]);
+  const showOverlays = overlays.length > 0 && version?.status === "READY" && overlay !== null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-neutral-800 text-white">
@@ -179,7 +305,12 @@ export function Viewer({ sheet: initial, versionId, jobName, areas, permissions 
       <main className="relative min-h-0 flex-1">
         {version?.status === "READY" ? (
           <>
-            <div ref={box} className="absolute inset-0" aria-label={`Plan ${sheet.number}`} role="img" />
+            <div ref={box} className={cn("absolute inset-0", tool && "cursor-crosshair")} aria-label={`Plan ${sheet.number}`} role="img" />
+            {showOverlays && (
+              <PlanOverlayProvider value={overlay}>
+                <div className="pointer-events-none absolute inset-0 overflow-hidden">{overlays}</div>
+              </PlanOverlayProvider>
+            )}
             {loading && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <Loader2 className="size-8 animate-spin text-white/70" />
@@ -187,6 +318,9 @@ export function Viewer({ sheet: initial, versionId, jobName, areas, permissions 
             )}
             <div className="absolute right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2">
               {[
+                ...(showOverlays
+                  ? [{ icon: hidden ? <EyeOff className="size-5" /> : <Eye className="size-5" />, label: hidden ? "Show markups and pins" : "Hide markups and pins", on: () => setHidden(!hidden) }]
+                  : []),
                 { icon: <Plus className="size-5" />, label: "Zoom in", on: () => zoom(1.6) },
                 { icon: <Minus className="size-5" />, label: "Zoom out", on: () => zoom(1 / 1.6) },
                 { icon: <Maximize className="size-5" />, label: "Whole sheet", on: home },
@@ -208,6 +342,14 @@ export function Viewer({ sheet: initial, versionId, jobName, areas, permissions 
           <div className="flex h-full items-center justify-center p-6 text-white/80">This sheet has no uploads.</div>
         )}
       </main>
+
+      {showOverlays && (
+        <footer className="border-t border-white/10 bg-neutral-900 pb-[env(safe-area-inset-bottom)] [&:has([data-tools]:empty)]:hidden">
+          <Scroller axis="x">
+            <div ref={setToolbar} data-tools="" className="mx-auto flex w-max items-center gap-1 px-2 py-1" />
+          </Scroller>
+        </footer>
+      )}
 
       <Sheet open={panel === "set"} onOpenChange={(open) => !open && setPanel(null)}>
         <SheetContent title="Sheets" description={jobName}>

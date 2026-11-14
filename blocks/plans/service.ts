@@ -49,6 +49,8 @@ const versionView = (version: Prisma.PlanVersionGetPayload<object>) => ({
   widthPx: version.widthPx,
   heightPx: version.heightPx,
   dpi: version.dpi,
+  pageWidthPt: version.pageWidthPt,
+  pageHeightPt: version.pageHeightPt,
   page: version.page,
   fileId: version.fileId,
   note: version.note,
@@ -118,6 +120,20 @@ export async function getSheet(ctx: RequestContext, sheetId: string) {
 }
 
 export type SheetView = Awaited<ReturnType<typeof getSheet>>;
+
+/**
+ * For Blocks that draw on a sheet (markups): the sheet, if you may see it,
+ * and its revisions, newest first. Lighter than getSheet.
+ */
+export async function sheetForOverlay(ctx: RequestContext, sheetId: string) {
+  const sheet = await ownSheet(db, ctx, sheetId);
+  const versions = await db.planVersion.findMany({
+    where: { sheetId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, revision: true, createdAt: true, pageWidthPt: true, pageHeightPt: true },
+  });
+  return { id: sheet.id, companyId: sheet.companyId, projectId: sheet.projectId, number: sheet.number, versions };
+}
 
 /** For the job page: how many sheets, and the ones for the area you're in. */
 export async function sheetsForArea(ctx: RequestContext, projectId: string, area: { buildingId: string; levelId: string | null } | null) {

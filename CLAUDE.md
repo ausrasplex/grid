@@ -57,7 +57,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, sites, projects (core); photos (optional)
+blocks/        users, companies, sites, projects, signatures, templates (core); photos, quotes, plans, markups (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -84,7 +84,8 @@ prisma/        base, core and auth schemas; migrations
   **Phase 3a** (Quotes Block: tax settings, clients, price book, quick quote, PDF, send, accept → job; templates basics: Branding + PDF renderer) is done too; see "What 3a built" in `docs/quotations-block.md`.
   **Phase 3b** (customer signing: `signatures` core block, public pages/API at `/p/<block>` and `/api/public/<block>`, `/q/<token>`, `/verify`) is done too; see "What 3b built" in `docs/quotations-block.md`.
   **Phase 4a** (Plans block: PDF/image upload with a review of guessed sheet numbers and revisions, deep-zoom tiles rendered in the background, OpenSeadragon viewer, revisions) is done too; see `docs/plans-block.md`.
-- Next: **Phase 4b, markups, photo pins, measuring** (`docs/plans-block.md`). The user's must-haves: pen, highlighter, text; shapes, arrows, clouds; measure length and area.
+  **Phase 4b** (`markups` Block: pen, highlighter, text, shapes, arrows, clouds, Undo, length and area with a per-revision scale; photo pins in `photos`; the plan overlay in `@grid/ui` that Blocks draw on through the `plans.viewer` slot) is done too; see "What 4b built" in `docs/plans-block.md`.
+- Next: tweaking 4b with the owner, then **Phase 5, Documents & assets** (`docs/documents-block.md`, `docs/assets-block.md`).
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.
 - PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.

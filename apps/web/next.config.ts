@@ -15,6 +15,7 @@ const config: NextConfig = {
     "@grid/block-templates",
     "@grid/block-signatures",
     "@grid/block-plans",
+    "@grid/block-markups",
     "@grid/block-quotes",
   ],
   // Loaded from node_modules at run time rather than bundled.

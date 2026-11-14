@@ -1,7 +1,7 @@
 // HTTP routes, mounted at /api/photos.
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
-import { addNoteSchema, addPhotoSchema, deleteNowSchema, feedQuery, restoreSchema, updateNoteSchema, updatePhotoSchema } from "./validation";
+import { addNoteSchema, addPhotoSchema, deleteNowSchema, feedQuery, pinsQuery, restoreSchema, updateNoteSchema, updatePhotoSchema } from "./validation";
 
 export const routes: Routes = {
   // Recently deleted (Settings › Storage): managers only.
@@ -20,6 +20,11 @@ export const routes: Routes = {
       const query = feedQuery.parse(Object.fromEntries(request.query));
       return svc.feed(ctx, request.params.projectId!, { buildingId: query.building, levelId: query.level, tag: query.tag });
     },
+  },
+  // Photo pins on a plan sheet: /api/photos/pins/<sheetId>?job=<projectId>
+  "GET /pins/:sheetId": {
+    permission: "photos.view",
+    handler: (ctx, request) => svc.pinsForSheet(ctx, pinsQuery.parse(Object.fromEntries(request.query)).job, request.params.sheetId!),
   },
   "POST /": { permission: "photos.add", handler: (ctx, request) => svc.addPhoto(ctx, addPhotoSchema.parse(request.body)) },
   "PATCH /:id": { permission: "photos.add", handler: (ctx, request) => svc.updatePhoto(ctx, request.params.id!, updatePhotoSchema.parse(request.body)) },

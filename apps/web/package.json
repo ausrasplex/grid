@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@grid/block-companies": "workspace:*",
+    "@grid/block-markups": "workspace:*",
     "@grid/block-photos": "workspace:*",
     "@grid/block-plans": "workspace:*",
     "@grid/block-projects": "workspace:*",

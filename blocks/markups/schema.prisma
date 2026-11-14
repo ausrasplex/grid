@@ -1,0 +1,86 @@
+// Markups block (phase 4b): your own drawing over a plan sheet (pen,
+// highlighter, text, shapes, arrows, clouds) and measuring (length and
+// area). Design: docs/plans-block.md.
+//
+// Points are in sheet units (x 0 → 1 across the sheet's width), so a markup
+// drawn on Rev B lands in the same spot on Rev C: markups carry over to
+// newer revisions of the sheet.
+
+enum MarkupKind {
+  PEN
+  HIGHLIGHT
+  TEXT
+  LINE
+  ARROW
+  RECT
+  ELLIPSE
+  CLOUD
+  LENGTH
+  AREA
+}
+
+/// Who sees a markup (docs/roadmap.md rule 6). Solo businesses never see the choice.
+enum MarkupVisibility {
+  /// Only the person who drew it.
+  JUST_ME
+  /// Everyone in your business (the default).
+  COMPANY
+  /// Everyone on the job, up the contract chain (later).
+  SHARED
+}
+
+model PlanMarkup {
+  /// Made on the device, so a retried save never makes a second copy.
+  id          String           @id
+  companyId   String
+  projectId   String
+  sheetId     String
+  /// The revision it was drawn on. It also shows on every newer revision.
+  versionId   String
+  kind        MarkupKind
+  /// [[x, y], …] in sheet units.
+  points      Json
+  /// Ink name: red, blue, green, yellow, magenta, black.
+  color       String
+  /// Line width, or text height, in sheet units.
+  size        Float
+  text        String?
+  visibility  MarkupVisibility @default(COMPANY)
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedById String?
+  updatedAt   DateTime         @updatedAt
+  /// Deleted markups stay (for Undo and the history); they're never shown.
+  deletedAt   DateTime?
+  deletedById String?
+
+  @@index([sheetId, deletedAt])
+  @@index([companyId, projectId])
+}
+
+enum PlanScaleMethod {
+  /// From the drawing's scale (1:100) and the PDF page size.
+  RATIO
+  /// Two points on the sheet and how far apart they really are.
+  POINTS
+}
+
+/// How big a revision really is, for measuring. One per revision; a newer
+/// revision without its own uses the last one set (and says so).
+model PlanScale {
+  versionId     String          @id
+  companyId     String
+  sheetId       String
+  /// Real metres per sheet unit (one whole sheet width).
+  metresPerUnit Float
+  method        PlanScaleMethod
+  /// RATIO: 100 for 1:100.
+  ratio         Int?
+  /// POINTS: the two points, and the length typed in.
+  points        Json?
+  knownMetres   Float?
+  setById       String
+  setAt         DateTime        @updatedAt
+
+  @@index([sheetId])
+}

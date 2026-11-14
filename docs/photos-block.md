@@ -77,7 +77,7 @@ Two kinds of leftover files build up, and a clean-up handles both every night (2
 
 ## Data
 
-- `JobPhoto`: `id` (from the phone), `projectId`, `companyId`, `buildingId?`, `levelId?`, `fileId`, `caption?`, `tag` (`NONE | BEFORE | AFTER`), `visibility` (`PRIVATE | SHARED`, default PRIVATE), `takenAt` (from the phone), `takenById`, `deletedAt`.
+- `JobPhoto`: `id` (from the phone), `projectId`, `companyId`, `buildingId?`, `levelId?`, `fileId`, `caption?`, `tag` (`NONE | BEFORE | AFTER`), `visibility` (`PRIVATE | SHARED`, default PRIVATE), `takenAt` (from the phone), `takenById`, `deletedAt`, and the photo pin (4b): `planSheetId?`, `planX?`, `planY?`.
 - `JobNote`: `projectId`, `companyId`, area, `body`, `visibility`, `createdById`, `deletedAt`.
 - **Visibility** is stored now (roadmap rule 6). Others on a job only see SHARED records. The choice appears once there's a contract chain (2b).
 - **Permissions:**
@@ -88,7 +88,7 @@ Two kinds of leftover files build up, and a clean-up handles both every night (2
 ## Later
 
 - **Custom report templates:** the built-in report becomes one of several templates a company can design in the templates Block (`docs/templates-block.md`, "Report templates").
-- **Photo pins on plans** (phase 4).
+- ~~Photo pins on plans~~: built in 4b (`docs/plans-block.md`, "Photo pins"). Moving a pin is still to come.
 - **On the site page:** photos on earlier jobs at an address.
 - **Quotes:** attaching photos to quotes (phase 3).
 - **Team members checked in to a site** get Photo in the Actions menu (phases 7–8).

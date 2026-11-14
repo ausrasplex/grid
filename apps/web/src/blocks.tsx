@@ -18,8 +18,9 @@ import templates from "@grid/block-templates/block";
 import signatures from "@grid/block-signatures/block";
 import quotes from "@grid/block-quotes/block";
 import plans from "@grid/block-plans/block";
+import markups from "@grid/block-markups/block";
 
-const definitions = [users, companies, sites, projects, plans, photos, templates, signatures, quotes];
+const definitions = [users, companies, sites, projects, plans, markups, photos, templates, signatures, quotes];
 
 /** Lazy page loaders, keyed by block id. */
 export const blockPages: Record<string, () => Promise<BlockPages>> = {
@@ -43,6 +44,7 @@ export const blockPublicPages: Record<string, () => Promise<PublicPages>> = {
 export const blockPanels: Record<string, () => Promise<BlockPanels>> = {
   photos: async () => (await import("@grid/block-photos/ui")).panels,
   plans: async () => (await import("@grid/block-plans/ui")).panels,
+  markups: async () => (await import("@grid/block-markups/ui")).panels,
   quotes: async () => (await import("@grid/block-quotes/ui")).panels,
 };
 

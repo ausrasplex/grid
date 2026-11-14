@@ -2,15 +2,17 @@
 //   /b/photos/capture            the centre button's "Take a photo"
 //   /b/photos/report/<job>       printable before/after report
 //   panel "job.area"             Photos & notes on a job page
+//   panel "plans.viewer"         photo pins on a plan sheet (4b)
 
 import { can, notFound } from "@grid/core";
 import { db, getStorageSettings } from "@grid/db";
-import { type BlockPages, type BlockPanels } from "@grid/ui";
+import { type BlockPages, type BlockPanels, type PlanViewerPanelProps } from "@grid/ui";
 import { getProject, myActiveJobs, onSiteNow, type JobAreaPanelProps } from "@grid/block-projects";
-import { feed, listDeleted, type PhotoItem } from "../service";
+import { feed, listDeleted, pinsForSheet, type PhotoItem } from "../service";
 import { DeletedList, type DeletedRowJson } from "./DeletedList";
 import { Capture } from "./Capture";
 import { JobFeed, type Feed } from "./JobFeed";
+import { PhotoPins, type PinJson } from "./PhotoPins";
 import { Report } from "./Report";
 
 /** Dates → strings, the way they reach a client component anyway. */
@@ -43,6 +45,14 @@ export const pages: BlockPages = {
 };
 
 export const panels: BlockPanels = {
+  // Photo pins on a plan sheet.
+  "plans.viewer": async (props) => {
+    const { ctx, sheet, jobName } = props as typeof props & PlanViewerPanelProps;
+    if (!can(ctx, "photos.view")) return null;
+    const pins = await pinsForSheet(ctx, sheet.projectId, sheet.id);
+    return <PhotoPins projectId={sheet.projectId} jobName={jobName} initial={json<PinJson[]>(pins)} canAdd={can(ctx, "photos.add")} />;
+  },
+
   // Settings › Storage: Recently deleted photos and notes (managers).
   "storage.deleted": async ({ ctx }) => {
     if (!can(ctx, "photos.manage")) return null;

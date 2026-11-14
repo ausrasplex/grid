@@ -1,11 +1,12 @@
 // Plans pages and the panel on job pages.
 //   /b/plans/job/<projectId>            the job's sheets, upload
 //   /b/plans/sheet/<sheetId>[/<versionId>]  the viewer (current revision unless one is given)
+//   slot "plans.viewer"                 other Blocks draw on the sheet (markups, photo pins)
 //   panel "job.area"                    "Plans · 24 sheets", and the sheets for the level you're on
 
 import { FileStack } from "lucide-react";
 import { can } from "@grid/core";
-import type { BlockPages, BlockPanels } from "@grid/ui";
+import type { BlockPages, BlockPanels, PlanViewerPanelProps } from "@grid/ui";
 import { getProject, type JobAreaPanelProps } from "@grid/block-projects";
 import { getSheet, listSheets, sheetsForArea } from "../service";
 import { PlansList, type SheetRowJson } from "./PlansList";
@@ -19,7 +20,7 @@ export const pages: BlockPages = {
     const rows = await listSheets(ctx, job.id);
     return <PlansList projectId={job.id} jobName={job.name} initial={json<SheetRowJson[]>(rows)} canUpload={can(ctx, "plans.upload")} />;
   },
-  sheet: async ({ ctx, params: [sheetId, versionId] }) => {
+  sheet: async ({ ctx, params: [sheetId, versionId], panels }) => {
     const sheet = await getSheet(ctx, sheetId ?? "");
     const job = await getProject(ctx, sheet.projectId);
     const areas = job.areas.map((area) => ({
@@ -27,8 +28,15 @@ export const pages: BlockPages = {
       levelId: area.levelId,
       label: area.levelId ? (job.site.buildings.length > 1 ? `${area.buildingName} · ${area.levelName}` : area.levelName!) : area.buildingName,
     }));
+    // Markups, photo pins… drawn over the sheet by other Blocks.
+    const overlayProps: PlanViewerPanelProps = {
+      sheet: { id: sheet.id, projectId: sheet.projectId, number: sheet.number, buildingId: sheet.buildingId, levelId: sheet.levelId },
+      jobName: job.name,
+    };
+    const overlays = await panels("plans.viewer", { ...overlayProps });
     return (
       <Viewer
+        overlays={overlays}
         sheet={json<SheetJson>(sheet)}
         versionId={versionId && sheet.versions.some((version) => version.id === versionId) ? versionId : null}
         jobName={job.name}

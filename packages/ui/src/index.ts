@@ -1,5 +1,5 @@
 export * from "./types";
-export { cn } from "./lib/utils";
+export { cn, newId } from "./lib/utils";
 
 // shadcn/ui components
 export { Button, buttonVariants, type ButtonProps } from "./components/button";
@@ -22,3 +22,19 @@ export { Scroller, useOverflow } from "./scroller";
 // Client data helpers
 export { api, useApi, useAction, ApiError } from "./api";
 export { Segmented, SearchInput, SelectRow, formatBytes, whenRemoved } from "./controls";
+
+// The plan viewer's overlay (Plans provides it; Markups and Photos draw on it)
+export {
+  PlanLayer,
+  PlanOverlayProvider,
+  PlanToolButton,
+  toScreen,
+  usePlanOverlay,
+  usePlanPointer,
+  type PlanOverlayValue,
+  type PlanPointer,
+  type PlanVersionInfo,
+  type PlanView,
+  type PlanViewerPanelProps,
+  type SheetPoint,
+} from "./plan-overlay";

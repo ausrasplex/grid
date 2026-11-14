@@ -39,9 +39,15 @@ model JobPhoto {
   purgedAt    DateTime?
   restoredAt  DateTime?
   restoredById String?
+  /// Photo pin (4b): the plan sheet it's pinned to and where, in sheet
+  /// units (x 0 → 1 across the sheet). Pins stay put across revisions.
+  planSheetId String?
+  planX       Float?
+  planY       Float?
 
   @@index([projectId, takenAt])
   @@index([projectId, buildingId, levelId])
+  @@index([planSheetId])
 }
 
 model JobNote {
