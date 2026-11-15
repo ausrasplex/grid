@@ -4,6 +4,7 @@ import type { Routes } from "@grid/core";
 import * as svc from "./service";
 import {
   acceptSchema,
+  brandSchema,
   createQuoteSchema,
   declineSchema,
   priceItemSchema,
@@ -15,7 +16,12 @@ import {
 } from "./validation";
 
 const listQuery = z.object({ tab: z.enum(["open", "draft", "sent", "won", "all"]).optional(), q: z.string().max(200).optional() });
-const itemsQuery = z.object({ q: z.string().max(200).optional(), kind: z.enum(["LABOUR", "MATERIAL"]).optional() });
+const itemsQuery = z.object({
+  q: z.string().max(200).optional(),
+  kind: z.enum(["LABOUR", "MATERIAL"]).optional(),
+  /// A brand's id, or "none" for items without one.
+  brand: z.union([z.string().uuid(), z.literal("none")]).optional(),
+});
 const queryParams = (request: { query: URLSearchParams }) => Object.fromEntries(request.query);
 
 export const routes: Routes = {
@@ -31,6 +37,10 @@ export const routes: Routes = {
   "POST /items": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.savePriceItem(ctx, null, priceItemSchema.parse(request.body)) },
   "PUT /items/:id": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.savePriceItem(ctx, request.params.id!, priceItemSchema.parse(request.body)) },
   "DELETE /items/:id": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.deletePriceItem(ctx, request.params.id!) },
+  "GET /brands": { permission: "quotes.view", handler: (ctx) => svc.listBrands(ctx) },
+  "POST /brands": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.saveBrand(ctx, null, brandSchema.parse(request.body)) },
+  "PUT /brands/:id": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.saveBrand(ctx, request.params.id!, brandSchema.parse(request.body)) },
+  "DELETE /brands/:id": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.deleteBrand(ctx, request.params.id!) },
 
   // Quotes
   "GET /": { permission: "quotes.view", handler: (ctx, request) => svc.listQuotes(ctx, listQuery.parse(queryParams(request))) },

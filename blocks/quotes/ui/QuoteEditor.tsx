@@ -92,6 +92,7 @@ interface PriceItemJson {
   cost: number | null;
   sell: number;
   taxCodeId: string | null;
+  brand: string | null;
   favourite: boolean;
 }
 
@@ -675,7 +676,7 @@ function PriceBookPicker({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{item.name}</span>
                     <span className="block text-sm text-muted-foreground">
-                      {item.kind === "LABOUR" ? "Labour" : "Material"} · {shown(item)} / {item.unit}
+                      {item.kind === "LABOUR" ? "Labour" : "Material"} · {shown(item)} / {item.unit}{item.brand ? ` · ${item.brand}` : ""}
                     </span>
                   </span>
                   {added.includes(item.id) ? <Badge variant="success">Added{added.filter((addedId) => addedId === item.id).length > 1 ? ` ×${added.filter((addedId) => addedId === item.id).length}` : ""}</Badge> : <Plus className="size-5 text-primary" />}

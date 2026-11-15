@@ -16,6 +16,7 @@ import { totalsFor, type QuoteSnapshot } from "./snapshot";
 
 export type { QuoteSnapshot } from "./snapshot";
 import type {
+  BrandInput,
   CreateQuoteInput,
   PriceItemInput,
   SendInput,
@@ -109,8 +110,14 @@ export async function saveTaxCode(ctx: RequestContext, id: string | null, input:
 // Price book
 // ---------------------------------------------------------------------
 
-function priceItemView(item: Prisma.PriceItemGetPayload<object>, showCost: boolean) {
+type PriceItemWithBrand = Prisma.PriceItemGetPayload<{ include: { brand: { select: { name: true; deletedAt: true } } } }>;
+const withBrand = { brand: { select: { name: true, deletedAt: true } } } as const;
+
+function priceItemView(item: PriceItemWithBrand, showCost: boolean) {
+  const brand = item.brand && !item.brand.deletedAt ? item.brand : null;
   return {
+    brandId: brand ? item.brandId : null,
+    brand: brand?.name ?? null,
     id: item.id,
     kind: item.kind,
     name: item.name,
@@ -124,7 +131,7 @@ function priceItemView(item: Prisma.PriceItemGetPayload<object>, showCost: boole
   };
 }
 
-export async function listPriceItems(ctx: RequestContext, options: { q?: string; kind?: "LABOUR" | "MATERIAL" } = {}) {
+export async function listPriceItems(ctx: RequestContext, options: { q?: string; kind?: "LABOUR" | "MATERIAL"; brand?: string } = {}) {
   const companyId = requireCompany(ctx);
   const words = (options.q ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 5);
   const rows = await db.priceItem.findMany({
@@ -132,14 +139,21 @@ export async function listPriceItems(ctx: RequestContext, options: { q?: string;
       companyId,
       deletedAt: null,
       ...(options.kind ? { kind: options.kind } : {}),
+      ...(options.brand === "none"
+        ? { OR: [{ brandId: null }, { brand: { deletedAt: { not: null } } }] }
+        : options.brand
+          ? { brandId: options.brand, brand: { deletedAt: null } }
+          : {}),
       AND: words.map((word) => ({
         OR: [
           { name: { contains: word, mode: "insensitive" as const } },
           { supplierCode: { contains: word, mode: "insensitive" as const } },
           { supplier: { contains: word, mode: "insensitive" as const } },
+          { brand: { name: { contains: word, mode: "insensitive" as const }, deletedAt: null } },
         ],
       })),
     },
+    include: withBrand,
     orderBy: [{ favourite: "desc" }, { name: "asc" }],
     take: 300,
   });
@@ -150,13 +164,15 @@ export async function listPriceItems(ctx: RequestContext, options: { q?: string;
 export async function savePriceItem(ctx: RequestContext, id: string | null, input: PriceItemInput) {
   const companyId = requireCompany(ctx);
   return db.$transaction(async (tx) => {
+    // The brand must be one of this business's own.
+    if (input.brandId && !(await tx.priceBrand.count({ where: { id: input.brandId, companyId, deletedAt: null } }))) throw notFound("Brand not found");
     let item;
     if (id) {
       const result = await tx.priceItem.updateMany({ where: { id, companyId, deletedAt: null }, data: input });
       if (!result.count) throw notFound("Price book item not found");
-      item = await tx.priceItem.findUniqueOrThrow({ where: { id } });
+      item = await tx.priceItem.findUniqueOrThrow({ where: { id }, include: withBrand });
     } else {
-      item = await tx.priceItem.create({ data: { companyId, ...input } });
+      item = await tx.priceItem.create({ data: { companyId, ...input }, include: withBrand });
     }
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "PriceItem", entityId: item.id, action: id ? "updated" : "created", diff: input as Prisma.InputJsonValue });
     return priceItemView(item, true);
@@ -168,6 +184,50 @@ export async function deletePriceItem(ctx: RequestContext, id: string) {
   const result = await db.priceItem.updateMany({ where: { id, companyId, deletedAt: null }, data: { deletedAt: new Date() } });
   if (!result.count) throw notFound("Price book item not found");
   return { id, deleted: true };
+}
+
+// Brands (Clipsal, HPM…): a list per business that price book items pick from.
+
+/** The business's brands, A–Z, with how many price book items use each. */
+export async function listBrands(ctx: RequestContext) {
+  const companyId = requireCompany(ctx);
+  const brands = await db.priceBrand.findMany({
+    where: { companyId, deletedAt: null },
+    select: { id: true, name: true, _count: { select: { items: { where: { deletedAt: null } } } } },
+    orderBy: { name: "asc" },
+  });
+  return brands.map((brand) => ({ id: brand.id, name: brand.name, items: brand._count.items }));
+}
+
+export async function saveBrand(ctx: RequestContext, id: string | null, input: BrandInput) {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    const same = await tx.priceBrand.findFirst({ where: { companyId, deletedAt: null, name: { equals: input.name, mode: "insensitive" }, ...(id ? { id: { not: id } } : {}) } });
+    if (same) throw conflict(`There's already a brand called ${same.name}.`);
+    let brand;
+    if (id) {
+      const result = await tx.priceBrand.updateMany({ where: { id, companyId, deletedAt: null }, data: { name: input.name } });
+      if (!result.count) throw notFound("Brand not found");
+      brand = await tx.priceBrand.findUniqueOrThrow({ where: { id } });
+    } else {
+      brand = await tx.priceBrand.create({ data: { companyId, name: input.name } });
+    }
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "PriceBrand", entityId: brand.id, action: id ? "updated" : "created", diff: { name: input.name } });
+    return { id: brand.id, name: brand.name };
+  });
+}
+
+/** Removes a brand from the list. Its items stay in the price book, without a brand. */
+export async function deleteBrand(ctx: RequestContext, id: string) {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    const brand = await tx.priceBrand.findFirst({ where: { id, companyId, deletedAt: null } });
+    if (!brand) throw notFound("Brand not found");
+    await tx.priceBrand.update({ where: { id }, data: { deletedAt: new Date() } });
+    const items = await tx.priceItem.updateMany({ where: { brandId: id, companyId }, data: { brandId: null } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "PriceBrand", entityId: id, action: "deleted", diff: { name: brand.name, items: items.count } });
+    return { id, deleted: true };
+  });
 }
 
 // ---------------------------------------------------------------------

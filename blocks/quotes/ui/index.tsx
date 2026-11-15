@@ -17,10 +17,10 @@ import { getSite } from "@grid/block-sites";
 import type { PlaceSite } from "@grid/block-sites/components";
 import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
 import { formatMoney } from "../money";
-import { getQuote, getTaxSettings, listPriceItems, listQuotes, quoteForJob } from "../service";
+import { getQuote, getTaxSettings, listBrands, listPriceItems, listQuotes, quoteForJob } from "../service";
 import { CustomerQuote, type CustomerViewJson } from "./CustomerQuote";
 import { NewQuote } from "./NewQuote";
-import { PriceBook, type PriceItemRow } from "./PriceBook";
+import { PriceBook, type BrandRow, type PriceItemRow } from "./PriceBook";
 import { QuoteEditor, type QuoteJson } from "./QuoteEditor";
 import { QuotesList, type QuoteRowJson } from "./QuotesList";
 import { StatusBadge } from "./StatusBadge";
@@ -77,10 +77,11 @@ export const pages: BlockPages = {
   },
 
   "price-book": async ({ ctx }) => {
-    const [items, settings] = await Promise.all([listPriceItems(ctx), getTaxSettings(ctx)]);
+    const [items, brands, settings] = await Promise.all([listPriceItems(ctx), listBrands(ctx), getTaxSettings(ctx)]);
     return (
       <PriceBook
         initial={json<PriceItemRow[]>(items)}
+        initialBrands={brands satisfies BrandRow[]}
         codes={settings.codes}
         defaultTaxCodeId={settings.defaultTaxCodeId}
         taxName={settings.taxName}

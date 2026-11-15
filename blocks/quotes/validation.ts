@@ -52,9 +52,12 @@ export const priceItemSchema = z
     taxCodeId: uuid.nullable(),
     supplier: optText(100),
     supplierCode: optText(100),
+    brandId: uuid.nullable().default(null),
     favourite: z.boolean().default(false),
   })
   .strict();
+
+export const brandSchema = z.object({ name: z.string().trim().min(1).max(60) }).strict();
 
 export const createQuoteSchema = z
   .object({
@@ -146,6 +149,7 @@ export const declineSchema = z.object({ reason: z.string().trim().max(2000).opti
 export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
 export type TaxCodeInput = z.infer<typeof taxCodeSchema>;
 export type PriceItemInput = z.infer<typeof priceItemSchema>;
+export type BrandInput = z.infer<typeof brandSchema>;
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export type UploadQuoteInput = z.infer<typeof uploadQuoteSchema>;
 export type UpdateQuoteInput = z.infer<typeof updateQuoteSchema>;

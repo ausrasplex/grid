@@ -73,6 +73,9 @@ model PriceItem {
   taxCodeId    String?
   supplier     String?
   supplierCode String?
+  /// The make (Clipsal, HPM…), from the business's Brands list.
+  brandId      String?
+  brand        PriceBrand?   @relation(fields: [brandId], references: [id], onDelete: SetNull)
   /// Shown first when adding to a quote on the phone.
   favourite    Boolean       @default(false)
   createdAt    DateTime      @default(now())
@@ -80,6 +83,21 @@ model PriceItem {
   deletedAt    DateTime?
 
   @@index([companyId, kind])
+  @@index([brandId])
+}
+
+/// A make you buy (Clipsal, HPM, Schneider…). Price book items pick one and
+/// the price book filters by it. Removing a brand leaves its items unbranded.
+model PriceBrand {
+  id        String      @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  deletedAt DateTime?
+  items     PriceItem[]
+
+  @@index([companyId])
 }
 
 model Quote {

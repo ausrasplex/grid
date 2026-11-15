@@ -17,6 +17,7 @@ const THINGS: Record<string, string> = {
   User: "account",
   StoredFile: "file",
   PriceItem: "price book item",
+  PriceBrand: "price book brand",
   TaxCode: "tax code",
   SignRequest: "signing link",
 };
