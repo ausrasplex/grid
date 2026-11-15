@@ -420,9 +420,10 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
           </ul>
         </Scroller>
         {soft ? (
-          <button type="button" onClick={signOut} className="flex min-h-touch items-center gap-3 rounded-xl px-3.5 text-left text-[15px] font-medium text-nav-foreground hover:bg-card">
+          // The same look as the menu items above (sidebarItem), as a button.
+          <button type="button" onClick={signOut} className={cn(sidebarItem(false, true), "w-full text-left")}>
             <LogOut aria-hidden className="size-5" />
-            Log out
+            <span className="truncate">Log out</span>
           </button>
         ) : (
         <AccountSheet
