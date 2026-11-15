@@ -1,19 +1,20 @@
 "use client";
 
-// Profile › Sign-in & devices: set or change your password, and see and
+// Settings › Sign-in & devices: set or change your password, and see and
 // sign out the devices you're signed in on.
 
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Field, Icon, List, ListRow, Loading, Section, Stack, api, describeDevice, useAction } from "@grid/ui";
+import { useEffect, useState } from "react";
+import { Alert, Button, Field, Icon, List, ListRow, Loading, Section, Stack, api, describeDevice, useAction, useApi } from "@grid/ui";
 import { authClient } from "@/lib/auth-client";
 
 interface Device {
   id: string;
-  token: string;
-  userAgent?: string | null;
-  ipAddress?: string | null;
-  createdAt: Date | string;
-  updatedAt: Date | string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** The device you're using now. */
+  current: boolean;
 }
 
 const when = (value: Date | string) =>
@@ -106,25 +107,21 @@ function PasswordSection() {
   );
 }
 
+/** Your devices (our own /api/session/devices: Better Auth's list refuses sign-ins older than a day). */
 function DevicesSection() {
-  const [devices, setDevices] = useState<Device[] | null>(null);
-  const [thisToken, setThisToken] = useState<string | null>(null);
+  const { data, error, reload } = useApi<{ devices: Device[] }>("/session/devices");
   const action = useAction();
+  const signOut = (body: { sessionId: string } | { others: true }) =>
+    action.run(async () => {
+      await api("/session/devices", { method: "DELETE", body });
+      await reload();
+      return true;
+    });
 
-  const load = useCallback(async () => {
-    const [{ data: list }, { data: session }] = await Promise.all([authClient.listSessions(), authClient.getSession()]);
-    setThisToken(session?.session.token ?? null);
-    setDevices(
-      ((list ?? []) as Device[]).sort((first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()),
-    );
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  if (!devices) return <Loading rows={3} />;
-  const others = devices.filter((device) => device.token !== thisToken);
+  if (error && !data) return <Alert variant="error">Couldn&apos;t load your devices: {error}</Alert>;
+  if (!data) return <Loading rows={3} />;
+  const devices = data.devices;
+  const others = devices.filter((device) => !device.current);
 
   return (
     <Section
@@ -137,7 +134,7 @@ function DevicesSection() {
             variant="outline"
             size="sm"
             disabled={action.busy}
-            onClick={() => action.run(async () => (await authClient.revokeOtherSessions(), await load(), true))}
+            onClick={() => signOut({ others: true })}
           >
             Sign out others
           </Button>
@@ -154,14 +151,20 @@ function DevicesSection() {
                 {describeDevice(device.userAgent)}
               </span>
             }
-            meta={device.token === thisToken ? "This device" : `Last used ${when(device.updatedAt)} · signed in ${when(device.createdAt)}`}
+            meta={[
+              device.current ? "This device" : `Last used ${when(device.updatedAt)}`,
+              `signed in ${when(device.createdAt)}`,
+              device.ipAddress ? `IP ${device.ipAddress}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
             actions={
-              device.token === thisToken ? undefined : (
+              device.current ? undefined : (
                 <Button
                   variant="ghost"
                   size="sm"
                   disabled={action.busy}
-                  onClick={() => action.run(async () => (await authClient.revokeSession({ token: device.token }), await load(), true))}
+                  onClick={() => signOut({ sessionId: device.id })}
                 >
                   Sign out
                 </Button>
