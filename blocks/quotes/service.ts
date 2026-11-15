@@ -40,19 +40,31 @@ async function emit(event: string, payload: unknown, ctx: RequestContext) {
 /** The company's tax settings, created with Australian defaults the first time. */
 export async function taxSettings(companyId: string, tx: Tx = db) {
   let taxSettings = await tx.taxSettings.findUnique({ where: { companyId } });
-  let codes = await tx.taxCode.findMany({ where: { companyId }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] });
   if (!taxSettings) {
-    if (!codes.length) {
-      await tx.taxCode.createMany({
-        data: [
-          { companyId, name: "GST 10%", label: "GST", rate: 0.1, sort: 0 },
-          { companyId, name: "GST-free", label: "GST-free", rate: 0, sort: 1 },
-        ],
-      });
-      codes = await tx.taxCode.findMany({ where: { companyId }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] });
-    }
-    taxSettings = await tx.taxSettings.create({ data: { companyId, defaultTaxCodeId: codes[0]?.id ?? null } });
+    // First use: set up GST 10% and GST-free. Several parts of one page
+    // (Home's Quotes tile and "Needs attention") can get here at the same
+    // moment, so take a lock for this business and check again inside it:
+    // the second one waits, then finds the settings already made.
+    const setUp = async (lockTx: Tx) => {
+      await lockTx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`tax-settings:${companyId}`}))`;
+      const existing = await lockTx.taxSettings.findUnique({ where: { companyId } });
+      if (existing) return existing;
+      let codes = await lockTx.taxCode.findMany({ where: { companyId }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] });
+      if (!codes.length) {
+        await lockTx.taxCode.createMany({
+          data: [
+            { companyId, name: "GST 10%", label: "GST", rate: 0.1, sort: 0 },
+            { companyId, name: "GST-free", label: "GST-free", rate: 0, sort: 1 },
+          ],
+        });
+        codes = await lockTx.taxCode.findMany({ where: { companyId }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] });
+      }
+      return lockTx.taxSettings.create({ data: { companyId, defaultTaxCodeId: codes[0]?.id ?? null } });
+    };
+    // Already inside a transaction: lock in it (held until it finishes). Otherwise a short one of our own.
+    taxSettings = tx === db ? await db.$transaction((lockTx) => setUp(lockTx)) : await setUp(tx);
   }
+  const codes = await tx.taxCode.findMany({ where: { companyId }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] });
   return { ...taxSettings, codes: codes.map((code) => ({ id: code.id, name: code.name, label: code.label, rate: Number(code.rate), ratePct: Number(code.rate) * 100, active: code.active })) };
 }
 

@@ -79,7 +79,12 @@ export async function resolvePanels(ctx: RequestContext, slot: string, props: Re
     if (!load || !(block.required || ctx.enabledBlocks.has(block.id))) continue;
     const Panel = (await load())[slot];
     if (!Panel) continue;
-    const node = await Panel({ ctx, ...props });
+    // One Block's tile failing mustn't take the whole page down: leave it
+    // out and put the error in the log (Unraid › Grid › Logs).
+    const node = await Promise.resolve(Panel({ ctx, ...props })).catch((error: unknown) => {
+      console.error(`[panels] ${block.id} "${slot}" failed`, error);
+      return null;
+    });
     if (node !== null && node !== undefined && node !== false) out.push({ blockId: block.id, node });
   }
   return out;
