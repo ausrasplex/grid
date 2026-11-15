@@ -192,12 +192,12 @@ function CodeSheet({ code, others, onClose, onSaved }: { code: Partial<Code>; ot
           </label>
           <Alert variant="error">{action.error}</Alert>
           <FormActions>
-            {code.id && <DeleteRate id={code.id} others={others} busy={action.busy} onDeleted={onSaved} />}
             <Button type="submit" disabled={action.busy}>
               Save
             </Button>
           </FormActions>
         </form>
+        {code.id && <DeleteRate id={code.id} others={others} busy={action.busy} onDeleted={onSaved} />}
       </SheetContent>
     </Sheet>
   );
@@ -210,19 +210,26 @@ function DeleteRate({ id, others, busy, onDeleted }: { id: string; others: Code[
   const action = useAction();
   if (!usage) {
     return (
-      <Button type="button" variant="ghost" className="text-destructive" disabled={busy || action.busy} onClick={() => void action.run(async () => setUsage(await api(`/quotes/settings/codes/${id}/usage`)))}>
-        Delete
-      </Button>
+      <div className="mt-2 border-t px-2 pt-3">
+        <Button type="button" variant="ghost" className="text-destructive" disabled={busy || action.busy} onClick={() => void action.run(async () => setUsage(await api(`/quotes/settings/codes/${id}/usage`)))}>
+          Delete this rate
+        </Button>
+        <Alert variant="error">{action.error}</Alert>
+      </div>
     );
   }
-  const used = [usage.priceItems && `${usage.priceItems} price book ${usage.priceItems === 1 ? "item" : "items"}`, usage.draftQuotes && `${usage.draftQuotes} draft ${usage.draftQuotes === 1 ? "quote" : "quotes"}`, usage.isDefault && "the default"].filter(Boolean);
+  const used = [usage.priceItems && `${usage.priceItems} price book ${usage.priceItems === 1 ? "item" : "items"}`, usage.draftQuotes && `${usage.draftQuotes} draft ${usage.draftQuotes === 1 ? "quote" : "quotes"}`].filter(Boolean) as string[];
+  const said = [used.length ? `It's used by ${used.join(" and ")}.` : "", usage.isDefault ? "It's the default for new lines." : ""].filter(Boolean).join(" ");
+  const moving = used.length > 0 || usage.isDefault;
   return (
-    <div className="flex w-full flex-col gap-3 rounded-lg bg-muted p-3">
-      {used.length > 0 && (
+    <div className="mx-2 mt-3 flex flex-col gap-3 rounded-lg bg-muted p-3">
+      {moving ? (
         <>
-          <p className="text-sm">It&apos;s used by {used.join(", ")}.</p>
-          <SelectField label="Move them to" value={moveTo} onChange={(event) => setMoveTo(event.target.value)} options={[...others.map((other) => ({ value: other.id, label: other.name })), { value: "", label: "No tax" }]} />
+          <p className="text-sm">{said}</p>
+          <SelectField label="Use this rate instead" value={moveTo} onChange={(event) => setMoveTo(event.target.value)} options={[...others.map((other) => ({ value: other.id, label: other.name })), { value: "", label: "No tax" }]} />
         </>
+      ) : (
+        <p className="text-sm">Nothing uses it. Delete it?</p>
       )}
       <Alert variant="error">{action.error}</Alert>
       <Button
@@ -230,7 +237,7 @@ function DeleteRate({ id, others, busy, onDeleted }: { id: string; others: Code[
         variant="destructive"
         disabled={action.busy}
         onClick={async () => {
-          const result = await action.run(() => api<TaxSettingsJson>(`/quotes/settings/codes/${id}${used.length && moveTo ? `?moveTo=${moveTo}` : ""}`, { method: "DELETE" }));
+          const result = await action.run(() => api<TaxSettingsJson>(`/quotes/settings/codes/${id}${moving && moveTo ? `?moveTo=${moveTo}` : ""}`, { method: "DELETE" }));
           if (result) onDeleted(result);
         }}
       >

@@ -89,6 +89,7 @@ Owners set their own tax naming and rules in company settings; nothing is hard-c
   - Australia: `GST 10%`, `GST-free 0%`
   - UK: `VAT standard 20%`, `VAT reduced 5%`, `Zero-rated 0%`, `Exempt`
 - **Default tax code** for new lines; each **price item, assembly and quote line can carry its own tax code** (e.g. GST-free items).
+- **Deleting a tax rate** (built November 2026): the rate's sheet has **Delete**, which first shows what uses it (price book items, draft quotes, the default). Those move to another rate you pick, or to No tax. The rate is then hidden (`TaxCode.deletedAt`) but kept, so quotes already sent with it still add up; their PDFs never change anyway. "In use" off still just hides a rate from the pickers. Routes: `GET /api/quotes/settings/codes/:id/usage`, `DELETE /api/quotes/settings/codes/:id?moveTo=<rate id>` (left out means No tax).
 - **Prices entered as tax-exclusive or tax-inclusive** (company default, overridable per quote, e.g. inclusive for homeowners, exclusive for builders).
 - **Business registration label and number** printed on quotes: e.g. "ABN", "VAT No.", "GST No.", "EIN".
 - **Currency and number format:** currency code/symbol and locale (e.g. AUD `$1,234.56`, GBP `£1,234.56`, EUR `1.234,56 €`).
