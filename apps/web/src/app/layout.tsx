@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { themeAttributes, themeColour } from "@grid/ui";
 import { getContext } from "@/lib/context";
 import "./globals.css";
+
+/** The Soft look's font (styles.css "Soft look"). The Grid look keeps the system font. */
+const softFont = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-soft", preload: false });
 
 export const metadata: Metadata = {
   title: "Grid",
@@ -29,7 +33,7 @@ export async function generateViewport(): Promise<Viewport> {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en-AU" {...themeAttributes(await theme())}>
+    <html lang="en-AU" className={softFont.variable} {...themeAttributes(await theme())}>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

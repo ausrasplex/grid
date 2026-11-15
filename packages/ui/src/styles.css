@@ -88,120 +88,126 @@
   --nav-foreground: oklch(0.42 0.015 260);
 }
 /* ---------- Soft look (Settings › Profile › Appearance) ----------
- * Light grey page, white cards, navy and pastel tiles, big rounded corners
- * and pill buttons. soft = light, soft-dark, soft-system follows the device.
- * data-look="soft" (set with any Soft theme) gives the shapes. */
+ * Folio's "Lilac" theme, values copied from Folio's docs/SPEC.md
+ * ("Design system"): light grey page, white cards, navy hero and buttons,
+ * lilac, peach and lime tiles, Plus Jakarta Sans, big rounded corners and
+ * pill buttons. soft = light, soft-dark, soft-system follows the device.
+ * data-look="soft" (set with any Soft theme) gives the shapes and font. */
 :root[data-theme="soft"],
 :root[data-theme="soft-system"] {
   color-scheme: light;
-  --background: oklch(0.973 0.004 285); /* light grey page */
-  --foreground: oklch(0.26 0.05 285); /* navy text */
-  --card: oklch(1 0 0);
+  --background: #f1f1f4; /* bg */
+  --foreground: #1f1c3b; /* ink */
+  --card: #ffffff; /* surface */
   --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
+  --popover: #ffffff;
   --popover-foreground: var(--foreground);
-  --muted: oklch(0.955 0.006 285);
-  --muted-foreground: oklch(0.5 0.025 285);
-  --border: oklch(0.92 0.007 285);
-  --input: oklch(0.88 0.01 285);
-  --ring: oklch(0.6 0.16 290);
-  --primary: oklch(0.29 0.06 285); /* dark navy: main buttons, hero card */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.955 0.006 285);
+  --muted: #f7f7fa; /* surface2: inputs, hover, option rows */
+  --muted-foreground: #6b6985;
+  --border: #ececf2; /* line */
+  --input: color-mix(in srgb, #1f1c3b 20%, transparent); /* outline: ink at 20% */
+  --ring: #7b5cf5; /* sel */
+  --primary: #2b2849;
+  --primary-foreground: #ffffff;
+  --secondary: #f7f7fa;
   --secondary-foreground: var(--foreground);
-  --accent: oklch(0.93 0.045 295); /* soft lavender: highlighted rows */
-  --accent-foreground: oklch(0.29 0.06 285);
-  --destructive: oklch(0.58 0.2 25);
-  --destructive-foreground: oklch(1 0 0);
-  --success: oklch(0.58 0.14 155);
-  --warning: oklch(0.75 0.15 75);
-  --info: oklch(0.58 0.13 260);
+  --accent: color-mix(in srgb, #b8a5fa 30%, #ffffff); /* navOn: a1 30% into surface */
+  --accent-foreground: #1f1c3b;
+  --destructive: #c9352f;
+  --destructive-foreground: #ffffff;
+  --success: oklch(0.55 0.13 155);
+  --warning: oklch(0.7 0.15 70);
+  --info: oklch(0.55 0.15 265);
   --nav: var(--background);
-  --nav-foreground: oklch(0.45 0.03 285);
-  --nav-active: oklch(0.29 0.06 285);
-  --dock: oklch(1 0 0);
-  --hero: oklch(0.29 0.06 285);
-  --hero-foreground: oklch(1 0 0);
-  --tile-1: oklch(0.8 0.1 295); /* lavender */
-  --tile-2: oklch(0.9 0.065 65); /* peach */
-  --tile-3: oklch(0.93 0.19 118); /* lime */
-  --tile-foreground: oklch(0.26 0.05 285);
+  --nav-foreground: #6b6985;
+  --nav-active: #2b2849;
+  --dock: #ffffff;
+  --hero: #2b2849;
+  --hero-foreground: #ffffff;
+  --tile-1: #b8a5fa; /* a1 lilac */
+  --tile-2: #fddcb4; /* a2 peach */
+  --tile-3: #e8fb4f; /* a3 lime */
+  --tile-foreground: #1f1c3b; /* onA */
 }
 :root[data-theme="soft-dark"] {
   color-scheme: dark;
-  --background: oklch(0.165 0.02 285); /* deep navy page */
-  --foreground: oklch(0.96 0.006 285);
-  --card: oklch(0.215 0.025 285);
+  --background: #14122a;
+  --foreground: #f1f0fb;
+  --card: #1f1d3a;
   --card-foreground: var(--foreground);
-  --popover: oklch(0.235 0.027 285);
+  --popover: #1f1d3a;
   --popover-foreground: var(--foreground);
-  --muted: oklch(0.27 0.028 285);
-  --muted-foreground: oklch(0.76 0.02 285);
-  --border: oklch(0.3 0.026 285);
-  --input: oklch(0.37 0.028 285);
-  --ring: oklch(0.8 0.1 295);
-  --primary: oklch(0.8 0.1 295); /* lavender: main buttons */
-  --primary-foreground: oklch(0.22 0.05 285);
-  --secondary: oklch(0.27 0.028 285);
+  --muted: #28254a;
+  --muted-foreground: #a9a7c2;
+  --border: #302d52;
+  --input: color-mix(in srgb, #f1f0fb 20%, transparent);
+  --ring: #b8a5fa;
+  --primary: #b8a5fa; /* lilac: main buttons */
+  --primary-foreground: #1f1c3b;
+  --secondary: #28254a;
   --secondary-foreground: var(--foreground);
-  --accent: oklch(0.32 0.06 295);
-  --accent-foreground: oklch(0.9 0.06 295);
-  --destructive: oklch(0.72 0.17 25);
-  --destructive-foreground: oklch(0.2 0.04 25);
-  --success: oklch(0.78 0.14 155);
+  --accent: color-mix(in srgb, #b8a5fa 30%, #1f1d3a);
+  --accent-foreground: #f1f0fb;
+  --destructive: #ff8f8f;
+  --destructive-foreground: #1f1c3b;
+  --success: oklch(0.8 0.13 155);
   --warning: oklch(0.86 0.14 85);
-  --info: oklch(0.78 0.1 260);
+  --info: oklch(0.78 0.1 265);
   --nav: var(--background);
-  --nav-foreground: oklch(0.76 0.02 285);
-  --nav-active: oklch(0.8 0.1 295);
-  --dock: oklch(0.215 0.025 285);
-  --hero: oklch(0.27 0.065 285);
-  --hero-foreground: oklch(1 0 0);
-  --tile-1: oklch(0.8 0.1 295);
-  --tile-2: oklch(0.88 0.07 65);
-  --tile-3: oklch(0.92 0.18 118);
-  --tile-foreground: oklch(0.24 0.05 285);
+  --nav-foreground: #a9a7c2;
+  --nav-active: #b8a5fa;
+  --dock: #1f1d3a;
+  --hero: #34306a;
+  --hero-foreground: #ffffff;
+  --tile-1: #b8a5fa;
+  --tile-2: #fddcb4;
+  --tile-3: #e8fb4f;
+  --tile-foreground: #1f1c3b;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme="soft-system"] {
     color-scheme: dark;
-    --background: oklch(0.165 0.02 285); /* deep navy page */
-    --foreground: oklch(0.96 0.006 285);
-    --card: oklch(0.215 0.025 285);
+    --background: #14122a;
+    --foreground: #f1f0fb;
+    --card: #1f1d3a;
     --card-foreground: var(--foreground);
-    --popover: oklch(0.235 0.027 285);
+    --popover: #1f1d3a;
     --popover-foreground: var(--foreground);
-    --muted: oklch(0.27 0.028 285);
-    --muted-foreground: oklch(0.76 0.02 285);
-    --border: oklch(0.3 0.026 285);
-    --input: oklch(0.37 0.028 285);
-    --ring: oklch(0.8 0.1 295);
-    --primary: oklch(0.8 0.1 295); /* lavender: main buttons */
-    --primary-foreground: oklch(0.22 0.05 285);
-    --secondary: oklch(0.27 0.028 285);
+    --muted: #28254a;
+    --muted-foreground: #a9a7c2;
+    --border: #302d52;
+    --input: color-mix(in srgb, #f1f0fb 20%, transparent);
+    --ring: #b8a5fa;
+    --primary: #b8a5fa; /* lilac: main buttons */
+    --primary-foreground: #1f1c3b;
+    --secondary: #28254a;
     --secondary-foreground: var(--foreground);
-    --accent: oklch(0.32 0.06 295);
-    --accent-foreground: oklch(0.9 0.06 295);
-    --destructive: oklch(0.72 0.17 25);
-    --destructive-foreground: oklch(0.2 0.04 25);
-    --success: oklch(0.78 0.14 155);
+    --accent: color-mix(in srgb, #b8a5fa 30%, #1f1d3a);
+    --accent-foreground: #f1f0fb;
+    --destructive: #ff8f8f;
+    --destructive-foreground: #1f1c3b;
+    --success: oklch(0.8 0.13 155);
     --warning: oklch(0.86 0.14 85);
-    --info: oklch(0.78 0.1 260);
+    --info: oklch(0.78 0.1 265);
     --nav: var(--background);
-    --nav-foreground: oklch(0.76 0.02 285);
-    --nav-active: oklch(0.8 0.1 295);
-    --dock: oklch(0.215 0.025 285);
-    --hero: oklch(0.27 0.065 285);
-    --hero-foreground: oklch(1 0 0);
-    --tile-1: oklch(0.8 0.1 295);
-    --tile-2: oklch(0.88 0.07 65);
-    --tile-3: oklch(0.92 0.18 118);
-    --tile-foreground: oklch(0.24 0.05 285);
+    --nav-foreground: #a9a7c2;
+    --nav-active: #b8a5fa;
+    --dock: #1f1d3a;
+    --hero: #34306a;
+    --hero-foreground: #ffffff;
+    --tile-1: #b8a5fa;
+    --tile-2: #fddcb4;
+    --tile-3: #e8fb4f;
+    --tile-foreground: #1f1c3b;
   }
 }
 :root[data-look="soft"] {
-  --radius: 1rem; /* cards 20px, sheets 24px, inputs 12px */
+  /* inputs 12px, menus and tiles 16px, cards 20px, sheets and page cards 24px */
+  --radius: 1rem;
   --radius-button: 9999px; /* pill buttons */
+}
+:root[data-look="soft"] body {
+  font-family: var(--font-soft), system-ui, sans-serif;
 }
 /* Plans and PDFs stay on paper in every theme. */
 :root[data-look="soft"] .paper {

@@ -87,7 +87,7 @@ export function AttentionRow({
 /** The "Needs attention" card around AttentionRows. */
 export function AttentionList({ children, subtitle }: { children: ReactNode; subtitle?: string }) {
   return (
-    <section className="overflow-hidden rounded-2xl bg-card">
+    <section className="overflow-hidden rounded-[24px] bg-card">
       <div className="px-4 pt-5 pb-2 sm:px-6">
         <h2 className="text-xl font-semibold tracking-tight">Needs attention</h2>
         {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}

@@ -126,7 +126,7 @@ async function SoftHome({ ctx, firstName }: { ctx: AppContext; firstName: string
     <div className="flex flex-col gap-5">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <h1 className="text-[1.625rem] leading-tight font-bold tracking-[-0.02em]">
             {greeting()}, {firstName}
           </h1>
           <p className="mt-1 text-muted-foreground">{new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
@@ -140,10 +140,10 @@ async function SoftHome({ ctx, firstName }: { ctx: AppContext; firstName: string
       </header>
 
       {/* Hero: the headline on the left, numbered tiles on the right */}
-      <section className="grid gap-4 rounded-3xl bg-hero p-5 text-hero-foreground sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:items-center lg:gap-6">
+      <section className="grid gap-4 rounded-[18px] bg-hero p-5 text-hero-foreground sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:items-center lg:gap-6">
         <div className="px-1 py-2 lg:py-6">
           <p className="text-sm opacity-80">Across your jobs</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+          <p className="mt-2 text-[1.625rem] leading-tight font-bold tracking-[-0.02em]">
             {counts.jobs
               ? `${counts.jobs} active job${counts.jobs === 1 ? "" : "s"} on ${counts.sites} site${counts.sites === 1 ? "" : "s"}.`
               : "No active jobs yet."}
@@ -160,7 +160,7 @@ async function SoftHome({ ctx, firstName }: { ctx: AppContext; firstName: string
         {shownTiles.length > 0 && (
           <div className={cn("grid gap-3", shownTiles.length === 3 ? "sm:grid-cols-3" : shownTiles.length === 2 ? "sm:grid-cols-2" : "")}>
             {shownTiles.map((tile, index) => (
-              <div key={tile.blockId} className={cn("flex min-h-32 flex-col rounded-2xl p-4 sm:min-h-44 text-tile-foreground", TILE_COLOURS[index])}>
+              <div key={tile.blockId} className={cn("flex min-h-32 flex-col rounded-[16px] p-4 sm:min-h-44 text-tile-foreground", TILE_COLOURS[index])}>
                 <span className="mb-3 text-xs font-medium opacity-70">{String(index + 1).padStart(2, "0")}</span>
                 <div className="flex-1">{tile.node}</div>
               </div>
@@ -193,7 +193,7 @@ async function SoftHome({ ctx, firstName }: { ctx: AppContext; firstName: string
 
 function SoftCard({ title, subtitle, href, linkLabel, children }: { title: string; subtitle?: string; href?: string; linkLabel?: string; children: ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-2xl bg-card">
+    <section className="overflow-hidden rounded-[24px] bg-card">
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-2">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold tracking-tight">{title}</h2>

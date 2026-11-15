@@ -3,8 +3,8 @@
 //
 //   Grid (concept C)  dark graphite, hi-vis yellow. The default.
 //   Grid light        the concept A palette on the same layout
-//   Soft              light grey page, white cards, navy and pastel tiles,
-//                     big rounded corners and pill buttons; its own sidebar
+//   Soft              Folio's Lilac theme: light grey page, white cards, navy and pastel tiles,
+//                     Plus Jakarta Sans, pill buttons; its own sidebar
 //                     and Home. Light, dark, or following the device.
 //
 // <html data-theme="…"> picks the colours (styles.css); data-look="soft"
@@ -42,9 +42,9 @@ export function themeColour(theme: ThemeId): string {
       return "#f6f7f9";
     case "soft":
     case "soft-system":
-      return "#f5f5f8";
+      return "#f1f1f4";
     case "soft-dark":
-      return "#14131f";
+      return "#14122a";
     default:
       return "#15171b";
   }
