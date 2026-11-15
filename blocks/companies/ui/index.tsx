@@ -1,7 +1,8 @@
 import { can } from "@grid/core";
-import { Alert, PageHeader, type BlockPages } from "@grid/ui";
+import { Alert, PageHeader, Stack, type BlockPages } from "@grid/ui";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { CompanyForm } from "./CompanyForm";
+import { DeleteBusiness } from "./DeleteBusiness";
 import { Members } from "./Members";
 import { Roles } from "./Roles";
 import { Store } from "./Store";
@@ -30,7 +31,10 @@ export const pages: BlockPages = {
     ctx.companyId ? (
       <>
         <PageHeader title={ctx.solo ? "Business details" : "Company details"} />
-        <CompanyForm mode="edit" canEdit={can(ctx, "companies.details.edit")} />
+        <Stack>
+          <CompanyForm mode="edit" canEdit={can(ctx, "companies.details.edit")} />
+          <DeleteBusiness canDelete={can(ctx, "companies.business.delete")} solo={ctx.solo} />
+        </Stack>
       </>
     ) : (
       needsCompany

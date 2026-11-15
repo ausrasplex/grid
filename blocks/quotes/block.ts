@@ -24,6 +24,11 @@ export default defineBlock({
     { id: "quotes.tax", slot: "settings.company", label: "Tax & currency", icon: "dollar", href: "/quotes/settings", permission: "quotes.settings.manage", order: 52 },
   ],
   routes: async () => (await import("./routes")).routes,
+  // Recently deleted running out (none here), and deleting a whole business.
+  cleanup: async () => {
+    const purge = await import("./purge");
+    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+  },
   // The customer's private link (/q/<token>): view, sign or decline.
   publicRoutes: async () => (await import("./public")).publicRoutes,
   routeTargets: {

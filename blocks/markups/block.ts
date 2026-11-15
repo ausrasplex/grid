@@ -17,5 +17,10 @@ export default defineBlock({
     VIEWER: ["markups.view"],
   },
   routes: async () => (await import("./routes")).routes,
+  // Recently deleted running out (none here), and deleting a whole business.
+  cleanup: async () => {
+    const purge = await import("./purge");
+    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+  },
   emits: ["markups.added"],
 });

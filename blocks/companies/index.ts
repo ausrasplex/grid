@@ -22,6 +22,15 @@ export {
   type TradeProfileId,
   type BusinessSize,
 } from "./presets";
+export {
+  adminDeleteCompany,
+  adminRestoreCompany,
+  companiesToPurge,
+  companyUsage,
+  listAllCompanies,
+  listMyDeletedCompanies,
+  purgeCompanyRecords,
+} from "./deletion";
 export { TRADES, tradeLabel, tradeOptions, type Trade } from "./trades";
 
 /** Event payloads, so listeners in other blocks are typed. */

@@ -104,6 +104,15 @@ The first part of the credentials wallet (`inductions-credentials.md` §2), move
 - **Data:** `Credential` (`userId`, `type`, `name`, `numberEnc`, `issuer`, `issuedOn`, `expiresOn`, `frontFileId`, `backFileId`, `notes`, `remindedAt`, timestamps, soft delete). Files are `StoredFile`s only the owner can open. Built so phase 9 adds inductions, `CredentialShare` and the access log without moving anything.
 - **Offline:** viewing your tickets offline (e.g. at a gate with no signal) comes with phase 6's offline sync; until then the page needs a connection.
 
+## Deleting a business (built Nov 2026)
+
+- **Who:** an Owner (permission `companies.business.delete`, Owners only by default), from the bottom of **Business details**; or the server admin, for any business, from **Settings › Accounts & devices**. Anyone but the last Owner can **Leave this business** there instead (hidden while solo).
+- **Confirming:** the box shows what goes with it ("12 jobs, 3 quotes, 240 photos, 4 people", from each Block's `companyUsage`) and the Owner types the business's name.
+- **Recently deleted first:** `Company.deletedAt` hides it straight away: nobody can open it, it leaves every business picker, and its join links and signing links stop. Owners see it under **Recently deleted** in the business picker (and on setup, if it was their only business) with **Restore**; the server admin restores from Accounts & devices. It is kept as long as Recently deleted keeps photos (Storage settings, 30 days by default).
+- **Removed for good:** the nightly storage clean-up runs every Block's `purgeCompany` hook (dependent Blocks first), removes the business's files (not people's Wallet photos, which belong to the person), route codes and activity log, then its roles and memberships. The `Company` row stays with only its name and `purgedAt`, and the log gets one "removed for good" entry. In dry-run mode the history lists it and nothing goes.
+- **Shared work:** a job another business is on is handed to that business, not deleted; a site another business uses is handed over too.
+- **People:** members only lose that business. Accounts, Wallets and other businesses aren't touched. Someone left with no business goes to setup.
+
 ## Phase 7: apprentices (planned, decided Nov 2026)
 
 Two separate things, set by different people:

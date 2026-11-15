@@ -44,7 +44,8 @@ Two kinds of leftover files build up, and a clean-up handles both every night (2
 
 1. **Unfiled uploads.** A photo can reach the server but never get filed against a job: the signal dropped between the two steps, then the photo was removed from the phone. These are removed after **7 days** (setting). If a phone comes back even later, the server answers "410 file gone" and the phone simply uploads the photo again from its own copy, so nothing is lost.
 2. **Recently deleted.** Deleting a photo or note hides it straight away. For **30 days** (setting) it can be restored. After that the file and its smaller copies are removed from disk. The rows stay, marked purged, so the activity log still shows who added it, who deleted it and when.
-3. **Stray files, weekly.** Files on disk that the database doesn't know about are removed, if they're more than a day old: a crash part-way through an upload, or left-over `.tmp` files. "Run clean-up now" always includes this check.
+3. **Deleted businesses.** A business deleted longer ago than Recently deleted keeps things is removed for good, files and all (see "Deleting a business" in `roadmap.md`). People's Wallet photos stay.
+4. **Stray files, weekly.** Files on disk that the database doesn't know about are removed, if they're more than a day old: a crash part-way through an upload, or left-over `.tmp` files. "Run clean-up now" always includes this check.
 
 **Never removed automatically:** photos on jobs, including finished and archived ones. Photos in a sent or signed document stay with that document (phase 3).
 

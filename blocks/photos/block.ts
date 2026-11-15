@@ -18,7 +18,11 @@ export default defineBlock({
   },
   routes: async () => (await import("./routes")).routes,
   fileAccess: async () => (await import("./service")).canReadPhotoFile,
-  cleanup: async () => ({ purgeDeleted: (await import("./service")).purgeDeleted }),
+  // Recently deleted running out, and deleting a whole business.
+  cleanup: async () => {
+    const purge = await import("./purge");
+    return { purgeDeleted: (await import("./service")).purgeDeleted, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+  },
   levelUsage: async () => (await import("./service")).levelUsage,
   emits: ["photos.added"],
 });

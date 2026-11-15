@@ -111,6 +111,13 @@ export const panels: BlockPanels = {
 
 Register the loader in `apps/web/src/blocks.tsx` (`blockPanels`). Panels only render when the Block is on for the company. The props each slot passes are typed by the Block that owns the page (e.g. `JobAreaPanelProps` from `@grid/block-projects`).
 
+## When a business is deleted
+
+A deleted business can be restored until the storage clean-up removes it for good (`roadmap.md`, "Deleting a business"). If your Block stores anything with a `companyId`, add both to its `cleanup` hook (see `blocks/photos/purge.ts`):
+
+- `companyUsage(companyId)` returns counts for the Delete box (`[{ count, one: "photo", many: "photos" }]`). Leave it out if a count means nothing to the Owner (branding, signing links).
+- `purgeCompany(companyId)` deletes your rows for that business. Files are removed by the clean-up afterwards, so don't delete them. Never remove what another business still uses: hand a shared job or site to the business still on it. Dependent Blocks run first (reverse dependency order).
+
 ## Files
 
 Upload with `POST /api/files`, then attach the file to your record with `attachFile(tx, fileId, { companyId, userId, blockId })` in the same transaction. Declare who may download it:

@@ -15,6 +15,11 @@ export default defineBlock({
       label: "Manage storage",
       description: "See Recently deleted and unfiled photos, restore them or delete them now, and the clean-up history",
     },
+    {
+      key: "companies.business.delete",
+      label: "Delete the business",
+      description: "Owners only by default. It can be restored for a while (Recently deleted), then it is removed for good",
+    },
     { key: "companies.details.edit", label: "Edit company details", description: "Name, ABN, trade, branding" },
     { key: "companies.members.view", label: "View members" },
     { key: "companies.members.invite", label: "Invite members" },
@@ -96,5 +101,7 @@ export default defineBlock({
     "companies.member.joined",
     "companies.member.removed",
     "companies.blocks.changed",
+    "companies.deleted",
+    "companies.restored",
   ],
 });

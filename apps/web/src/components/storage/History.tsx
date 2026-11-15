@@ -21,7 +21,7 @@ interface Run {
 
 const when = (value: string) => new Date(value).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const TRIGGER = { schedule: "Nightly clean-up", manual: "Clean-up run by hand", "delete-now": "Deleted now" };
-const KIND: Record<string, string> = { unfiled: "Unfiled upload", "deleted-photo": "Deleted photo", "deleted-note": "Deleted note", "deleted-plan": "Deleted plan sheet", "deleted-ticket": "Deleted ticket or licence", stray: "Stray file" };
+const KIND: Record<string, string> = { unfiled: "Unfiled upload", "deleted-photo": "Deleted photo", "deleted-note": "Deleted note", "deleted-plan": "Deleted plan sheet", "deleted-ticket": "Deleted ticket or licence", "deleted-business": "Deleted business", stray: "Stray file" };
 
 export function History({ serverAdmin }: { serverAdmin: boolean }) {
   const [scope, setScope] = useState<"company" | "server">("company");

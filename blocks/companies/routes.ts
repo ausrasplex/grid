@@ -2,7 +2,9 @@
 // user's active company (from the company switcher), never an id in the URL.
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
+import { z } from "zod";
 import { listActivity } from "./activity";
+import { deleteCurrentCompany, deleteSummary, leaveCurrentCompany, listMyDeletedCompanies, restoreMyCompany } from "./deletion";
 import {
   changeRoleSchema,
   createCompanySchema,
@@ -15,6 +17,9 @@ import {
 export const routes: Routes = {
   // --- No active company needed
   "GET /mine": { requireCompany: false, handler: (ctx) => svc.listMyCompanies(ctx.userId) },
+  // Deleted businesses you own that can still be restored (the business picker).
+  "GET /deleted": { requireCompany: false, handler: (ctx) => listMyDeletedCompanies(ctx.userId) },
+  "POST /deleted/:companyId/restore": { requireCompany: false, handler: (ctx, request) => restoreMyCompany(ctx.userId, request.params.companyId!) },
   "POST /": { requireCompany: false, handler: (ctx, request) => svc.createCompany(ctx.userId, createCompanySchema.parse(request.body)) },
   "POST /invites/:membershipId/accept": {
     requireCompany: false,
@@ -33,6 +38,14 @@ export const routes: Routes = {
     handler: (ctx, request) =>
       listActivity(ctx, { before: request.query.get("before") || undefined, person: request.query.get("person") || undefined }),
   },
+  // Deleting the business (docs/roadmap.md "Deleting a business"): what goes with it, then delete (type its name).
+  "GET /current/delete": { permission: "companies.business.delete", handler: (ctx) => deleteSummary(ctx) },
+  "POST /current/delete": {
+    permission: "companies.business.delete",
+    handler: (ctx, request) => deleteCurrentCompany(ctx, z.object({ name: z.string().max(200) }).parse(request.body).name),
+  },
+  // Anyone can leave, except the last Owner.
+  "POST /current/leave": { handler: (ctx) => leaveCurrentCompany(ctx) },
   "PATCH /current": {
     permission: "companies.details.edit",
     handler: (ctx, request) => svc.updateCurrentCompany(ctx, updateCompanySchema.parse(request.body)),

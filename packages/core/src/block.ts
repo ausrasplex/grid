@@ -219,14 +219,26 @@ export interface BlockJob {
 /** One thing a clean-up removed (or would, in a dry run). */
 export interface CleanupItem {
   companyId: string | null;
-  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "stray";
+  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "deleted-business" | "stray";
   label: string;
   refId?: string | null;
   bytes: number;
 }
 
 export interface BlockCleanup {
-  purgeDeleted(options: { before: Date; dryRun: boolean }): Promise<CleanupItem[]>;
+  purgeDeleted?(options: { before: Date; dryRun: boolean }): Promise<CleanupItem[]>;
+  /**
+   * Deleting a business (docs/roadmap.md "Deleting a business"): what this
+   * block holds for it, for the confirmation ("12 jobs, 240 photos").
+   */
+  companyUsage?(companyId: string): Promise<LevelUsage[]>;
+  /**
+   * The business has been deleted for longer than Recently deleted keeps
+   * things: remove this block's records for it for good. Files (StoredFile)
+   * are removed by the clean-up afterwards, so only rows go here. Never touch
+   * what another business still uses (a shared job or site).
+   */
+  purgeCompany?(companyId: string): Promise<void>;
 }
 
 const ID_RE = /^[a-z][a-z0-9-]*$/;

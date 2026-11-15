@@ -22,5 +22,10 @@ export default defineBlock({
     },
   ],
   routes: async () => (await import("./routes")).routes,
+  // Recently deleted running out (none here), and deleting a whole business.
+  cleanup: async () => {
+    const purge = await import("./purge");
+    return { purgeCompany: purge.purgeCompany };
+  },
   fileAccess: async () => (await import("./service")).canReadLogo,
 });

@@ -8,5 +8,10 @@ export default defineBlock({
   required: true,
   dependsOn: ["companies"],
   publicRoutes: async () => (await import("./public")).publicRoutes,
+  // Recently deleted running out (none here), and deleting a whole business.
+  cleanup: async () => {
+    const purge = await import("./purge");
+    return { purgeCompany: purge.purgeCompany };
+  },
   fileAccess: async () => (await import("./service")).canReadSignatureFile,
 });

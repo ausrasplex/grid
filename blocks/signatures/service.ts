@@ -136,6 +136,8 @@ export async function requestByToken(token: string): Promise<SignRequestRow> {
   if (!/^[\w-]{20,64}$/.test(token)) throw notFound();
   const signRequest = await db.signRequest.findUnique({ where: { tokenHash: sha256(token) } });
   if (!signRequest) throw notFound();
+  // The business was deleted: its links stop (it may be restored).
+  if (!(await db.company.count({ where: { id: signRequest.companyId, deletedAt: null } }))) throw notFound();
   return signRequest;
 }
 

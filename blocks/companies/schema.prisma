@@ -18,7 +18,12 @@ model Company {
   logoKey      String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+  /// Deleted by an Owner or the server admin: hidden from everyone, restorable
+  /// until the storage clean-up removes it for good (after Recently deleted runs out).
   deletedAt    DateTime?
+  deletedById  String?
+  /// Removed for good: everything in it is gone. The row stays (name only) for the history.
+  purgedAt     DateTime?
 
   roles       Role[]
   memberships Membership[]

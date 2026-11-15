@@ -24,6 +24,11 @@ export default defineBlock({
     { id: "projects.search", slot: "header.actions", label: "Search", icon: "search", href: "/jobs/search", permission: "projects.view", order: 5 },
   ],
   routes: async () => (await import("./routes")).routes,
+  // Recently deleted running out (none here), and deleting a whole business.
+  cleanup: async () => {
+    const purge = await import("./purge");
+    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+  },
   routeTargets: {
     Project: (id) => `/jobs/${id}`,
   },

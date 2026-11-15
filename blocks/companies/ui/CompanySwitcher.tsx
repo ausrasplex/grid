@@ -28,10 +28,30 @@ interface MyCompany {
   company: { id: string; name: string; tradeProfile: string };
 }
 
+/** A business you own that was deleted and can still be restored. */
+interface DeletedCompany {
+  id: string;
+  name: string;
+  deletedAt: string;
+  removedOn: string;
+}
+
+const shortDate = (value: string) => new Date(value).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+const daysUntil = (value: string) => Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 86_400_000));
+
 
 export function CompanySwitcher({ activeCompanyId }: { activeCompanyId: string | null }) {
   const { data, error, loading, reload } = useApi<MyCompany[]>("/companies/mine");
+  const deleted = useApi<DeletedCompany[]>("/companies/deleted");
   const action = useAction();
+
+  // Bring a deleted business back, then open it.
+  const restore = (companyId: string) =>
+    action.run(async () => {
+      await api(`/companies/deleted/${companyId}/restore`, { method: "POST" });
+      await api("/session/company", { body: { companyId } });
+      window.location.href = "/";
+    });
 
   const choose = (companyId: string) =>
     action.run(async () => {
@@ -124,6 +144,26 @@ export function CompanySwitcher({ activeCompanyId }: { activeCompanyId: string |
           </List>
         )}
       </Section>
+
+      {/* Deleted businesses you own: restorable until the clean-up removes them for good. */}
+      {!!deleted.data?.length && (
+        <Section title="Recently deleted" description="Only you and the other Owners see these. Restore one to bring it back for everyone." flush>
+          <List>
+            {deleted.data.map((company) => (
+              <ListRow
+                key={company.id}
+                title={company.name}
+                meta={`Deleted ${shortDate(company.deletedAt)} · removed for good in ${daysUntil(company.removedOn)} day${daysUntil(company.removedOn) === 1 ? "" : "s"}`}
+                actions={
+                  <Button variant="outline" onClick={() => restore(company.id)} disabled={action.busy}>
+                    Restore
+                  </Button>
+                }
+              />
+            ))}
+          </List>
+        </Section>
+      )}
     </Stack>
     </>
   );

@@ -305,6 +305,7 @@ export async function inviteByLink(token: string): Promise<InviteByLink | null> 
     include: { company: { select: { name: true } }, role: { select: { name: true } }, user: { select: { id: true, email: true, name: true } } },
   });
   if (!membership || membership.status !== "INVITED" || !membership.inviteExpiresAt || membership.inviteExpiresAt < new Date()) return null;
+  if (await db.company.count({ where: { id: membership.companyId, deletedAt: { not: null } } })) return null; // the business was deleted
   const inviter = membership.invitedBy ? await db.user.findUnique({ where: { id: membership.invitedBy }, select: { name: true } }) : null;
   return {
     membershipId: membership.id,

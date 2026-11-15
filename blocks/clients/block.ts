@@ -17,5 +17,10 @@ export default defineBlock({
   },
   menus: [{ id: "clients.list", slot: "settings.company", label: "Clients", icon: "users", href: "/clients", permission: "clients.view", order: 45 }],
   routes: async () => (await import("./routes")).routes,
+  // Recently deleted running out (none here), and deleting a whole business.
+  cleanup: async () => {
+    const purge = await import("./purge");
+    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+  },
   emits: ["clients.renamed"],
 });

@@ -3,13 +3,18 @@
 //   1. Uploads never filed against a job, after `unfiledDays`.
 //   2. What people deleted, once Recently deleted has run out (`deletedDays`):
 //      each Block with a `cleanup` hook purges its own records.
-//   3. Once a week: files on disk the database doesn't know about.
+//   3. Businesses deleted before that (docs/roadmap.md "Deleting a business"):
+//      every Block's purgeCompany hook, then all their files (not people's
+//      Wallet photos, which belong to the person), route codes and log.
+//   4. Once a week: files on disk the database doesn't know about.
 //
 // Every run is written to the clean-up history. In dry-run mode the history
 // shows what would have gone, and nothing is removed.
 
 import "server-only";
+import { companiesToPurge, companyUsage, purgeCompanyRecords } from "@grid/block-companies";
 import {
+  audit,
   db,
   findStrayFiles,
   getStorageSettings,
@@ -78,10 +83,42 @@ export async function runCleanup(options: { trigger: "schedule" | "manual"; user
     for (const block of registry.blocks) {
       if (!block.cleanup) continue;
       const hook = await block.cleanup();
-      items.push(...(await hook.purgeDeleted({ before: new Date(now - settings.deletedDays * DAY), dryRun })));
+      if (hook.purgeDeleted) items.push(...(await hook.purgeDeleted({ before: new Date(now - settings.deletedDays * DAY), dryRun })));
     }
 
-    // 3. Weekly: stray files on disk (a crash part-way through an upload, .tmp files).
+    // 3. Businesses deleted before Recently deleted ran out: removed for good.
+    for (const company of await companiesToPurge(new Date(now - settings.deletedDays * DAY))) {
+      // Wallet photos are the person's, not the business's: they stay.
+      const files = await db.storedFile.findMany({
+        where: { companyId: company.id, purgedAt: null, OR: [{ blockId: null }, { blockId: { not: "credentials" } }] },
+      });
+      const usage = (await companyUsage(company.id)).map((entry) => entry.words).join(", ");
+      items.push({
+        companyId: company.id,
+        kind: "deleted-business",
+        label: `${company.name}, deleted ${day(company.deletedAt!)}${usage ? ` (${usage})` : ""}`,
+        refId: company.id,
+        bytes: files.reduce((total, file) => total + storedBytes(file), 0),
+      });
+      if (dryRun) continue;
+      // Dependent Blocks first (markups before plans before jobs before sites).
+      for (const block of [...registry.blocks].reverse()) {
+        if (!block.cleanup) continue;
+        const hook = await block.cleanup();
+        if (hook.purgeCompany) await hook.purgeCompany(company.id);
+      }
+      for (const file of files) await db.$transaction((tx) => purgeStoredFile(tx, file.id));
+      await db.$transaction(async (tx) => {
+        await tx.routeCode.deleteMany({ where: { companyId: company.id } });
+        await tx.auditLog.deleteMany({ where: { companyId: company.id } });
+      });
+      await purgeCompanyRecords(company.id);
+      await db.$transaction((tx) =>
+        audit(tx, { blockId: "companies", actorId: options.userId ?? null, companyId: company.id, entityType: "Company", entityId: company.id, action: "removed_for_good", diff: { name: company.name } }),
+      );
+    }
+
+    // 4. Weekly: stray files on disk (a crash part-way through an upload, .tmp files).
     const lastSweep = await db.cleanupRun.findFirst({
       where: { id: { not: run.id }, finishedAt: { not: null }, summary: { path: ["swept"], equals: true } },
       orderBy: { startedAt: "desc" },
