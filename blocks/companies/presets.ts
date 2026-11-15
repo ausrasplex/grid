@@ -1,22 +1,17 @@
 // Starting configuration per trade. Block ids that aren't built yet are
 // simply skipped, so presets can list future blocks now.
-// Companies can change everything afterwards.
+// Companies can change everything afterwards. The trades themselves (and
+// which of these presets each one borrows) are in trades.ts.
 
-export const TRADE_PROFILES = [
-  "BUILDER",
-  "ELECTRICAL",
-  "MECHANICAL",
-  "CONTROLS_BMS",
-  "PLUMBING",
-  "FIRE",
-  "CARPENTRY",
-  "OTHER",
-] as const;
-export type TradeProfileId = (typeof TRADE_PROFILES)[number];
+import { TRADE_IDS, tradePreset, type TradePreset } from "./trades";
+
+export const TRADE_PROFILES = TRADE_IDS;
+/** A trade id from trades.ts (Company.tradeProfile). */
+export type TradeProfileId = string;
 
 const everyone = ["projects", "plans", "markups", "photos", "tasks", "notifications", "swms"];
 
-export const TRADE_PRESETS: Record<TradeProfileId, { blocks: string[]; features: Record<string, boolean> }> = {
+export const TRADE_PRESETS: Record<TradePreset, { blocks: string[]; features: Record<string, boolean> }> = {
   BUILDER: {
     blocks: [...everyone, "rfis", "revisions", "variations", "forms", "measure", "reports"],
     features: { measureArea: true },
@@ -51,7 +46,7 @@ export const TEAM_BLOCKS = ["rfis", "revisions", "variations", "swms", "forms", 
  * Solo adds the sole-trader set and leaves the team Blocks off.
  */
 export function startingBlocks(trade: TradeProfileId, size: BusinessSize): string[] {
-  const base = TRADE_PRESETS[trade].blocks;
+  const base = TRADE_PRESETS[tradePreset(trade)].blocks;
   if (size === "team") return [...base];
   return [...new Set([...base, ...SOLO_BLOCKS])].filter((id) => !TEAM_BLOCKS.includes(id));
 }

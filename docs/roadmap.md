@@ -68,7 +68,7 @@ Detailed designs: `photos-block.md`, `backups.md`, `stage-2-projects.md`, `quota
 
 ### "Just me" setup
 
-- Sign-up asks two things: **trade** (as now) and **"Just me" or "With a team"**.
+- Sign-up asks two things: **trade** and **"Just me" or "With a team"**. The trade is a grouped drop-down of about 65 Australian trades (`blocks/companies/trades.ts`, decided Nov 2026: Electrical & communications, Fire, Mechanical & plumbing, Building, Structure & civil, Outside & finishing, Professional & services, Something else). Each borrows the starting preset of the closest original trade. `Company.tradeProfile` is text, so adding a trade needs no migration; never rename or remove an id in use.
 - **Just me:** the company is created with the person as **Owner** and named from their business name (or their own name). It needs no ABN up front; that can come later, when it's needed on a quote. They land on Home straight away.
 - **With a team:** the current flow, which goes on to invite people.
 - Both create the same records. "Just me" is not a separate kind of company.

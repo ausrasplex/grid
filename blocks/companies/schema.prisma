@@ -1,17 +1,6 @@
 // Companies block: businesses, their roles, who works for them, and
 // which optional blocks each company has switched on.
 
-enum TradeProfile {
-  BUILDER
-  ELECTRICAL
-  MECHANICAL
-  CONTROLS_BMS
-  PLUMBING
-  FIRE
-  CARPENTRY
-  OTHER
-}
-
 enum MembershipStatus {
   INVITED
   ACTIVE
@@ -22,7 +11,8 @@ model Company {
   id           String       @id @default(uuid())
   name         String
   abn          String?
-  tradeProfile TradeProfile
+  /// A trade id from trades.ts (ELECTRICAL, SOLAR, TILING…). Text, not an enum, so new trades need no migration.
+  tradeProfile String
   /// { branding: {...}, units: "metric", workingHours: {...}, features: {...} }
   settings     Json         @default("{}")
   logoKey      String?

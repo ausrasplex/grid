@@ -19,6 +19,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { audit, avatarUrl, db, decryptSecret, encryptSecret, type Prisma, type Tx } from "@grid/db";
 import { ensureUser } from "@grid/block-users";
 import { TRADE_PRESETS, startingBlocks } from "./presets";
+import { tradePreset } from "./trades";
 import type { CreateCompanyInput, InviteInput, RoleInput, UpdateCompanyInput } from "./validation";
 
 const MOD = "companies";
@@ -95,7 +96,7 @@ export async function resolveAccess(userId: string, companyId: string): Promise<
  */
 export async function createCompany(userId: string, input: CreateCompanyInput) {
   const { registry } = app();
-  const preset = TRADE_PRESETS[input.tradeProfile];
+  const preset = TRADE_PRESETS[tradePreset(input.tradeProfile)];
   const company = await db.$transaction(async (tx) => {
     const company = await tx.company.create({
       data: {

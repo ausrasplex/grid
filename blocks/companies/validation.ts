@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { emailSchema } from "@grid/block-users";
-import { BUSINESS_SIZES, TRADE_PROFILES } from "./presets";
+import { BUSINESS_SIZES } from "./presets";
+import { TRADE_IDS } from "./trades";
 
 const abn = z
   .string()
@@ -12,7 +13,7 @@ export const createCompanySchema = z
   .object({
     name: z.string().trim().min(1).max(160),
     abn: abn.optional(),
-    tradeProfile: z.enum(TRADE_PROFILES),
+    tradeProfile: z.enum(TRADE_IDS, "Pick your trade"),
     /** "solo" = Just me, "team" = With a team. Only picks the starting Blocks. */
     size: z.enum(BUSINESS_SIZES).default("team"),
   })
@@ -22,7 +23,7 @@ export const updateCompanySchema = z
   .object({
     name: z.string().trim().min(1).max(160),
     abn: abn.nullable(),
-    tradeProfile: z.enum(TRADE_PROFILES),
+    tradeProfile: z.enum(TRADE_IDS, "Pick your trade"),
     settings: z.record(z.string(), z.unknown()),
   })
   .partial()

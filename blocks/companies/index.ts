@@ -22,6 +22,7 @@ export {
   type TradeProfileId,
   type BusinessSize,
 } from "./presets";
+export { TRADES, tradeLabel, tradeOptions, type Trade } from "./trades";
 
 /** Event payloads, so listeners in other blocks are typed. */
 export interface MemberInvitedEvent {

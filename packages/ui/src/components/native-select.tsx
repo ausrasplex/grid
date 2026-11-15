@@ -18,6 +18,8 @@ export interface SelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  /** Options next to each other with the same group get a heading above them. */
+  group?: string;
 }
 
 /** What onChange receives: enough of a change event for `event.target.value`. */
@@ -112,9 +114,12 @@ export function NativeSelect({
             <ChevronUp className="size-4" />
           </SelectPrimitive.ScrollUpButton>
           <SelectPrimitive.Viewport className="p-1.5">
-            {options.map((option) => (
+            {options.map((option, index) => (
+              <React.Fragment key={option.value}>
+              {option.group && option.group !== options[index - 1]?.group && (
+                <div className={cn("px-3 pt-3 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase", index > 0 && "mt-1 border-t")}>{option.group}</div>
+              )}
               <SelectPrimitive.Item
-                key={option.value}
                 value={option.value === "" ? EMPTY : option.value}
                 disabled={option.disabled}
                 className={cn(
@@ -127,6 +132,7 @@ export function NativeSelect({
                   <Check className="size-5" />
                 </SelectPrimitive.ItemIndicator>
               </SelectPrimitive.Item>
+              </React.Fragment>
             ))}
           </SelectPrimitive.Viewport>
           <SelectPrimitive.ScrollDownButton className="flex h-7 items-center justify-center text-muted-foreground">

@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Alert, Button, Field, FormActions, Loading, Section, SelectField, api, useAction, useApi } from "@grid/ui";
-import { TRADE_PROFILES } from "../presets";
-
-const tradeOptions = TRADE_PROFILES.map((profile) => ({
-  value: profile,
-  label: profile === "CONTROLS_BMS" ? "Controls / BMS" : profile.charAt(0) + profile.slice(1).toLowerCase(),
-}));
+import { tradeOptions } from "../trades";
 
 interface Company {
   id: string;

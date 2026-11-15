@@ -5,18 +5,8 @@
 // Blocks and where you land.
 
 import { useState, type ReactNode } from "react";
-import { Alert, Button, Field, Icon, Section, api, cn, useAction } from "@grid/ui";
-
-const TRADES: { value: string; label: string }[] = [
-  { value: "ELECTRICAL", label: "Electrical" },
-  { value: "CONTROLS_BMS", label: "Controls / BMS" },
-  { value: "MECHANICAL", label: "Mechanical" },
-  { value: "PLUMBING", label: "Plumbing" },
-  { value: "FIRE", label: "Fire" },
-  { value: "CARPENTRY", label: "Carpentry" },
-  { value: "BUILDER", label: "Builder" },
-  { value: "OTHER", label: "Something else" },
-];
+import { Alert, Button, Field, Icon, Section, SelectField, api, cn, useAction } from "@grid/ui";
+import { tradeOptions } from "@grid/block-companies/trades";
 
 type Size = "solo" | "team";
 
@@ -55,13 +45,7 @@ export function SetupForm({ userName }: { userName: string }) {
         </Section>
 
         <Section title="Your trade" description="Picks which Blocks start on and the markup icons you get.">
-          <div role="radiogroup" aria-label="Trade" className="grid grid-cols-2 gap-2">
-            {TRADES.map((option) => (
-              <Choice key={option.value} selected={trade === option.value} onSelect={() => setTrade(option.value)}>
-                <span className="font-semibold">{option.label}</span>
-              </Choice>
-            ))}
-          </div>
+          <SelectField label="Trade" value={trade} onChange={(event) => setTrade(event.target.value)} options={tradeOptions} hint="Not listed? Pick the closest, or Something else." />
         </Section>
 
         <Section title="Who's working in it?">

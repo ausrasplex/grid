@@ -6,7 +6,8 @@
   "exports": {
     ".": "./index.ts",
     "./block": "./block.ts",
-    "./ui": "./ui/index.tsx"
+    "./ui": "./ui/index.tsx",
+    "./trades": "./trades.ts"
   },
   "dependencies": {
     "@grid/core": "workspace:*",

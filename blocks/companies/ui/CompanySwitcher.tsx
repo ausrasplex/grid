@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import { tradeLabel } from "../trades";
 import {
   ActionButton,
   Alert,
@@ -27,7 +28,6 @@ interface MyCompany {
   company: { id: string; name: string; tradeProfile: string };
 }
 
-const pretty = (trade: string) => (trade === "CONTROLS_BMS" ? "Controls / BMS" : trade.charAt(0) + trade.slice(1).toLowerCase());
 
 export function CompanySwitcher({ activeCompanyId }: { activeCompanyId: string | null }) {
   const { data, error, loading, reload } = useApi<MyCompany[]>("/companies/mine");
@@ -115,7 +115,7 @@ export function CompanySwitcher({ activeCompanyId }: { activeCompanyId: string |
                   key={membership.membershipId}
                   leading={<Avatar name={membership.company.name} className="rounded-xl" />}
                   title={membership.company.name}
-                  meta={`${pretty(membership.company.tradeProfile)} · ${membership.role}`}
+                  meta={`${tradeLabel(membership.company.tradeProfile)} · ${membership.role}`}
                   badges={current ? <Badge variant="success">Current</Badge> : undefined}
                   onClick={() => (current ? (window.location.href = "/") : void choose(membership.company.id))}
                 />
