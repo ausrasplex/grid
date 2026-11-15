@@ -296,7 +296,6 @@ function InviteSheet({
             ? "Send it by text, WhatsApp or however you like. Opening it lets them set a password and join. It works for 14 days; you can find it again on Members."
             : "You'll get a link to send them. They can also accept next time they sign in."
         }
-        className="md:bottom-6 md:mx-auto md:max-w-md md:rounded-2xl md:border"
       >
         {sent ? (
           <div className="flex flex-col gap-4 px-2">

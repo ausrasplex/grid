@@ -128,12 +128,8 @@ function AccountSheet({
       <SheetTrigger aria-label="Account" className={triggerClassName}>
         {trigger}
       </SheetTrigger>
-      <SheetContent
-        title={user.name}
-        description={user.email}
-        side="bottom"
-        className="md:inset-x-auto md:bottom-4 md:left-4 md:w-96 md:rounded-2xl md:border"
-      >
+      {/* Phones: bottom sheet. Tablet and desktop: slides in from the right, under the avatar. */}
+      <SheetContent title={user.name} description={user.email}>
         <ul className="flex flex-col">
           {items.map((item) => (
             <li key={item.id}>
