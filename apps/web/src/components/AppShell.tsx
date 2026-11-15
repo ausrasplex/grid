@@ -54,6 +54,37 @@ function settingsPages(ctx: AppContext): NavItem[] {
   return all.filter((item, index) => all.findIndex((other) => other.href === item.href) === index);
 }
 
+/** A group on the Settings page: You, the business, Server. */
+export interface SettingsSection {
+  id: "you" | "business" | "server";
+  title: string;
+  description?: string;
+  items: (NavItem & { description?: string })[];
+}
+
+/**
+ * What the Settings page lists for this person right now (permissions,
+ * solo, server admin). Also where pinned pages come from, so a pin only
+ * shows while its page is still yours to open.
+ */
+export function settingsSections(ctx: AppContext): SettingsSection[] {
+  const sections: SettingsSection[] = [{ id: "you", title: "You", items: [...registry.menusFor("settings.user", ctx).map(toNav), SECURITY] }];
+  if (ctx.company) sections.push({ id: "business", title: ctx.company.name, items: registry.menusFor("settings.company", ctx).map(toNav) });
+  // Settings for the whole server (every business on it). Changed in the
+  // app, not the Unraid template, so they need no restart.
+  if (ctx.user.serverAdmin) sections.push({ id: "server", title: "Server", description: "You're the server admin.", items: SERVER_SETTINGS });
+  return sections;
+}
+
+/** Settings pages this person pinned (Settings, the pin on each row), in the order they pinned them. */
+function pinnedPages(ctx: AppContext): NavItem[] {
+  const available = settingsSections(ctx).flatMap((section) => section.items);
+  return ctx.user.pinned.flatMap((id) => {
+    const item = available.find((entry) => entry.id === id);
+    return item ? [{ id: item.id, label: item.label, href: item.href, icon: item.icon, activeFor: item.activeFor }] : [];
+  });
+}
+
 export function AppShell({ ctx, children }: { ctx: AppContext; children: ReactNode }) {
   const items = registry.menusFor("sidebar.main", ctx);
 
@@ -64,6 +95,8 @@ export function AppShell({ ctx, children }: { ctx: AppContext; children: ReactNo
       main={items.filter((item) => item.prominence === "main").map(toNav)}
       more={[
         ...items.filter((item) => !item.prominence).map(toNav),
+        // Pinned settings pages (docs/navigation.md §5): sidebar on desktop, More on phones and tablets.
+        ...pinnedPages(ctx),
         { id: "core.settings", label: "Settings", href: "/settings", icon: "settings" },
       ]}
       scan={centreButton(ctx)}

@@ -14,8 +14,13 @@ import { getActiveCompanyId, getSessionUserId } from "./session";
 
 export interface AppContext extends RequestContext {
   /** avatarUrl: their picture, or null for initials. */
-  user: { id: string; name: string; email: string; serverAdmin: boolean; avatarUrl: string | null; theme: ThemeId };
+  user: { id: string; name: string; email: string; serverAdmin: boolean; avatarUrl: string | null; theme: ThemeId; pinned: string[] };
   company: { id: string; name: string; role: string } | null;
+}
+
+/** Settings pages pinned to the menu (User.settings.pinned): their menu ids, in the order pinned. */
+function pinnedOf(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string").slice(0, 30) : [];
 }
 
 /** Null when nobody is signed in. Cached for the duration of one request. */
@@ -27,7 +32,7 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     select: { id: true, name: true, email: true, serverAdmin: true, avatarKey: true, image: true, settings: true },
   });
   if (!found) return null;
-  const user = { id: found.id, name: found.name, email: found.email, serverAdmin: found.serverAdmin, avatarUrl: avatarUrl(found), theme: themeOf((found.settings as { theme?: unknown } | null)?.theme) };
+  const user = { id: found.id, name: found.name, email: found.email, serverAdmin: found.serverAdmin, avatarUrl: avatarUrl(found), theme: themeOf((found.settings as { theme?: unknown } | null)?.theme), pinned: pinnedOf((found.settings as { pinned?: unknown } | null)?.pinned) };
 
   const required = registry.effectiveEnabled([]);
   const base: AppContext = {

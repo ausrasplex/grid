@@ -89,6 +89,8 @@ Shown once a project is selected and it covers more than one area.
 
 Blocks still add menu items through their manifest slots. On phone and tablet, anything beyond the main items goes under **More**.
 
+**Pinned settings pages (decided Nov 2026):** every row on the Settings page has a pin button. A pinned page joins the menu just above Settings: in the desktop sidebar under the line, and in **More** on phones and tablets. Pins belong to the person (`User.settings.pinned`, menu ids in the order pinned), so they follow them to every device, and a pin only shows while its page is still on their Settings page (permission, business, server admin).
+
 ### 5a. The centre button changes with context
 
 The raised yellow button (phone bar centre, tablet rail, desktop top bar) is a shortcut whose job depends on who you are and where you are:
