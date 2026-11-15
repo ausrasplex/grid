@@ -25,7 +25,7 @@ export default async function SettingsPage() {
       )}
       <Grid>
         <Section title="You" flush>
-          <List>
+          <List variant="buttons">
             {mine.map((item) => (
               <LinkRow key={item.id} href={item.href} label={item.label} icon={<Icon name={item.icon} />} />
             ))}
@@ -33,7 +33,7 @@ export default async function SettingsPage() {
         </Section>
         {ctx.company && (
           <Section title={ctx.company.name} flush>
-            <List>
+            <List variant="buttons">
               {company.map((item) => (
                 <LinkRow key={item.id} href={item.href} label={item.label} icon={<Icon name={item.icon} />} />
               ))}
@@ -44,7 +44,7 @@ export default async function SettingsPage() {
           // Settings for the whole server (every business on it). Changed in
           // the app, not the Unraid template, so they need no restart.
           <Section title="Server" description="You're the server admin." flush>
-            <List>
+            <List variant="buttons">
               {SERVER_SETTINGS.map((item) => (
                 <LinkRow key={item.id} href={item.href} label={item.label} description={item.description} icon={<Icon name={item.icon} />} />
               ))}

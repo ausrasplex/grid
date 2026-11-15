@@ -97,8 +97,26 @@ export function Section({
   );
 }
 
-/** Divided list inside a flush Section (no top border when it's the first thing in the card). */
-export function List({ children }: { children: ReactNode }) {
+/**
+ * A list inside a flush Section.
+ *   rows (default): divided rows edge to edge (no top border when it's the first thing in the card).
+ *   buttons: inset, each row a rounded filled button with a gap between (Settings; Folio's option rows).
+ */
+export function List({ variant = "rows", children }: { variant?: "rows" | "buttons"; children: ReactNode }) {
+  if (variant === "buttons") {
+    return (
+      <ul
+        className={cn(
+          "flex flex-col gap-2 px-3 pb-3 sm:px-4 sm:pb-4",
+          // Each LinkRow's link becomes the button.
+          "[&>li>a]:rounded-lg [&>li>a]:bg-muted [&>li>a]:px-3 sm:[&>li>a]:px-4",
+          "[&>li>a]:hover:bg-[color-mix(in_srgb,var(--foreground)_7%,var(--muted))] [&>li>a]:active:bg-[color-mix(in_srgb,var(--foreground)_10%,var(--muted))]",
+        )}
+      >
+        {children}
+      </ul>
+    );
+  }
   return <ul className="divide-y border-t first:border-t-0">{children}</ul>;
 }
 

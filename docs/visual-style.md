@@ -21,6 +21,7 @@ The design canvas (https://claude.ai/artifact/TB5DBAto6SHu9pQWoxQTer, on claude.
 
 - **Flat chrome:** headers, the sidebar and the tablet rail use the page colour. They're separated by a thin `border` line (sidebar and rail) or by spacing (headers), not by shaded bars.
 - **Cards:** lightly rounded (14 px; every corner comes from `--radius` in `styles.css`, 10 px since Nov 2026, was 16 px), on `surface`. Separation comes from spacing; borders only where a list needs edges.
+- **Menu lists (Settings):** options are inset buttons, not table rows: `<List variant="buttons">` gives each `LinkRow` a rounded `muted` fill with a gap between and padding around the list (decided Nov 2026, like Folio's option rows). Data lists (jobs, quotes, people) keep the divided rows.
 - **Home screen:** one "On site now" card with a single main action, and one **Next up** list (max 3–4 items, most urgent first, coloured dot per item, "See all"). There's no stats row, quick-action grid or activity feed on Home.
 - **Type:** the system font. Compact headers: title, then a small muted meta line.
 - **Phone bottom bar:** see `navigation.md` §5 (yellow top bar on the active item, raised Scan button).
