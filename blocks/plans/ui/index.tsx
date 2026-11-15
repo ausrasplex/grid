@@ -55,7 +55,7 @@ export const panels: BlockPanels = {
     if (!total && !can(ctx, "plans.upload")) return null;
     const list = here.length ? here : recent;
     return (
-      <section className="rounded-xl border bg-card" aria-label="Plans">
+      <section className="overflow-hidden rounded-xl border bg-card" aria-label="Plans">
         <a href={`/plans/job/${job.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-3 hover:bg-muted">
           <FileStack className="size-5 text-primary" />
           <span className="flex-1 font-semibold">Plans</span>
