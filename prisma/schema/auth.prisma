@@ -3,7 +3,8 @@
 // The User model itself lives in blocks/users/schema.prisma.
 
 /// One signed-in device. Long-lived on a person's own phone or tablet;
-/// listed under Profile › Devices so it can be signed out remotely.
+/// listed under Settings › Sign-in & devices (your own) and, for the
+/// server admin, Settings › Accounts & devices, so it can be signed out remotely.
 model Session {
   id        String   @id @default(uuid())
   token     String   @unique

@@ -49,7 +49,7 @@ Pages that sit under a site but aren't a place on it get a short trail above the
 
 ### Settings pages
 
-Every page reached from Settings has a short trail above its title: **Settings › Clients** (decided Nov 2026). "Settings" goes back to the Settings page. The pages are every `settings.user` and `settings.company` menu item of the Blocks that are on, Sign-in & devices, the server pages (Email, Backups, Storage, Maps) and Switch business (`settingsPages` in `AppShell.tsx`). Unlike the Settings page's list, nothing is left out for being hidden right now (team-only while solo, a permission, server admin only), so a page always has its trail however you got there. A Block's settings page gets the trail by adding its menu item; deeper pages (a role, a member) show the page they belong to. Built in `ShellNav` (`SettingsCrumbs`), separate from the site trail above.
+Every page reached from Settings has a short trail above its title: **Settings › Clients** (decided Nov 2026). "Settings" goes back to the Settings page. The pages are every `settings.user` and `settings.company` menu item of the Blocks that are on, Sign-in & devices, the server pages (Email, Backups, Storage, Maps, Accounts & devices) and Switch business (`settingsPages` in `AppShell.tsx`). Unlike the Settings page's list, nothing is left out for being hidden right now (team-only while solo, a permission, server admin only), so a page always has its trail however you got there. A Block's settings page gets the trail by adding its menu item; deeper pages (a role, a member) show the page they belong to. Built in `ShellNav` (`SettingsCrumbs`), separate from the site trail above.
 
 ## 3. Other work areas
 
