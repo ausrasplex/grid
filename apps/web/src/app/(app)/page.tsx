@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { can } from "@grid/core";
-import { Alert, AttentionList, Button, Grid, Icon, LinkRow, List, PageHeader, Section, Stack, buttonVariants, cn, lookOf } from "@grid/ui";
+import { Alert, AttentionList, Button, Grid, Icon, LinkRow, List, PageHeader, Scroller, Section, Stack, buttonVariants, cn, lookOf } from "@grid/ui";
 import { activeJobCounts, myActiveJobs, onSiteNow } from "@grid/block-projects";
 import { JobRows } from "@grid/block-projects/components";
 import { getContext, type AppContext } from "@/lib/context";
@@ -158,14 +158,22 @@ async function SoftHome({ ctx, firstName }: { ctx: AppContext; firstName: string
           )}
         </div>
         {shownTiles.length > 0 && (
-          <div className={cn("grid gap-3", shownTiles.length === 3 ? "sm:grid-cols-3" : shownTiles.length === 2 ? "sm:grid-cols-2" : "")}>
+          // Phones: the tiles scroll sideways, edge to edge of the hero card,
+          // snapping to each one (as in Folio). Wider screens: side by side.
+          <Scroller
+            axis="x"
+            className={cn(
+              "-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 px-5 sm:mx-0 sm:grid sm:overflow-visible sm:px-0",
+              shownTiles.length === 3 ? "sm:grid-cols-3" : shownTiles.length === 2 ? "sm:grid-cols-2" : "",
+            )}
+          >
             {shownTiles.map((tile, index) => (
-              <div key={tile.blockId} className={cn("flex min-h-32 flex-col rounded-[16px] p-4 sm:min-h-44 text-tile-foreground", TILE_COLOURS[index])}>
+              <div key={tile.blockId} className={cn("flex min-h-48 min-w-48 flex-1 shrink-0 snap-start flex-col rounded-[16px] p-4 text-tile-foreground sm:min-h-44 sm:min-w-0", TILE_COLOURS[index])}>
                 <span className="mb-3 text-xs font-medium opacity-70">{String(index + 1).padStart(2, "0")}</span>
                 <div className="flex-1">{tile.node}</div>
               </div>
             ))}
-          </div>
+          </Scroller>
         )}
       </section>
 
