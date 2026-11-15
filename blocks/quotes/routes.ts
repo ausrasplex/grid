@@ -30,6 +30,12 @@ export const routes: Routes = {
   "PUT /settings": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.updateTaxSettings(ctx, taxSettingsSchema.parse(request.body)) },
   "POST /settings/codes": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.saveTaxCode(ctx, null, taxCodeSchema.parse(request.body)) },
   "PUT /settings/codes/:id": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.saveTaxCode(ctx, request.params.id!, taxCodeSchema.parse(request.body)) },
+  "GET /settings/codes/:id/usage": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.taxCodeUsage(ctx, request.params.id!) },
+  // ?moveTo=<rate id> moves price book items, draft quotes and the default onto it; left out means no tax.
+  "DELETE /settings/codes/:id": {
+    permission: "quotes.settings.manage",
+    handler: (ctx, request) => svc.deleteTaxCode(ctx, request.params.id!, z.string().uuid().nullable().parse(request.query.get("moveTo") || null)),
+  },
 
 
   // Price book

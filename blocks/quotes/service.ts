@@ -66,7 +66,11 @@ export async function taxSettings(companyId: string, tx: Tx = db) {
     taxSettings = tx === db ? await db.$transaction((lockTx) => setUp(lockTx)) : await setUp(tx);
   }
   const codes = await tx.taxCode.findMany({ where: { companyId }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] });
-  return { ...taxSettings, codes: codes.map((code) => ({ id: code.id, name: code.name, label: code.label, rate: Number(code.rate), ratePct: Number(code.rate) * 100, active: code.active })) };
+  // Deleted rates stay in the list (marked deleted, never active) so quotes that use them still add up.
+  return {
+    ...taxSettings,
+    codes: codes.map((code) => ({ id: code.id, name: code.name, label: code.label, rate: Number(code.rate), ratePct: Number(code.rate) * 100, active: code.active && !code.deletedAt, deleted: !!code.deletedAt })),
+  };
 }
 
 export type TaxSettingsView = Awaited<ReturnType<typeof taxSettings>>;
@@ -78,7 +82,7 @@ export async function getTaxSettings(ctx: RequestContext) {
 export async function updateTaxSettings(ctx: RequestContext, input: TaxSettingsInput) {
   const companyId = requireCompany(ctx);
   await taxSettings(companyId);
-  if (input.defaultTaxCodeId && !(await db.taxCode.findFirst({ where: { id: input.defaultTaxCodeId, companyId } }))) {
+  if (input.defaultTaxCodeId && !(await db.taxCode.findFirst({ where: { id: input.defaultTaxCodeId, companyId, deletedAt: null } }))) {
     throw badRequest("Pick one of your tax codes as the default");
   }
   try {
@@ -97,13 +101,55 @@ export async function saveTaxCode(ctx: RequestContext, id: string | null, input:
   const companyId = requireCompany(ctx);
   const data = { name: input.name, label: input.label, rate: input.ratePct / 100, active: input.active };
   if (id) {
-    const result = await db.taxCode.updateMany({ where: { id, companyId }, data });
+    const result = await db.taxCode.updateMany({ where: { id, companyId, deletedAt: null }, data });
     if (!result.count) throw notFound("Tax code not found");
   } else {
     const codeCount = await db.taxCode.count({ where: { companyId } });
     await db.taxCode.create({ data: { companyId, ...data, sort: codeCount } });
   }
   return taxSettings(companyId);
+}
+
+/** What uses a tax rate, for the Delete box: price book items, draft quotes, and whether it's the default. */
+export async function taxCodeUsage(ctx: RequestContext, id: string) {
+  const companyId = requireCompany(ctx);
+  const settings = await taxSettings(companyId);
+  if (!(await db.taxCode.count({ where: { id, companyId, deletedAt: null } }))) throw notFound("Tax rate not found");
+  const [priceItems, draftQuotes] = await Promise.all([
+    db.priceItem.count({ where: { companyId, taxCodeId: id, deletedAt: null } }),
+    db.quote.count({ where: { companyId, status: "DRAFT", lines: { some: { taxCodeId: id } } } }),
+  ]);
+  return { priceItems, draftQuotes, isDefault: settings.defaultTaxCodeId === id };
+}
+
+/**
+ * Deletes a tax rate. Price book items and draft quotes using it move to
+ * `moveTo` (another rate, or null for no tax), and so does the default.
+ * Sent quotes keep it: their PDFs are frozen, and the rate is only hidden.
+ */
+export async function deleteTaxCode(ctx: RequestContext, id: string, moveTo: string | null) {
+  const companyId = requireCompany(ctx);
+  const settings = await taxSettings(companyId);
+  if (moveTo === id) throw badRequest("Pick a different rate to move them to");
+  return db.$transaction(async (tx) => {
+    const code = await tx.taxCode.findFirst({ where: { id, companyId, deletedAt: null } });
+    if (!code) throw notFound("Tax rate not found");
+    if (moveTo && !(await tx.taxCode.count({ where: { id: moveTo, companyId, deletedAt: null } }))) throw badRequest("Pick one of your tax rates to move them to");
+    const items = await tx.priceItem.updateMany({ where: { companyId, taxCodeId: id, deletedAt: null }, data: { taxCodeId: moveTo } });
+    const lines = await tx.quoteLine.updateMany({ where: { taxCodeId: id, quote: { companyId, status: "DRAFT" } }, data: { taxCodeId: moveTo } });
+    if (settings.defaultTaxCodeId === id) await tx.taxSettings.update({ where: { companyId }, data: { defaultTaxCodeId: moveTo } });
+    await tx.taxCode.update({ where: { id }, data: { deletedAt: new Date(), active: false } });
+    await audit(tx, {
+      blockId: MOD,
+      actorId: ctx.userId,
+      companyId,
+      entityType: "TaxCode",
+      entityId: id,
+      action: "deleted",
+      diff: { name: code.name, movedTo: moveTo, priceItems: items.count, draftLines: lines.count },
+    });
+    return taxSettings(companyId, tx);
+  });
 }
 
 // ---------------------------------------------------------------------

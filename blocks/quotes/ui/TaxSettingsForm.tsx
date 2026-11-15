@@ -11,6 +11,7 @@ interface Code {
   label: string;
   ratePct: number;
   active: boolean;
+  deleted?: boolean;
 }
 
 export interface TaxSettingsJson {
@@ -154,23 +155,23 @@ export function TaxSettingsForm({ initial }: { initial: TaxSettingsJson }) {
 
         <Section flush title="Tax rates" actions={<Button variant="outline" size="sm" onClick={() => setCode({ active: true })}>Add rate</Button>}>
           <List>
-            {settings.codes.map((code) => (
+            {settings.codes.filter((code) => !code.deleted).map((code) => (
               <TapRow key={code.id} title={code.name} meta={`${code.label} · ${code.ratePct}%${code.active ? "" : " · Not used"}`} onClick={() => setCode(code)} />
             ))}
           </List>
         </Section>
       </Stack>
-      {code && <CodeSheet code={code} onClose={() => setCode(null)} onSaved={(saved) => (setSettings(saved), setCode(null))} />}
+      {code && <CodeSheet code={code} others={settings.codes.filter((other) => !other.deleted && other.id !== code.id)} onClose={() => setCode(null)} onSaved={(saved) => (setSettings(saved), setCode(null))} />}
     </>
   );
 }
 
-function CodeSheet({ code, onClose, onSaved }: { code: Partial<Code>; onClose: () => void; onSaved: (settings: TaxSettingsJson) => void }) {
+function CodeSheet({ code, others, onClose, onSaved }: { code: Partial<Code>; others: Code[]; onClose: () => void; onSaved: (settings: TaxSettingsJson) => void }) {
   const [form, setForm] = useState({ name: code.name ?? "", label: code.label ?? "", ratePct: code.ratePct == null ? "" : String(code.ratePct), active: code.active ?? true });
   const action = useAction();
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent desktop="dialog" title={code.id ? "Tax rate" : "New tax rate"} description="A rate in use can't be deleted (old quotes need it), but you can stop using it.">
+      <SheetContent desktop="dialog" title={code.id ? "Tax rate" : "New tax rate"} description="Deleting a rate moves your price book items and draft quotes onto another one. Sent quotes keep it.">
         <form
           className="flex flex-col gap-3 px-2"
           onSubmit={async (event) => {
@@ -191,6 +192,7 @@ function CodeSheet({ code, onClose, onSaved }: { code: Partial<Code>; onClose: (
           </label>
           <Alert variant="error">{action.error}</Alert>
           <FormActions>
+            {code.id && <DeleteRate id={code.id} others={others} busy={action.busy} onDeleted={onSaved} />}
             <Button type="submit" disabled={action.busy}>
               Save
             </Button>
@@ -198,5 +200,42 @@ function CodeSheet({ code, onClose, onSaved }: { code: Partial<Code>; onClose: (
         </form>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** Delete a rate: says what uses it, and where to move those to. */
+function DeleteRate({ id, others, busy, onDeleted }: { id: string; others: Code[]; busy: boolean; onDeleted: (settings: TaxSettingsJson) => void }) {
+  const [moveTo, setMoveTo] = useState(others[0]?.id ?? "");
+  const [usage, setUsage] = useState<{ priceItems: number; draftQuotes: number; isDefault: boolean } | null>(null);
+  const action = useAction();
+  if (!usage) {
+    return (
+      <Button type="button" variant="ghost" className="text-destructive" disabled={busy || action.busy} onClick={() => void action.run(async () => setUsage(await api(`/quotes/settings/codes/${id}/usage`)))}>
+        Delete
+      </Button>
+    );
+  }
+  const used = [usage.priceItems && `${usage.priceItems} price book ${usage.priceItems === 1 ? "item" : "items"}`, usage.draftQuotes && `${usage.draftQuotes} draft ${usage.draftQuotes === 1 ? "quote" : "quotes"}`, usage.isDefault && "the default"].filter(Boolean);
+  return (
+    <div className="flex w-full flex-col gap-3 rounded-lg bg-muted p-3">
+      {used.length > 0 && (
+        <>
+          <p className="text-sm">It&apos;s used by {used.join(", ")}.</p>
+          <SelectField label="Move them to" value={moveTo} onChange={(event) => setMoveTo(event.target.value)} options={[...others.map((other) => ({ value: other.id, label: other.name })), { value: "", label: "No tax" }]} />
+        </>
+      )}
+      <Alert variant="error">{action.error}</Alert>
+      <Button
+        type="button"
+        variant="destructive"
+        disabled={action.busy}
+        onClick={async () => {
+          const result = await action.run(() => api<TaxSettingsJson>(`/quotes/settings/codes/${id}${used.length && moveTo ? `?moveTo=${moveTo}` : ""}`, { method: "DELETE" }));
+          if (result) onDeleted(result);
+        }}
+      >
+        {action.busy ? "Deleting…" : "Delete this rate"}
+      </Button>
+    </div>
   );
 }

@@ -57,6 +57,9 @@ model TaxCode {
   active    Boolean  @default(true)
   sort      Int      @default(0)
   createdAt DateTime @default(now())
+  /// Deleted from Settings › Tax & currency: hidden everywhere, but kept so
+  /// quotes already sent with it still add up.
+  deletedAt DateTime?
 
   @@index([companyId])
 }
