@@ -214,7 +214,7 @@ async function acceptedTotals(quotes: { status: string; currentRevisionId: strin
   return new Map(revisions.map((revision) => [revision.id, totalsFor(revision.snapshot as unknown as QuoteSnapshot, chosen.get(revision.id) ?? []).totalCents]));
 }
 
-export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | "draft" | "sent" | "won" | "all"; q?: string } = {}) {
+export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | "draft" | "sent" | "won" | "all"; q?: string; clientId?: string } = {}) {
   const companyId = requireCompany(ctx);
   const tab = options.tab ?? "open";
   const status: Prisma.QuoteWhereInput["status"] =
@@ -226,6 +226,7 @@ export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | 
       companyId,
       deletedAt: null,
       ...(status ? { status } : {}),
+      ...(options.clientId ? { clientId: options.clientId } : {}),
       AND: words.map((word, index) => ({
         OR: [
           { number: { contains: word, mode: "insensitive" as const } },

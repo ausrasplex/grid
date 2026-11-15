@@ -109,6 +109,16 @@ export async function clientIdsNamed(companyId: string, word: string): Promise<s
 }
 
 /** One of this company's clients (removed ones too), or null. */
+/** One client for their page, removed ones included (old jobs link to them). */
+export async function clientPage(ctx: RequestContext, id: string): Promise<ClientRow & { removed: boolean }> {
+  const companyId = requireCompany(ctx);
+  if (!/^[0-9a-f-]{36}$/.test(id)) throw notFound("Client not found");
+  const client = await db.client.findFirst({ where: { id, companyId }, select: { ...clientSelect, deletedAt: true } });
+  if (!client) throw notFound("Client not found");
+  const { deletedAt, ...rest } = client;
+  return { ...rest, removed: !!deletedAt };
+}
+
 export async function getClient(ctx: RequestContext, id: string): Promise<ClientRow | null> {
   const companyId = requireCompany(ctx);
   return db.client.findFirst({ where: { id, companyId }, select: clientSelect });

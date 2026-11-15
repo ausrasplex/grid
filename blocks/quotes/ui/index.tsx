@@ -11,11 +11,12 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { app, can } from "@grid/core";
-import { Icon, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
+import { Badge, Icon, List, Section, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
 import { getProject, type JobAreaPanelProps, type PlaceStartPanelProps } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import type { PlaceSite } from "@grid/block-sites/components";
-import { getClient } from "@grid/block-clients";
+import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
+import { formatMoney } from "../money";
 import { getQuote, getTaxSettings, listPriceItems, listQuotes, quoteForJob } from "../service";
 import { CustomerQuote, type CustomerViewJson } from "./CustomerQuote";
 import { NewQuote } from "./NewQuote";
@@ -100,6 +101,36 @@ export const pages: BlockPages = {
 };
 
 export const panels: BlockPanels = {
+  // On a client's page: quotes waiting on them (drafts and sent).
+  "client.page": async (props) => {
+    const { ctx, clientId } = props as typeof props & ClientPagePanelProps;
+    if (!can(ctx, "quotes.view")) return null;
+    const [rows, settings] = await Promise.all([listQuotes(ctx, { tab: "open", clientId }), getTaxSettings(ctx)]);
+    if (!rows.length) return null;
+    const money = (cents: number) => formatMoney(cents, settings.currency, settings.locale);
+    const waiting = rows.reduce((total, row) => total + row.totalCents, 0);
+    return (
+      <Section title={`Open quotes (${rows.length})`} description={`${money(waiting)} waiting for an answer`} flush>
+        <List>
+          {rows.map((row) => (
+            <li key={row.id}>
+              <a href={`/quotes/${row.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-2.5 hover:bg-muted active:bg-muted sm:px-5">
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="truncate font-semibold">{row.title}</span>
+                    <StatusBadge status={row.status} viewed={!!row.viewedAt} />
+                    {row.status === "SENT" && row.validUntil < new Date() && <Badge variant="warning">Past valid date</Badge>}
+                  </span>
+                  <span className="block truncate text-sm text-muted-foreground">{[row.number, row.uploaded ? "PDF" : null, row.siteAddress].filter(Boolean).join(" · ")}</span>
+                </span>
+                <span className="shrink-0 font-semibold tabular-nums">{money(row.totalCents)}</span>
+              </a>
+            </li>
+          ))}
+        </List>
+      </Section>
+    );
+  },
   // On an empty building or floor: "Add quote", with the place filled in.
   "place.start": async (props) => {
     const { ctx, siteId, buildingId, levelId } = props as typeof props & PlaceStartPanelProps;

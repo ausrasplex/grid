@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { ActionButton, Avatar, EmptyState, List, PageHeader, SearchInput, Section, Sheet, SheetContent, Stack, TapRow, api } from "@grid/ui";
 import { ClientForm, type ClientJson } from "./ClientPicker";
 
-export function Clients({ initial, canManage, canAdd }: { initial: ClientJson[]; canManage: boolean; canAdd: boolean }) {
+export function Clients({ initial, canAdd }: { initial: ClientJson[]; canAdd: boolean }) {
   const [rows, setRows] = useState(initial);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Partial<ClientJson> | null>(null);
@@ -36,7 +36,7 @@ export function Clients({ initial, canManage, canAdd }: { initial: ClientJson[];
                   leading={<Avatar name={row.name} />}
                   title={row.name}
                   meta={[row.contactName, row.email, row.phone, row.address].filter(Boolean).join(" · ") || "No details yet"}
-                  onClick={() => canManage && setEditing(row)}
+                  onClick={() => (window.location.href = `/clients/${row.id}`)}
                 />
               ))}
             </List>
@@ -46,20 +46,7 @@ export function Clients({ initial, canManage, canAdd }: { initial: ClientJson[];
       {editing && (
         <Sheet open onOpenChange={(open) => !open && setEditing(null)}>
           <SheetContent desktop="dialog" title={editing.id ? editing.name ?? "Client" : "New client"}>
-            <ClientForm
-              initial={editing}
-              onSaved={async () => (setEditing(null), await load())}
-              onDelete={
-                editing.id
-                  ? async () => {
-                      if (!window.confirm(`Remove ${editing.name}? Jobs and quotes that name them keep their details.`)) return;
-                      await api(`/clients/${editing.id}`, { method: "DELETE" });
-                      setEditing(null);
-                      await load();
-                    }
-                  : undefined
-              }
-            />
+            <ClientForm initial={editing} onSaved={async () => (setEditing(null), await load())} />
           </SheetContent>
         </Sheet>
       )}

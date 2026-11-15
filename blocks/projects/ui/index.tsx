@@ -10,11 +10,11 @@
 
 import { redirect } from "next/navigation";
 import { can, notFound, type RequestContext } from "@grid/core";
-import { Alert, Badge, Icon, LinkRow, List, PageHeader, Section, Stack, buttonVariants, cn, type BlockPages, type PanelRenderer } from "@grid/ui";
+import { Alert, Badge, Icon, LinkRow, List, PageHeader, Section, Stack, buttonVariants, cn, type BlockPages, type BlockPanels, type PanelRenderer } from "@grid/ui";
 import { SiteNotes } from "@grid/block-sites/components";
-import { getClient } from "@grid/block-clients";
+import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
 import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
-import { getProject, jobsAt, recordArea, resumeOnSite, type Area } from "../service";
+import { getProject, jobsAt, jobsForClient, recordArea, resumeOnSite, type Area } from "../service";
 import type { PlaceStartPanelProps } from "../index";
 import { CopyLink, FinishJob } from "./JobActions";
 import { JobRows } from "./JobRows";
@@ -345,7 +345,7 @@ async function JobPage({
         <Section title="Details" flush>
           <dl className="divide-y">
             <Detail label="Address" value={site.address} href={siteHref(site.id)} />
-            {job.clientName && <Detail label="Client" value={job.clientName} />}
+            {job.clientName && <Detail label="Client" value={job.clientName} href={job.clientId && can(ctx, "clients.view") ? `/clients/${job.clientId}` : undefined} />}
             {job.jobNumber && <Detail label="Job number" value={job.jobNumber} />}
             <Detail label="Started" value={date(job.startedAt)} />
             {!plain && <Detail label="Covers" value={coversText(job.covers, site)} />}
@@ -425,3 +425,19 @@ export const pages: BlockPages = {
   search: () => <JumpTo />,
 };
 
+
+export const panels: BlockPanels = {
+  // On a client's page: their active jobs, and the last few finished.
+  "client.page": async (props) => {
+    const { ctx, clientId, clientName } = props as typeof props & ClientPagePanelProps;
+    if (!can(ctx, "projects.view")) return null;
+    const { active, earlier, earlierCount } = await jobsForClient(ctx, clientId);
+    if (!active.length && !earlier.length) return null;
+    return (
+      <>
+        <JobRows title={`Active jobs (${active.length})`} jobs={active} empty={`No active jobs for ${clientName}.`} showSite />
+        {earlier.length > 0 && <JobRows title={earlierCount > earlier.length ? `Earlier jobs (latest ${earlier.length} of ${earlierCount})` : "Earlier jobs"} jobs={earlier} showSite />}
+      </>
+    );
+  },
+};

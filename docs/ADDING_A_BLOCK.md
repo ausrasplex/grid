@@ -127,6 +127,10 @@ A block job can also run on a timetable: add `schedule` (a cron line in the serv
 
 Put a panel in the `home.top` slot (`panels: { "home.top": async ({ ctx }) => … }`): it shows at the top of Home. Return null when there's nothing to say.
 
+## A section on a client's page
+
+`/clients/<id>` shows a client's details, then the panels in the `client.page` slot (props `ClientPagePanelProps` from `@grid/block-clients`: `clientId`, `clientName`). Projects shows their active and recent finished jobs; Quotes shows their open quotes. Return null when you have nothing with that client.
+
 ## Things filed to a floor
 
 If your Block stores a `levelId` (a photo, a sheet, an inspection), say how many things are on a level, so a floor is only deleted when it is empty. Count every business and include Recently deleted (separately worded):

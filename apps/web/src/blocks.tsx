@@ -48,6 +48,7 @@ export const blockPublicPages: Record<string, () => Promise<PublicPages>> = {
 /** Lazy panel loaders (pieces a block shows on other blocks' pages), keyed by block id. */
 export const blockPanels: Record<string, () => Promise<BlockPanels>> = {
   credentials: async () => (await import("@grid/block-credentials/ui")).panels,
+  projects: async () => (await import("@grid/block-projects/ui")).panels,
   photos: async () => (await import("@grid/block-photos/ui")).panels,
   plans: async () => (await import("@grid/block-plans/ui")).panels,
   markups: async () => (await import("@grid/block-markups/ui")).panels,

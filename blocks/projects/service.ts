@@ -369,6 +369,27 @@ export async function jobsAt(ctx: RequestContext, location: { siteId: string; bu
   return { site, active, earlier, counts };
 }
 
+/** A client's jobs for their page: active ones (newest first) and the last few finished. */
+export async function jobsForClient(ctx: RequestContext, clientId: string, earlierLimit = 5) {
+  const companyId = requireCompany(ctx);
+  const rows = await db.project.findMany({
+    where: { clientId, deletedAt: null, companies: { some: { companyId, status: VISIBLE } } },
+    select: summarySelect(companyId),
+    orderBy: { startedAt: "desc" },
+    take: 300,
+  });
+  const sites = await db.site.findMany({ where: { id: { in: [...new Set(rows.map((row) => row.siteId))] } }, select: { id: true, name: true } });
+  const siteName = new Map(sites.map((site) => [site.id, site.name]));
+  const finished = rows
+    .filter((row) => row.status === "COMPLETED")
+    .sort((first, second) => (second.completedAt?.getTime() ?? 0) - (first.completedAt?.getTime() ?? 0));
+  return {
+    active: rows.filter((row) => row.status === "ACTIVE").map((row) => toSummary(row, siteName.get(row.siteId) ?? "")),
+    earlier: finished.slice(0, earlierLimit).map((row) => toSummary(row, siteName.get(row.siteId) ?? "")),
+    earlierCount: finished.length,
+  };
+}
+
 /** Your active jobs, the ones you used most recently first. */
 export async function myActiveJobs(ctx: RequestContext, limit = 8): Promise<JobSummary[]> {
   const companyId = requireCompany(ctx);
