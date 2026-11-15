@@ -127,6 +127,10 @@ A block job can also run on a timetable: add `schedule` (a cron line in the serv
 
 Put a panel in the `home.top` slot (`panels: { "home.top": async ({ ctx }) => … }`): it shows at the top of Home. Return null when there's nothing to say.
 
+## Tiles and "Needs attention" on Home (Soft look)
+
+In the Soft theme Home has a hero card with up to three numbered tiles and a "Needs attention" list. Put a `<HomeTile label value foot progress href />` (from `@grid/ui`) in the `home.tiles` slot, and `<AttentionRow title badge tone description href />`s in `home.attention`. Home colours and numbers the tiles; return null when you have nothing. These panels are run straight away (`resolvePanels`), so they can't use hooks.
+
 ## A section on a client's page
 
 `/clients/<id>` shows a client's details, then the panels in the `client.page` slot (props `ClientPagePanelProps` from `@grid/block-clients`: `clientId`, `clientName`). Projects shows their active and recent finished jobs; Quotes shows their open quotes. Return null when you have nothing with that client.

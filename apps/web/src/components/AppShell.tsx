@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import type { MenuItem } from "@grid/core";
 import type { AppContext } from "@/lib/context";
 import { registry } from "@/blocks";
+import { lookOf } from "@grid/ui";
 import { ShellNav, type NavItem } from "./ShellNav";
 
 /** Core settings page (not a Block): password and signed-in devices. */
@@ -72,6 +73,7 @@ export function AppShell({ ctx, children }: { ctx: AppContext; children: ReactNo
       settings={settingsPages(ctx)}
       user={ctx.user}
       company={ctx.company}
+      look={lookOf(ctx.user.theme)}
     >
       {children}
     </ShellNav>

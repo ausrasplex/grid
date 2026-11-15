@@ -390,6 +390,16 @@ export async function jobsForClient(ctx: RequestContext, clientId: string, earli
   };
 }
 
+/** Active jobs and the sites they're on, for Home's summary. */
+export async function activeJobCounts(ctx: RequestContext): Promise<{ jobs: number; sites: number }> {
+  const companyId = requireCompany(ctx);
+  const rows = await db.project.findMany({
+    where: { deletedAt: null, status: "ACTIVE", companies: { some: { companyId, status: "ACTIVE" } } },
+    select: { siteId: true },
+  });
+  return { jobs: rows.length, sites: new Set(rows.map((row) => row.siteId)).size };
+}
+
 /** Your active jobs, the ones you used most recently first. */
 export async function myActiveJobs(ctx: RequestContext, limit = 8): Promise<JobSummary[]> {
   const companyId = requireCompany(ctx);

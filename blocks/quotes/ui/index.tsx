@@ -11,7 +11,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { app, can } from "@grid/core";
-import { Badge, Icon, List, Section, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
+import { AttentionRow, Badge, HomeTile, Icon, List, Section, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
 import { getProject, type JobAreaPanelProps, type PlaceStartPanelProps } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import type { PlaceSite } from "@grid/block-sites/components";
@@ -101,6 +101,43 @@ export const pages: BlockPages = {
 };
 
 export const panels: BlockPanels = {
+  // Home (Soft look): what's waiting for an answer.
+  "home.tiles": async ({ ctx }) => {
+    if (!can(ctx, "quotes.view")) return null;
+    const [rows, settings] = await Promise.all([listQuotes(ctx, { tab: "open" }), getTaxSettings(ctx)]);
+    const sent = rows.filter((row) => row.status === "SENT");
+    const total = sent.reduce((sum, row) => sum + row.totalCents, 0);
+    const drafts = rows.length - sent.length;
+    return (
+      <HomeTile
+        label="Quotes out"
+        value={formatMoney(total, settings.currency, settings.locale).replace(/\.00$/, "")}
+        foot={rows.length ? [`${sent.length} waiting for an answer`, drafts ? `${drafts} draft${drafts === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ") : "No open quotes"}
+        progress={rows.length ? sent.length / rows.length : 0}
+        href="/quotes"
+      />
+    );
+  },
+  // Home (Soft look): sent quotes past their valid date.
+  "home.attention": async ({ ctx }) => {
+    if (!can(ctx, "quotes.view")) return null;
+    const rows = (await listQuotes(ctx, { tab: "sent" })).filter((row) => row.validUntil < new Date());
+    if (!rows.length) return null;
+    return (
+      <>
+        {rows.slice(0, 5).map((row) => (
+          <AttentionRow
+            key={row.id}
+            title={`${row.number} is past its valid date`}
+            badge="Follow up"
+            tone="warning"
+            description={[row.title, row.clientName, `valid until ${row.validUntil.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}`].filter(Boolean).join(" · ")}
+            href={`/quotes/${row.id}`}
+          />
+        ))}
+      </>
+    );
+  },
   // On a client's page: quotes waiting on them (drafts and sent).
   "client.page": async (props) => {
     const { ctx, clientId } = props as typeof props & ClientPagePanelProps;

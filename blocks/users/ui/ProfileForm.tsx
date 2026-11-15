@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Avatar, Button, Field, FormActions, Loading, Section, Sheet, SheetContent, api, useAction, useApi } from "@grid/ui";
+import { Alert, Avatar, Button, Field, FormActions, Loading, Section, Sheet, SheetContent, Stack, THEMES, api, cn, themeAttributes, themeOf, useAction, useApi, type ThemeId } from "@grid/ui";
 
 interface Me {
   id: string;
@@ -10,6 +10,7 @@ interface Me {
   name: string;
   phone: string | null;
   avatarUrl: string | null;
+  settings: Record<string, unknown>;
 }
 
 export function ProfileForm() {
@@ -33,6 +34,7 @@ export function ProfileForm() {
   if (error || !data) return <Alert variant="error">{error ?? "Couldn't load your profile"}</Alert>;
 
   return (
+    <Stack>
     <Section>
       <form
         className="flex flex-col gap-4"
@@ -79,6 +81,74 @@ export function ProfileForm() {
           setChangingEmail(false);
         }}
       />
+    </Section>
+    <Appearance initial={themeOf(data.settings?.theme)} />
+    </Stack>
+  );
+}
+
+/** Small colour samples for each theme's card: page, card, main colour, tiles. */
+const SWATCHES: Record<ThemeId, string[]> = {
+  grid: ["#15171b", "#1f2228", "#f5d90a"],
+  "grid-light": ["#f6f7f9", "#ffffff", "#c2410c"],
+  soft: ["#f5f5f8", "#2b2a4c", "#b9a8f5", "#fbd8ae", "#e6f548"],
+  "soft-dark": ["#14131f", "#2d2b52", "#b9a8f5", "#fbd8ae", "#e6f548"],
+  "soft-system": ["#f5f5f8", "#14131f", "#b9a8f5", "#fbd8ae", "#e6f548"],
+};
+
+/**
+ * Settings › Profile › Appearance: Grid's look, for you on every device.
+ * Soft is a trial (docs/visual-style.md "Themes"). Applies straight away.
+ */
+function Appearance({ initial }: { initial: ThemeId }) {
+  const router = useRouter();
+  const [theme, setTheme] = useState<ThemeId>(initial);
+  const action = useAction();
+
+  const pick = async (next: ThemeId) => {
+    if (next === theme) return;
+    const previous = theme;
+    setTheme(next);
+    const ok = await action.run(() => api("/users/me", { method: "PATCH", body: { settings: { theme: next } } }));
+    if (!ok) return setTheme(previous);
+    // Show it now; the refresh brings the matching menus and Home.
+    const root = document.documentElement;
+    const attributes = themeAttributes(next);
+    if (attributes["data-theme"]) root.setAttribute("data-theme", attributes["data-theme"]);
+    else root.removeAttribute("data-theme");
+    root.setAttribute("data-look", attributes["data-look"]);
+    router.refresh();
+  };
+
+  return (
+    <Section title="Appearance" description="How Grid looks for you, on every device you sign in on. Soft is a trial look: try it and tell us.">
+      <div role="radiogroup" aria-label="Theme" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {THEMES.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={theme === option.id}
+            disabled={action.busy}
+            onClick={() => void pick(option.id)}
+            className={cn(
+              "flex min-h-touch-lg items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors",
+              theme === option.id ? "border-primary bg-accent text-accent-foreground" : "border-transparent bg-muted hover:border-input",
+            )}
+          >
+            <span aria-hidden className="flex shrink-0 -space-x-1.5">
+              {SWATCHES[option.id].map((colour, index) => (
+                <span key={index} className="size-6 rounded-full border-2 border-card" style={{ background: colour }} />
+              ))}
+            </span>
+            <span className="min-w-0">
+              <span className="block font-semibold">{option.label}</span>
+              <span className="block text-sm opacity-80">{option.description}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      <Alert variant="error">{action.error}</Alert>
     </Section>
   );
 }

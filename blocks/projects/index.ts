@@ -6,6 +6,7 @@ export {
   jobLabelsForSystem,
   jobsAt,
   myActiveJobs,
+  activeJobCounts,
   onSiteNow,
   resumeOnSite,
   recordArea,

@@ -7,13 +7,14 @@ import "server-only";
 import { cache } from "react";
 import type { RequestContext } from "@grid/core";
 import { avatarUrl, db } from "@grid/db";
+import { themeOf, type ThemeId } from "@grid/ui";
 import { defaultCompanyId, resolveAccess } from "@grid/block-companies";
 import { registry } from "@/blocks";
 import { getActiveCompanyId, getSessionUserId } from "./session";
 
 export interface AppContext extends RequestContext {
   /** avatarUrl: their picture, or null for initials. */
-  user: { id: string; name: string; email: string; serverAdmin: boolean; avatarUrl: string | null };
+  user: { id: string; name: string; email: string; serverAdmin: boolean; avatarUrl: string | null; theme: ThemeId };
   company: { id: string; name: string; role: string } | null;
 }
 
@@ -23,10 +24,10 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
   if (!userId) return null;
   const found = await db.user.findFirst({
     where: { id: userId, deletedAt: null },
-    select: { id: true, name: true, email: true, serverAdmin: true, avatarKey: true, image: true },
+    select: { id: true, name: true, email: true, serverAdmin: true, avatarKey: true, image: true, settings: true },
   });
   if (!found) return null;
-  const user = { id: found.id, name: found.name, email: found.email, serverAdmin: found.serverAdmin, avatarUrl: avatarUrl(found) };
+  const user = { id: found.id, name: found.name, email: found.email, serverAdmin: found.serverAdmin, avatarUrl: avatarUrl(found), theme: themeOf((found.settings as { theme?: unknown } | null)?.theme) };
 
   const required = registry.effectiveEnabled([]);
   const base: AppContext = {

@@ -2,8 +2,9 @@
 //   /tickets          your tickets and licences
 //   panel "home.top"  "1 ticket expired · 2 expiring soon" when any are
 
-import { Icon, type BlockPages, type BlockPanels } from "@grid/ui";
+import { AttentionRow, HomeTile, Icon, type BlockPages, type BlockPanels } from "@grid/ui";
 import { myTickets, ticketAlerts } from "../service";
+import { expiryWords } from "../types";
 import { Tickets, type TicketJson } from "./Tickets";
 
 export const pages: BlockPages = {
@@ -11,6 +12,41 @@ export const pages: BlockPages = {
 };
 
 export const panels: BlockPanels = {
+  // Home (Soft look): your tickets at a glance.
+  "home.tiles": async ({ ctx }) => {
+    const tickets = await myTickets(ctx);
+    const expired = tickets.filter((ticket) => ticket.status === "expired").length;
+    const soon = tickets.filter((ticket) => ticket.status === "soon").length;
+    const value = !tickets.length ? "None yet" : expired ? `${expired} expired` : soon ? `${soon} expiring` : "All current";
+    return (
+      <HomeTile
+        label="Tickets & licences"
+        value={value}
+        foot={tickets.length ? `${tickets.length} saved` : "Add your white card and licence"}
+        progress={tickets.length ? (tickets.length - expired - soon) / tickets.length : 0}
+        href="/tickets"
+      />
+    );
+  },
+  // Home (Soft look): each ticket that's run out or is about to.
+  "home.attention": async ({ ctx }) => {
+    const due = (await myTickets(ctx)).filter((ticket) => ticket.status === "expired" || ticket.status === "soon");
+    if (!due.length) return null;
+    return (
+      <>
+        {due.map((ticket) => (
+          <AttentionRow
+            key={ticket.id}
+            title={ticket.title}
+            badge={ticket.status === "expired" ? "Expired" : "Renew"}
+            tone={ticket.status === "expired" ? "destructive" : "warning"}
+            description={`${expiryWords(ticket.daysLeft)}. Renew it, then update it in Grid.`}
+            href="/tickets"
+          />
+        ))}
+      </>
+    );
+  },
   "home.top": async ({ ctx }) => {
     const { expired, soon } = await ticketAlerts(ctx);
     if (!expired && !soon) return null;

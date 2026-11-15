@@ -55,13 +55,15 @@ export async function ensureUser(
 
 export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<PublicUser> {
   return db.$transaction(async (tx) => {
-    await getUser(userId, tx);
+    const before = await getUser(userId, tx);
+    // Merged into what's there, so saving one preference keeps the others.
+    const settings = input.settings ? { ...((before.settings ?? {}) as Record<string, unknown>), ...input.settings } : undefined;
     const user = await tx.user.update({
       where: { id: userId },
       data: {
         name: input.name,
         phone: input.phone,
-        settings: input.settings as Prisma.InputJsonValue | undefined,
+        settings: settings as Prisma.InputJsonValue | undefined,
       },
       select: publicFields,
     });

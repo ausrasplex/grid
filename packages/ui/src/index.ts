@@ -1,6 +1,7 @@
 export * from "./types";
 export { cn, newId } from "./lib/utils";
 export { describeDevice } from "./lib/devices";
+export { THEMES, themeOf, lookOf, themeAttributes, themeColour, type ThemeId, type Look } from "./lib/themes";
 
 // shadcn/ui components
 export { Button, buttonVariants, type ButtonProps } from "./components/button";
@@ -19,6 +20,7 @@ export * from "./blocks";
 export { Field, SelectField } from "./fields";
 export { AddressField, type AddressPick, type SiteMatch } from "./address-field";
 export { Crumbs, type Crumb } from "./crumbs";
+export { HomeTile, AttentionRow, AttentionList } from "./home";
 export { Icon, ICONS } from "./icons";
 export { Scroller, useOverflow } from "./scroller";
 

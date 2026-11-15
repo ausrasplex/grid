@@ -67,6 +67,24 @@ export async function renderPanels(ctx: RequestContext, slot: string, props: Rec
   return out;
 }
 
+/**
+ * Like renderPanels, but runs each panel now and leaves out the ones with
+ * nothing to show (null), so a page can count them or hide an empty card
+ * (Home's tiles and "Needs attention"). Only for panels without hooks.
+ */
+export async function resolvePanels(ctx: RequestContext, slot: string, props: Record<string, unknown>): Promise<{ blockId: string; node: ReactNode }[]> {
+  const out: { blockId: string; node: ReactNode }[] = [];
+  for (const block of registry.blocks) {
+    const load = blockPanels[block.id];
+    if (!load || !(block.required || ctx.enabledBlocks.has(block.id))) continue;
+    const Panel = (await load())[slot];
+    if (!Panel) continue;
+    const node = await Panel({ ctx, ...props });
+    if (node !== null && node !== undefined && node !== false) out.push({ blockId: block.id, node });
+  }
+  return out;
+}
+
 function boot(): AppServices {
   // Every audit entry records the IP and device of the request that made it.
   setAuditOrigin(requestOrigin);

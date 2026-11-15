@@ -17,11 +17,17 @@
 // Chrome uses the page colour; the rail and sidebar have a thin right
 // border. Nothing shows a scrollbar on phones/tablets (Scroller fades).
 // Everything respects iPhone/Android safe areas.
+//
+// The Soft look (look="soft", Settings › Profile › Appearance) keeps the
+// same structure with: no lines between menus and page, the business as a
+// white pill in the top bar and your picture at the top right on every size,
+// the centre button as a pill at the top of the desktop sidebar, the current
+// page as a white tile, Log out at the bottom, and content in a centred column.
 
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { Crumbs, Icon, Scroller, Sheet, SheetContent, SheetTrigger, cn } from "@grid/ui";
+import { Crumbs, Icon, Scroller, Sheet, SheetContent, SheetTrigger, cn, type Look } from "@grid/ui";
 import { authClient } from "@/lib/auth-client";
 
 export interface NavItem {
@@ -49,6 +55,8 @@ interface Props {
   settings: NavItem[];
   user: { name: string; email: string; avatarUrl: string | null };
   company: { name: string; role: string } | null;
+  /** Grid (concept C) or the Soft trial look. */
+  look?: Look;
   children: ReactNode;
 }
 
@@ -176,7 +184,8 @@ function MoreSheet({ items, trigger, triggerClassName }: { items: NavItem[]; tri
   );
 }
 
-export function ShellNav({ home, primary, main, more, scan, headerActions, account, settings, user, company, children }: Props) {
+export function ShellNav({ home, primary, main, more, scan, headerActions, account, settings, user, company, look = "grid", children }: Props) {
+  const soft = look === "soft";
   const pathname = usePathname();
   const settingsPage = settingsPageFor(pathname, settings);
   const switcher = headerActions.find((headerAction) => headerAction.id === "companies.switcher");
@@ -220,17 +229,28 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
   return (
     <div className="min-h-dvh md:pl-rail lg:pl-sidebar">
       {/* ---------- Top bar (flat, page colour, 1px line under it) ---------- */}
-      <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/95 pt-safe backdrop-blur md:left-rail lg:left-sidebar">
-        <div className="flex h-topbar items-center gap-1 pl-safe pr-safe">
-          {/* Company switcher: phone and tablet (desktop has it in the sidebar) */}
-          <div className="flex min-w-0 flex-1 items-center px-2 md:px-4 lg:invisible">
-            <a
-              href={switcher?.href ?? "/"}
-              className="flex min-h-touch min-w-0 items-center gap-1.5 rounded-lg px-2 hover:bg-muted active:bg-muted"
-            >
-              {companyBlock}
-              {switcher && <Icon name="chevron-down" className="size-4 shrink-0 text-muted-foreground" />}
-            </a>
+      <header className={cn("fixed inset-x-0 top-0 z-40 bg-background/95 pt-safe backdrop-blur md:left-rail lg:left-sidebar", !soft && "border-b")}>
+        <div className={cn("flex h-topbar items-center gap-1 pl-safe pr-safe", soft && "lg:mx-auto lg:max-w-6xl lg:px-6 xl:px-8")}>
+          {/* Company switcher: phone and tablet (desktop has it in the sidebar); Soft: a pill everywhere */}
+          <div className={cn("flex min-w-0 flex-1 items-center px-2 md:px-4", !soft && "lg:invisible", soft && "lg:px-2")}>
+            {soft ? (
+              <a
+                href={switcher?.href ?? "/"}
+                className="flex h-10 min-w-0 items-center gap-2 rounded-full bg-card px-4 text-sm font-semibold shadow-sm hover:bg-muted"
+                title={company ? `${company.name} · ${company.role}` : undefined}
+              >
+                <span className="truncate">{company?.name ?? "Choose a business"}</span>
+                {switcher && <Icon name="chevron-down" className="size-4 shrink-0 text-muted-foreground" />}
+              </a>
+            ) : (
+              <a
+                href={switcher?.href ?? "/"}
+                className="flex min-h-touch min-w-0 items-center gap-1.5 rounded-lg px-2 hover:bg-muted active:bg-muted"
+              >
+                {companyBlock}
+                {switcher && <Icon name="chevron-down" className="size-4 shrink-0 text-muted-foreground" />}
+              </a>
+            )}
           </div>
 
           {actions.map((action) =>
@@ -240,7 +260,10 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
                 key={action.id}
                 href={action.href}
                 aria-label="Jump to (Ctrl K)"
-                className="inline-flex size-touch items-center justify-center gap-2 rounded-lg text-nav-foreground hover:bg-muted md:mr-1 md:h-10 md:w-64 md:justify-start md:bg-muted md:px-3 md:text-sm md:text-muted-foreground"
+                className={cn(
+                  "inline-flex size-touch items-center justify-center gap-2 text-nav-foreground hover:bg-muted md:mr-1 md:h-10 md:w-64 md:justify-start md:px-3 md:text-sm md:text-muted-foreground",
+                  soft ? "rounded-full md:bg-card md:shadow-sm" : "rounded-lg md:bg-muted",
+                )}
               >
                 <Icon name="search" className="size-5" />
                 <span className="hidden flex-1 md:inline">Jump to…</span>
@@ -251,20 +274,20 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
                 key={action.id}
                 href={action.href}
                 aria-label={action.label}
-                className="inline-flex size-touch items-center justify-center rounded-lg text-nav-foreground hover:bg-muted"
+                className={cn("inline-flex size-touch items-center justify-center text-nav-foreground hover:bg-muted", soft ? "rounded-full" : "rounded-lg")}
               >
                 <Icon name={action.icon} className="size-5" />
               </a>
             ),
           )}
 
-          {/* Avatar: phone only (tablet rail and desktop sidebar have their own) */}
+          {/* Avatar: phone only (tablet rail and desktop sidebar have their own); Soft: every size */}
           <AccountSheet
             user={user}
             account={account}
             switcher={switcher}
-            trigger={<UserAvatar name={user.name} src={user.avatarUrl} />}
-            triggerClassName="mr-2 inline-flex size-touch items-center justify-center rounded-full md:hidden"
+            trigger={<UserAvatar name={user.name} src={user.avatarUrl} className={soft ? "md:size-10" : undefined} />}
+            triggerClassName={cn("mr-2 inline-flex size-touch items-center justify-center rounded-full", !soft && "md:hidden")}
           />
           <span className="hidden w-2 md:block" />
         </div>
@@ -273,7 +296,7 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
       {/* ---------- Tablet rail (768–1023px) ---------- */}
       <nav
         aria-label="Main"
-        className="fixed inset-y-0 left-0 z-30 hidden w-rail flex-col items-center gap-1 border-r bg-nav pt-safe pb-safe pl-safe md:flex lg:hidden"
+        className={cn("fixed inset-y-0 left-0 z-30 hidden w-rail flex-col items-center gap-1 bg-nav pt-safe pb-safe pl-safe md:flex lg:hidden", !soft && "border-r")}
       >
         <a href="/" aria-label="Home" className="mt-4 mb-3">
           <Mark className="size-10" />
@@ -287,7 +310,7 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
               aria-current={active ? "page" : undefined}
               className={cn("flex w-full flex-col items-center gap-1 py-2 text-xs font-medium", active ? "text-nav-active" : "text-nav-foreground")}
             >
-              <span className={cn("flex h-8 w-14 items-center justify-center rounded-full", active && "bg-accent text-accent-foreground")}>
+              <span className={cn("flex h-8 w-14 items-center justify-center rounded-full", active && (soft ? "bg-card text-foreground shadow-sm" : "bg-accent text-accent-foreground"))}>
                 <Icon name={item.icon} className="size-6" />
               </span>
               <span className="max-w-full truncate px-1">{item.label}</span>
@@ -311,33 +334,59 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
         <a
           href={scan.href}
           aria-label={scan.label}
-          className="mt-3 flex size-14 items-center justify-center rounded-xl bg-primary text-primary-foreground active:opacity-90"
+          className={cn("mt-3 flex size-14 items-center justify-center bg-primary text-primary-foreground active:opacity-90", soft ? "rounded-full shadow-md" : "rounded-xl")}
         >
           <Icon name={scan.icon ?? "scan"} className="size-7" />
         </a>
         <span className="flex-1" />
-        <AccountSheet
-          user={user}
-          account={account}
-          switcher={switcher}
-          trigger={<UserAvatar name={user.name} src={user.avatarUrl} className="size-10" />}
-          triggerClassName="mb-4 rounded-full"
-        />
+        {soft ? (
+          <button type="button" onClick={signOut} aria-label="Log out" className="mb-4 flex size-touch items-center justify-center rounded-full text-nav-foreground hover:bg-card">
+            <LogOut aria-hidden className="size-5" />
+          </button>
+        ) : (
+          <AccountSheet
+            user={user}
+            account={account}
+            switcher={switcher}
+            trigger={<UserAvatar name={user.name} src={user.avatarUrl} className="size-10" />}
+            triggerClassName="mb-4 rounded-full"
+          />
+        )}
       </nav>
 
       {/* ---------- Desktop sidebar (1024px+) ---------- */}
       <nav
         aria-label="Main"
-        className="fixed inset-y-0 left-0 z-30 hidden w-sidebar flex-col gap-4 border-r bg-nav px-3 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] lg:flex"
+        className={cn(
+          "fixed inset-y-0 left-0 z-30 hidden w-sidebar flex-col gap-4 bg-nav px-3 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] lg:flex",
+          soft ? "gap-5 px-4" : "border-r",
+        )}
       >
-        <a
-          href={switcher?.href ?? "/"}
-          className="flex min-h-touch items-center gap-2.5 rounded-lg px-2 hover:bg-muted"
-          title={switcher?.label}
-        >
-          <Mark />
-          {companyBlock}
-        </a>
+        {soft ? (
+          <>
+            <a href="/" className="flex min-h-touch items-center gap-2.5 px-2">
+              <Mark className="size-8 rounded-lg" />
+              <span className="text-lg font-semibold tracking-tight">Grid</span>
+            </a>
+            {/* The centre button, as the big pill at the top */}
+            <a
+              href={scan.href}
+              className="flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-foreground shadow-md transition-opacity hover:opacity-90"
+            >
+              <Icon name={scan.icon ?? "scan"} className="size-5" />
+              {scan.label}
+            </a>
+          </>
+        ) : (
+          <a
+            href={switcher?.href ?? "/"}
+            className="flex min-h-touch items-center gap-2.5 rounded-lg px-2 hover:bg-muted"
+            title={switcher?.label}
+          >
+            <Mark />
+            {companyBlock}
+          </a>
+        )}
         <Scroller className="-mx-1 flex-1 px-1">
           <ul className="flex flex-col gap-1">
             {[home, ...primary, ...main].map((item) => {
@@ -347,10 +396,7 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
                   <a
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "flex min-h-touch items-center gap-3 rounded-lg px-3.5 text-[15px] font-medium transition-colors",
-                      active ? "bg-accent font-semibold text-accent-foreground" : "text-nav-foreground hover:bg-muted",
-                    )}
+                    className={sidebarItem(active, soft)}
                   >
                     <Icon name={item.icon} className="size-5" />
                     <span className="truncate">{item.label}</span>
@@ -367,10 +413,7 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
                   <a
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "flex min-h-touch items-center gap-3 rounded-lg px-3.5 text-[15px] font-medium transition-colors",
-                      active ? "bg-accent font-semibold text-accent-foreground" : "text-nav-foreground hover:bg-muted",
-                    )}
+                    className={sidebarItem(active, soft)}
                   >
                     <Icon name={item.icon} className="size-5" />
                     <span className="truncate">{item.label}</span>
@@ -380,6 +423,12 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
             })}
           </ul>
         </Scroller>
+        {soft ? (
+          <button type="button" onClick={signOut} className="flex min-h-touch items-center gap-3 rounded-xl px-3.5 text-left text-[15px] font-medium text-nav-foreground hover:bg-card">
+            <LogOut aria-hidden className="size-5" />
+            Log out
+          </button>
+        ) : (
         <AccountSheet
           user={user}
           account={account}
@@ -395,31 +444,38 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
             </>
           }
         />
+        )}
       </nav>
 
       {/* ---------- Content ---------- */}
-      <main className="mx-auto w-full max-w-5xl px-4 pt-shell pb-shell sm:px-6 md:pb-10 lg:mx-0 lg:max-w-[110rem] lg:px-10 xl:px-12">
+      <main
+        className={cn(
+          "mx-auto w-full max-w-5xl px-4 pt-shell pb-shell sm:px-6 md:pb-10",
+          // Soft: a centred column, lined up with the top bar's pill and picture.
+          soft ? "lg:max-w-6xl lg:px-8 xl:px-10" : "lg:mx-0 lg:max-w-[110rem] lg:px-10 xl:px-12",
+        )}
+      >
         {settingsPage && <SettingsCrumbs page={settingsPage} />}
         {children}
       </main>
 
       {/* ---------- Phone bottom bar ---------- */}
-      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t bg-dock pb-safe md:hidden">
+      <nav aria-label="Main" className={cn("fixed inset-x-0 bottom-0 z-40 bg-dock pb-safe md:hidden", soft ? "rounded-t-3xl shadow-[0_-4px_20px_rgb(0_0_0/0.06)]" : "border-t")}>
         <ul className="grid h-bottomnav grid-cols-5 items-stretch pl-safe pr-safe">
           {phoneSlots.slice(0, 2).map((slot, index) => (
-            <PhoneSlot key={index} slot={slot} pathname={pathname} more={phoneMore} moreActive={phoneMoreActive} />
+            <PhoneSlot key={index} slot={slot} pathname={pathname} more={phoneMore} moreActive={phoneMoreActive} soft={soft} />
           ))}
           <li className="flex justify-center">
             <a
               href={scan.href}
               aria-label={scan.label}
-              className="-mt-6 flex size-16 items-center justify-center rounded-2xl border-4 border-background bg-primary text-primary-foreground shadow-lg active:opacity-90"
+              className={cn("-mt-6 flex size-16 items-center justify-center border-4 border-background bg-primary text-primary-foreground shadow-lg active:opacity-90", soft ? "rounded-full" : "rounded-2xl")}
             >
               <Icon name={scan.icon ?? "scan"} className="size-7" />
             </a>
           </li>
           {phoneSlots.slice(2).map((slot, index) => (
-            <PhoneSlot key={index + 2} slot={slot} pathname={pathname} more={phoneMore} moreActive={phoneMoreActive} />
+            <PhoneSlot key={index + 2} slot={slot} pathname={pathname} more={phoneMore} moreActive={phoneMoreActive} soft={soft} />
           ))}
         </ul>
       </nav>
@@ -428,20 +484,17 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
 }
 
 /** One side slot of the phone bar: a menu item, More, or empty (so the action button stays centred). */
-function PhoneSlot({ slot, pathname, more, moreActive }: { slot: NavItem | "more" | null; pathname: string; more: NavItem[]; moreActive: boolean }) {
+function PhoneSlot({ slot, pathname, more, moreActive, soft }: { slot: NavItem | "more" | null; pathname: string; more: NavItem[]; moreActive: boolean; soft: boolean }) {
   if (slot === null) return <li aria-hidden />;
-  if (slot !== "more") return <BarItem item={slot} active={isActive(pathname, slot)} />;
+  if (slot !== "more") return <BarItem item={slot} active={isActive(pathname, slot)} soft={soft} />;
   return (
     <li>
       <MoreSheet
         items={more}
-        triggerClassName={cn(
-          "flex h-full w-full flex-col items-center justify-center gap-0.5 border-t-[3px] text-xs",
-          moreActive ? "border-nav-active font-bold text-nav-active" : "border-transparent font-medium text-nav-foreground",
-        )}
+        triggerClassName={barItem(moreActive, soft, "w-full")}
         trigger={
           <>
-            <Icon name="more" className="size-6" />
+            <BarIcon name="more" active={moreActive} soft={soft} />
             More
           </>
         }
@@ -450,19 +503,44 @@ function PhoneSlot({ slot, pathname, more, moreActive }: { slot: NavItem | "more
   );
 }
 
-/** Phone bar item: yellow bar across the top of the active item. */
-function BarItem({ item, active }: { item: NavItem; active: boolean }) {
+/** A desktop sidebar item. Grid: highlighted in the accent colour. Soft: a white tile. */
+function sidebarItem(active: boolean, soft: boolean) {
+  if (soft) {
+    return cn(
+      "flex min-h-touch items-center gap-3 rounded-xl px-3.5 text-[15px] font-medium transition-colors",
+      active ? "bg-card font-semibold text-foreground shadow-sm" : "text-nav-foreground hover:bg-card/70",
+    );
+  }
+  return cn(
+    "flex min-h-touch items-center gap-3 rounded-lg px-3.5 text-[15px] font-medium transition-colors",
+    active ? "bg-accent font-semibold text-accent-foreground" : "text-nav-foreground hover:bg-muted",
+  );
+}
+
+/** Phone bar item. Grid: yellow bar across the top of the active one. Soft: a pill behind its icon. */
+function barItem(active: boolean, soft: boolean, extra?: string) {
+  if (soft) return cn("flex h-full flex-col items-center justify-center gap-0.5 text-xs", active ? "font-bold text-nav-active" : "font-medium text-nav-foreground", extra);
+  return cn(
+    "-mt-px flex h-full flex-col items-center justify-center gap-0.5 border-t-[3px] text-xs",
+    active ? "border-nav-active font-bold text-nav-active" : "border-transparent font-medium text-nav-foreground",
+    extra,
+  );
+}
+
+function BarIcon({ name, active, soft }: { name?: string; active: boolean; soft: boolean }) {
+  if (!soft) return <Icon name={name} className="size-6" />;
+  return (
+    <span className={cn("flex h-7 w-12 items-center justify-center rounded-full", active && "bg-accent text-accent-foreground")}>
+      <Icon name={name} className="size-5" />
+    </span>
+  );
+}
+
+function BarItem({ item, active, soft }: { item: NavItem; active: boolean; soft: boolean }) {
   return (
     <li className="min-w-0">
-      <a
-        href={item.href}
-        aria-current={active ? "page" : undefined}
-        className={cn(
-          "-mt-px flex h-full flex-col items-center justify-center gap-0.5 border-t-[3px] text-xs",
-          active ? "border-nav-active font-bold text-nav-active" : "border-transparent font-medium text-nav-foreground",
-        )}
-      >
-        <Icon name={item.icon} className="size-6" />
+      <a href={item.href} aria-current={active ? "page" : undefined} className={barItem(active, soft)}>
+        <BarIcon name={item.icon} active={active} soft={soft} />
         <span className="max-w-full truncate px-1">{item.label}</span>
       </a>
     </li>

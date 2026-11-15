@@ -10,11 +10,11 @@
 
 import { redirect } from "next/navigation";
 import { can, notFound, type RequestContext } from "@grid/core";
-import { Alert, Badge, Icon, LinkRow, List, PageHeader, Section, Stack, buttonVariants, cn, type BlockPages, type BlockPanels, type PanelRenderer } from "@grid/ui";
+import { Alert, Badge, HomeTile, Icon, LinkRow, List, PageHeader, Section, Stack, buttonVariants, cn, type BlockPages, type BlockPanels, type PanelRenderer } from "@grid/ui";
 import { SiteNotes } from "@grid/block-sites/components";
 import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
 import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
-import { getProject, jobsAt, jobsForClient, recordArea, resumeOnSite, type Area } from "../service";
+import { activeJobCounts, getProject, jobsAt, jobsForClient, recordArea, resumeOnSite, type Area } from "../service";
 import type { PlaceStartPanelProps } from "../index";
 import { CopyLink, FinishJob } from "./JobActions";
 import { JobRows } from "./JobRows";
@@ -427,6 +427,12 @@ export const pages: BlockPages = {
 
 
 export const panels: BlockPanels = {
+  // Home (Soft look): a tile with your active jobs.
+  "home.tiles": async ({ ctx }) => {
+    if (!can(ctx, "projects.view")) return null;
+    const { jobs, sites } = await activeJobCounts(ctx);
+    return <HomeTile label="Active jobs" value={String(jobs)} foot={jobs ? `On ${sites} site${sites === 1 ? "" : "s"}` : "Start one with New job"} href="/sites" />;
+  },
   // On a client's page: their active jobs, and the last few finished.
   "client.page": async (props) => {
     const { ctx, clientId, clientName } = props as typeof props & ClientPagePanelProps;

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { themeAttributes, themeColour } from "@grid/ui";
+import { getContext } from "@/lib/context";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,20 +10,26 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "Grid", statusBarStyle: "black" },
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  // Lets the layout use the full screen around notches; the shell pads
-  // with safe-area insets.
-  viewportFit: "cover",
-  // Concept C is dark by default (docs/visual-style.md). When the optional
-  // light theme is offered, switch this with the user's theme setting.
-  themeColor: "#15171b",
-};
+/** The person's theme (Settings › Profile › Appearance); Grid dark when signed out. */
+async function theme() {
+  return (await getContext().catch(() => null))?.user.theme ?? "grid";
+}
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export async function generateViewport(): Promise<Viewport> {
+  return {
+    width: "device-width",
+    initialScale: 1,
+    // Lets the layout use the full screen around notches; the shell pads
+    // with safe-area insets.
+    viewportFit: "cover",
+    // The phone's status bar matches the page (docs/visual-style.md).
+    themeColor: themeColour(await theme()),
+  };
+}
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en-AU">
+    <html lang="en-AU" {...themeAttributes(await theme())}>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

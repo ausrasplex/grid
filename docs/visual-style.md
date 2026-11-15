@@ -56,9 +56,27 @@ Light "paper" areas keep their original colours, with the accent shown as amber 
 - the online quote and signing pages;
 - the public lost-and-found tag page.
 
-## Theme switching (later)
+## Themes (Nov 2026)
 
-Concept C is the default. Because the layout is shared, the original light colours (concept A's palette) can be offered as a **light theme**, chosen per person or following the phone's setting. All colours come from the tokens above, so no screen hardcodes a colour.
+Each person picks a theme in **Settings › Profile › Appearance** (`User.settings.theme`, so it follows them to every device). Concept C stays the default. The list is `THEMES` in `packages/ui/src/lib/themes.ts`; the root layout puts `data-theme` and `data-look` on `<html>`, and every colour comes from the tokens, so no screen changes.
+
+| Theme | Colours | Look |
+|---|---|---|
+| Grid (default) | concept C: dark graphite, hi-vis yellow | grid |
+| Grid light | concept A palette (light, safety orange) | grid |
+| Soft | light grey page, white cards, dark navy buttons and hero card, pastel lavender, peach and lime tiles | soft |
+| Soft dark | the same on deep navy, lavender buttons | soft |
+| Soft, match my device | Soft by day, Soft dark when the device is dark | soft |
+
+**The Soft look is a trial (decided Nov 2026, modelled on the owner's Folio app).** Same screens and structure; what changes with `data-look="soft"`:
+
+- **Shapes:** `--radius` 16px (cards 20px, sheets 24px, inputs 12px) and pill buttons (`--radius-button`).
+- **Top bar:** no line under it; the business as a white pill ("Morelli ⌄") and your picture at the top right on every screen size; content and top bar share a centred column (max 1152px) on desktop.
+- **Desktop sidebar:** no line beside it; Grid's mark and name, then the centre button (Scan, or Take a photo) as a big navy pill; the current page is a white tile; **Log out** at the bottom.
+- **Tablet rail and phone bar:** the current item gets a pill behind its icon; the centre button is round; the phone bar has rounded top corners.
+- **Home:** "Good morning, Jesse" with the full date; a navy **hero card** ("3 active jobs on 2 sites.", On site now) with up to three numbered pastel tiles from the `home.tiles` panel slot (Active jobs, Quotes out, Tickets & licences); a **Needs attention** list from `home.attention` (tickets expired or due, sent quotes past their date); then Your jobs and Shortcuts side by side.
+
+Swap in exact Folio values (colours, font) when its docs are in hand; they're all in `styles.css` under "Soft look".
 
 ## App icon
 

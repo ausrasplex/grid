@@ -9,7 +9,10 @@
  * follow the device. Built for site conditions: strong contrast in
  * sunlight, 44px+ touch targets, 16px+ inputs (stops iOS zooming).
  *
- * Never hardcode colours in blocks: use the tokens, so both themes work.
+ * Soft (data-theme="soft" | "soft-dark" | "soft-system", data-look="soft")
+ * is a trial look: see packages/ui/src/lib/themes.ts.
+ *
+ * Never hardcode colours in blocks: use the tokens, so every theme works.
  */
 
 /* ---------- Default: concept C (dark, hi-vis) ---------- */
@@ -45,6 +48,15 @@
   --nav-foreground: oklch(0.74 0.01 250);
   --nav-active: var(--primary);
   --dock: var(--card); /* phone bottom bar */
+
+  /* Soft look's Home hero card and its three tiles (unused by the Grid look). */
+  --hero: var(--card);
+  --hero-foreground: var(--foreground);
+  --tile-1: var(--muted);
+  --tile-2: var(--muted);
+  --tile-3: var(--muted);
+  --tile-foreground: var(--foreground);
+  --radius-button: calc(var(--radius) - 4px);
 }
 
 /* ---------- Optional light theme (concept A palette) ----------
@@ -75,6 +87,127 @@
   --info: oklch(0.55 0.15 250);
   --nav-foreground: oklch(0.42 0.015 260);
 }
+/* ---------- Soft look (Settings › Profile › Appearance) ----------
+ * Light grey page, white cards, navy and pastel tiles, big rounded corners
+ * and pill buttons. soft = light, soft-dark, soft-system follows the device.
+ * data-look="soft" (set with any Soft theme) gives the shapes. */
+:root[data-theme="soft"],
+:root[data-theme="soft-system"] {
+  color-scheme: light;
+  --background: oklch(0.973 0.004 285); /* light grey page */
+  --foreground: oklch(0.26 0.05 285); /* navy text */
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --muted: oklch(0.955 0.006 285);
+  --muted-foreground: oklch(0.5 0.025 285);
+  --border: oklch(0.92 0.007 285);
+  --input: oklch(0.88 0.01 285);
+  --ring: oklch(0.6 0.16 290);
+  --primary: oklch(0.29 0.06 285); /* dark navy: main buttons, hero card */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.955 0.006 285);
+  --secondary-foreground: var(--foreground);
+  --accent: oklch(0.93 0.045 295); /* soft lavender: highlighted rows */
+  --accent-foreground: oklch(0.29 0.06 285);
+  --destructive: oklch(0.58 0.2 25);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.58 0.14 155);
+  --warning: oklch(0.75 0.15 75);
+  --info: oklch(0.58 0.13 260);
+  --nav: var(--background);
+  --nav-foreground: oklch(0.45 0.03 285);
+  --nav-active: oklch(0.29 0.06 285);
+  --dock: oklch(1 0 0);
+  --hero: oklch(0.29 0.06 285);
+  --hero-foreground: oklch(1 0 0);
+  --tile-1: oklch(0.8 0.1 295); /* lavender */
+  --tile-2: oklch(0.9 0.065 65); /* peach */
+  --tile-3: oklch(0.93 0.19 118); /* lime */
+  --tile-foreground: oklch(0.26 0.05 285);
+}
+:root[data-theme="soft-dark"] {
+  color-scheme: dark;
+  --background: oklch(0.165 0.02 285); /* deep navy page */
+  --foreground: oklch(0.96 0.006 285);
+  --card: oklch(0.215 0.025 285);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.235 0.027 285);
+  --popover-foreground: var(--foreground);
+  --muted: oklch(0.27 0.028 285);
+  --muted-foreground: oklch(0.76 0.02 285);
+  --border: oklch(0.3 0.026 285);
+  --input: oklch(0.37 0.028 285);
+  --ring: oklch(0.8 0.1 295);
+  --primary: oklch(0.8 0.1 295); /* lavender: main buttons */
+  --primary-foreground: oklch(0.22 0.05 285);
+  --secondary: oklch(0.27 0.028 285);
+  --secondary-foreground: var(--foreground);
+  --accent: oklch(0.32 0.06 295);
+  --accent-foreground: oklch(0.9 0.06 295);
+  --destructive: oklch(0.72 0.17 25);
+  --destructive-foreground: oklch(0.2 0.04 25);
+  --success: oklch(0.78 0.14 155);
+  --warning: oklch(0.86 0.14 85);
+  --info: oklch(0.78 0.1 260);
+  --nav: var(--background);
+  --nav-foreground: oklch(0.76 0.02 285);
+  --nav-active: oklch(0.8 0.1 295);
+  --dock: oklch(0.215 0.025 285);
+  --hero: oklch(0.27 0.065 285);
+  --hero-foreground: oklch(1 0 0);
+  --tile-1: oklch(0.8 0.1 295);
+  --tile-2: oklch(0.88 0.07 65);
+  --tile-3: oklch(0.92 0.18 118);
+  --tile-foreground: oklch(0.24 0.05 285);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="soft-system"] {
+    color-scheme: dark;
+    --background: oklch(0.165 0.02 285); /* deep navy page */
+    --foreground: oklch(0.96 0.006 285);
+    --card: oklch(0.215 0.025 285);
+    --card-foreground: var(--foreground);
+    --popover: oklch(0.235 0.027 285);
+    --popover-foreground: var(--foreground);
+    --muted: oklch(0.27 0.028 285);
+    --muted-foreground: oklch(0.76 0.02 285);
+    --border: oklch(0.3 0.026 285);
+    --input: oklch(0.37 0.028 285);
+    --ring: oklch(0.8 0.1 295);
+    --primary: oklch(0.8 0.1 295); /* lavender: main buttons */
+    --primary-foreground: oklch(0.22 0.05 285);
+    --secondary: oklch(0.27 0.028 285);
+    --secondary-foreground: var(--foreground);
+    --accent: oklch(0.32 0.06 295);
+    --accent-foreground: oklch(0.9 0.06 295);
+    --destructive: oklch(0.72 0.17 25);
+    --destructive-foreground: oklch(0.2 0.04 25);
+    --success: oklch(0.78 0.14 155);
+    --warning: oklch(0.86 0.14 85);
+    --info: oklch(0.78 0.1 260);
+    --nav: var(--background);
+    --nav-foreground: oklch(0.76 0.02 285);
+    --nav-active: oklch(0.8 0.1 295);
+    --dock: oklch(0.215 0.025 285);
+    --hero: oklch(0.27 0.065 285);
+    --hero-foreground: oklch(1 0 0);
+    --tile-1: oklch(0.8 0.1 295);
+    --tile-2: oklch(0.88 0.07 65);
+    --tile-3: oklch(0.92 0.18 118);
+    --tile-foreground: oklch(0.24 0.05 285);
+  }
+}
+:root[data-look="soft"] {
+  --radius: 1rem; /* cards 20px, sheets 24px, inputs 12px */
+  --radius-button: 9999px; /* pill buttons */
+}
+/* Plans and PDFs stay on paper in every theme. */
+:root[data-look="soft"] .paper {
+  --radius-button: calc(var(--radius) - 4px);
+}
+
 /* On paper, the accent is amber so selections and pins stay visible on white. */
 .paper {
   --primary: oklch(0.7 0.16 70);
@@ -134,6 +267,12 @@
   --color-nav-foreground: var(--nav-foreground);
   --color-nav-active: var(--nav-active);
   --color-dock: var(--dock);
+  --color-hero: var(--hero);
+  --color-hero-foreground: var(--hero-foreground);
+  --color-tile-1: var(--tile-1);
+  --color-tile-2: var(--tile-2);
+  --color-tile-3: var(--tile-3);
+  --color-tile-foreground: var(--tile-foreground);
 
   --radius-sm: calc(var(--radius) - 6px); /* 4px: badges, small chips */
   --radius-md: calc(var(--radius) - 4px); /* 6px: inputs, small buttons */
