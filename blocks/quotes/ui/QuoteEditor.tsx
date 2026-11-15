@@ -545,7 +545,7 @@ function LineSheet({
   const amount = toNum(draft.qty) * toNum(draft.sell);
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent title={isNew ? "New line" : "Line"}>
+      <SheetContent desktop="dialog" title={isNew ? "New line" : "Line"}>
         <form
           className="flex flex-col gap-3 px-2"
           onSubmit={(event) => {
@@ -717,7 +717,7 @@ function SendSheet({
   const nextRevision = String.fromCharCode(65 + quote.revisions.length);
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent title={`Send ${quote.number} Rev ${nextRevision}`} description={`${total} · The PDF is saved as sent and won't change.`}>
+      <SheetContent desktop="dialog" title={`Send ${quote.number} Rev ${nextRevision}`} description={`${total} · The PDF is saved as sent and won't change.`}>
         <form
           className="flex flex-col gap-3 px-2"
           onSubmit={async (event) => {
@@ -901,7 +901,7 @@ export function AnswerSheet({ quote, kind, onClose, onDone }: { quote: QuoteJson
   const action = useAction();
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent
+      <SheetContent desktop="dialog"
         title={kind === "accept" ? "Record acceptance" : "Record decline"}
         description={kind === "accept" ? "For a yes by phone, email or on paper. The client's link stops working." : "The client's link stops working."}
       >

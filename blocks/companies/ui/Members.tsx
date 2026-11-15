@@ -166,7 +166,7 @@ export function Members({ canInvite, canManage, myUserId }: { canInvite: boolean
 
       {linkFor && (
         <Sheet open onOpenChange={(open) => !open && setLinkFor(null)}>
-          <SheetContent title={`Invite link for ${linkFor.user.name}`} description="Send it by text, WhatsApp or however you like. Opening it lets them set a password and join.">
+          <SheetContent desktop="dialog" title={`Invite link for ${linkFor.user.name}`} description="Send it by text, WhatsApp or however you like. Opening it lets them set a password and join.">
             <div className="px-2">
               <InviteLink membershipId={linkFor.membershipId} path={linkFor.invitePath ?? null} name={linkFor.user.name} onRenewed={() => void members.reload()} />
             </div>
@@ -289,7 +289,7 @@ function InviteSheet({
 
   return (
     <Sheet open={open} onOpenChange={(value) => (onOpenChange(value), !value && setSent(null))}>
-      <SheetContent
+      <SheetContent desktop="dialog"
         title={sent ? `Send ${sent.name} their link` : "Invite someone"}
         description={
           sent

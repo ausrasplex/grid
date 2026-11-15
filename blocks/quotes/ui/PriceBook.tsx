@@ -173,7 +173,7 @@ function ItemSheet({
   };
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent title={item.id ? "Price book item" : "New price book item"}>
+      <SheetContent desktop="dialog" title={item.id ? "Price book item" : "New price book item"}>
         <form
           className="flex flex-col gap-3 px-2"
           onSubmit={async (event) => {

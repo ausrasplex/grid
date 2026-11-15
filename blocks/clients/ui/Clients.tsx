@@ -45,7 +45,7 @@ export function Clients({ initial, canManage, canAdd }: { initial: ClientJson[];
       </Stack>
       {editing && (
         <Sheet open onOpenChange={(open) => !open && setEditing(null)}>
-          <SheetContent title={editing.id ? editing.name ?? "Client" : "New client"}>
+          <SheetContent desktop="dialog" title={editing.id ? editing.name ?? "Client" : "New client"}>
             <ClientForm
               initial={editing}
               onSaved={async () => (setEditing(null), await load())}

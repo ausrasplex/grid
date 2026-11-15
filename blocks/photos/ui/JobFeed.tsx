@@ -390,7 +390,7 @@ function NoteSheet({
   const action = useAction();
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent title="Add a note" description={areaName ? `On ${areaName}` : "For the whole job"}>
+      <SheetContent desktop="dialog" title="Add a note" description={areaName ? `On ${areaName}` : "For the whole job"}>
         <form
           className="flex flex-col gap-3 px-2"
           onSubmit={async (event) => {

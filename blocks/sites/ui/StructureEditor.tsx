@@ -227,7 +227,7 @@ function RenameButton({
       <Button variant="ghost" size="icon" aria-label={label} onClick={() => (setName(current), setShort(extra ?? ""), setUsedFor(use ?? ""), setOpen(true))}>
         <Icon name="edit" />
       </Button>
-      <SheetContent title={label}>
+      <SheetContent desktop="dialog" title={label}>
         <form
           className="flex flex-col gap-4 px-2"
           onSubmit={async (event) => {
@@ -287,7 +287,7 @@ function DeleteLevel({ level, busy, run }: { level: Level; busy: boolean; run: R
       <Button variant="ghost" size="icon" aria-label={`Delete ${level.name}`} title={`Delete ${level.name}`} disabled={busy} onClick={() => void start()} className="text-muted-foreground hover:text-destructive">
         <Trash2 />
       </Button>
-      <SheetContent title={`Delete ${level.name}?`}>
+      <SheetContent desktop="dialog" title={`Delete ${level.name}?`}>
         <div className="flex flex-col gap-4 px-2">
           {!check && !error && <p className="text-muted-foreground">Checking what&apos;s on {level.name}…</p>}
           {check && check.inUse.length > 0 && (
@@ -361,7 +361,7 @@ function LevelsUseSheet({ building, run, onClose }: { building: Building; run: R
   const picked = building.levels.slice(Math.min(first, last), Math.max(first, last) + 1);
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent title="Set what floors are used for" description={`Several floors of ${building.name} at once, e.g. Car park on Ground to Level 3.`}>
+      <SheetContent desktop="dialog" title="Set what floors are used for" description={`Several floors of ${building.name} at once, e.g. Car park on Ground to Level 3.`}>
         <form
           className="flex flex-col gap-4 px-2"
           onSubmit={async (event) => {

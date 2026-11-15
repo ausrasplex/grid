@@ -170,7 +170,7 @@ function CodeSheet({ code, onClose, onSaved }: { code: Partial<Code>; onClose: (
   const action = useAction();
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent title={code.id ? "Tax rate" : "New tax rate"} description="A rate in use can't be deleted (old quotes need it), but you can stop using it.">
+      <SheetContent desktop="dialog" title={code.id ? "Tax rate" : "New tax rate"} description="A rate in use can't be deleted (old quotes need it), but you can stop using it.">
         <form
           className="flex flex-col gap-3 px-2"
           onSubmit={async (event) => {

@@ -31,7 +31,7 @@ export function FinishJob({ jobId, status, siteName, lastActiveHere }: { jobId: 
         <Icon name="done" /> Finish job
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
+        <SheetContent desktop="dialog"
           title="Finish this job?"
           description={
             lastActiveHere

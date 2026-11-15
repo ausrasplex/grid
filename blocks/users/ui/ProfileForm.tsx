@@ -154,7 +154,7 @@ function ChangeEmail({ open, onOpenChange, current, onChanged }: { open: boolean
         if (!value) (setNext(""), setPassword(""), action.setError(null));
       }}
     >
-      <SheetContent title="Change your email" description={`You sign in with ${current} now.`}>
+      <SheetContent desktop="dialog" title="Change your email" description={`You sign in with ${current} now.`}>
         <form
           className="flex flex-col gap-4 px-2"
           onSubmit={async (event) => {

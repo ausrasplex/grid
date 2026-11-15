@@ -544,7 +544,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       )}
 
       <Sheet open={dialog?.type === "text"} onOpenChange={(open) => !open && setDialog(null)}>
-        <SheetContent title={dialog?.type === "text" && dialog.markup ? "Change text" : "Add text"}>
+        <SheetContent desktop="dialog" title={dialog?.type === "text" && dialog.markup ? "Change text" : "Add text"}>
           {dialog?.type === "text" && (
             <TextForm
               initial={dialog.markup?.text ?? ""}
@@ -559,7 +559,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       </Sheet>
 
       <Sheet open={dialog?.type === "ink"} onOpenChange={(open) => !open && setDialog(null)}>
-        <SheetContent title="Colour and size">
+        <SheetContent desktop="dialog" title="Colour and size">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap gap-3">
               {(Object.keys(INKS) as Ink[]).map((name) => (
@@ -594,7 +594,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       </Sheet>
 
       <Sheet open={dialog?.type === "scale"} onOpenChange={(open) => !open && setDialog(null)}>
-        <SheetContent title={`Scale for ${version.revision ? `Rev ${version.revision}` : "this sheet"}`} description="Set it once and every length and area on this revision is measured with it.">
+        <SheetContent desktop="dialog" title={`Scale for ${version.revision ? `Rev ${version.revision}` : "this sheet"}`} description="Set it once and every length and area on this revision is measured with it.">
           {dialog?.type === "scale" && (
             <ScaleForm
               sheetId={sheetId}
