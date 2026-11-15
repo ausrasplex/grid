@@ -180,6 +180,8 @@ Collect only what's needed, with consent, a stated purpose, access logs and revo
 
 ## 10. Build order
 
+**Name (Nov 2026):** on screen it's the **Wallet** (`/wallet`), with "tickets, licences and cards" as its description; the code keeps `credentials`.
+
 **Moved earlier (Nov 2026):** the person's own tickets and licences, with expiry and reminders, are built in **phase 5a** (`roadmap.md`, Phase 5a), before Documents & assets. Step 3 below then adds inductions to the wallet and the requirements and reminders tied to sites and businesses.
 
 1. Induction definitions (site/company/project/area, using `sites` buildings and levels) with the chain reach rule and audience (staff / subcontractors / both); company induction library; online completion with quiz and signature.

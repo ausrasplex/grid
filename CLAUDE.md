@@ -85,7 +85,7 @@ prisma/        base, core and auth schemas; migrations
   **Phase 3b** (customer signing: `signatures` core block, public pages/API at `/p/<block>` and `/api/public/<block>`, `/q/<token>`, `/verify`) is done too; see "What 3b built" in `docs/quotations-block.md`.
   **Phase 4a** (Plans block: PDF/image upload with a review of guessed sheet numbers and revisions, deep-zoom tiles rendered in the background, OpenSeadragon viewer, revisions) is done too; see `docs/plans-block.md`.
   **Phase 4b** (`markups` Block: pen, highlighter, text, shapes, arrows, clouds, Undo, length and area with a per-revision scale; photo pins in `photos`; the plan overlay in `@grid/ui` that Blocks draw on through the `plans.viewer` slot) is done too; see "What 4b built" in `docs/plans-block.md`.
-  **Phase 5a** (`credentials` Block, core: My tickets & licences at `/tickets`, photos, encrypted numbers, expiry badges, the Home card and 7 am reminder emails) is done too; see "Phase 5a" in `docs/roadmap.md`. Block jobs can have a `schedule`; Home has a `home.top` panel slot.
+  **Phase 5a** (`credentials` Block, core: **Wallet** (was My tickets & licences) at `/wallet`, photos, encrypted numbers, expiry badges, the Home card and 7 am reminder emails) is done too; see "Phase 5a" in `docs/roadmap.md`. Block jobs can have a `schedule`; Home has a `home.top` panel slot.
 - Next: tweaking 5a with the owner, then **Phase 5b, Documents & assets** (`docs/documents-block.md`, `docs/assets-block.md`).
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.

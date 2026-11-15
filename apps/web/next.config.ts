@@ -43,6 +43,8 @@ const config: NextConfig = {
       { source: "/b/projects/:path*", destination: "/jobs/:path*", permanent: false },
       { source: "/b/companies/:path*", destination: "/business/:path*", permanent: false },
       { source: "/b/:path*", destination: "/:path*", permanent: false },
+      // My tickets & licences was renamed Wallet (Nov 2026).
+      { source: "/tickets", destination: "/wallet", permanent: false },
     ];
   },
   async headers() {

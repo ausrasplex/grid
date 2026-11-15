@@ -1,4 +1,4 @@
-// My tickets & licences: each person's own, so everything here is scoped to
+// Wallet (your tickets & licences): each person's own, so everything here is scoped to
 // ctx.userId, not a business (the one place in Grid that is). Numbers are
 // encrypted; card photos are StoredFiles only their owner can open.
 
@@ -194,7 +194,7 @@ export async function sendReminders(): Promise<void> {
       await app().mail.send({
         to: user.email,
         subject: anyExpired ? "A ticket or licence has run out" : "Tickets or licences expiring soon",
-        text: `Hi ${user.name},\n\n${lines.join("\n")}\n\nOnce you've renewed, update the expiry date (and photo) in Grid:\n${appUrl("/tickets")}\n`,
+        text: `Hi ${user.name},\n\n${lines.join("\n")}\n\nOnce you've renewed, update the expiry date (and photo) in your Grid Wallet:\n${appUrl("/wallet")}\n`,
       });
     } catch (error) {
       console.error("[credentials] couldn't send the reminder email", error);

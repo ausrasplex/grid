@@ -1,5 +1,5 @@
-// My tickets & licences pages, and the card it puts on Home.
-//   /tickets          your tickets and licences
+// Wallet pages, and what it puts on Home.
+//   /wallet           your tickets and licences
 //   panel "home.top"  "1 ticket expired · 2 expiring soon" when any are
 
 import { AttentionRow, HomeTile, Icon, type BlockPages, type BlockPanels } from "@grid/ui";
@@ -20,11 +20,11 @@ export const panels: BlockPanels = {
     const value = !tickets.length ? "None yet" : expired ? `${expired} expired` : soon ? `${soon} expiring` : "All current";
     return (
       <HomeTile
-        label="Tickets & licences"
+        label="Wallet"
         value={value}
-        foot={tickets.length ? `${tickets.length} saved` : "Add your white card and licence"}
+        foot={tickets.length ? `Tickets & licences · ${tickets.length} saved` : "Add your White Card and licence"}
         progress={tickets.length ? (tickets.length - expired - soon) / tickets.length : 0}
-        href="/tickets"
+        href="/wallet"
       />
     );
   },
@@ -40,8 +40,8 @@ export const panels: BlockPanels = {
             title={ticket.title}
             badge={ticket.status === "expired" ? "Expired" : "Renew"}
             tone={ticket.status === "expired" ? "destructive" : "warning"}
-            description={`${expiryWords(ticket.daysLeft)}. Renew it, then update it in Grid.`}
-            href="/tickets"
+            description={`${expiryWords(ticket.daysLeft)}. Renew it, then update it in your Wallet.`}
+            href="/wallet"
           />
         ))}
       </>
@@ -52,11 +52,11 @@ export const panels: BlockPanels = {
     if (!expired && !soon) return null;
     const words = [expired ? `${expired} expired` : null, soon ? `${soon} expiring soon` : null].filter(Boolean).join(" · ");
     return (
-      <a href="/tickets" className={`flex min-h-touch items-center gap-3 rounded-xl px-4 py-3 hover:opacity-90 ${expired ? "bg-destructive/15" : "bg-warning/15"}`}>
-        <Icon name="ticket" className="size-6 shrink-0" />
+      <a href="/wallet" className={`flex min-h-touch items-center gap-3 rounded-xl px-4 py-3 hover:opacity-90 ${expired ? "bg-destructive/15" : "bg-warning/15"}`}>
+        <Icon name="wallet" className="size-6 shrink-0" />
         <span className="min-w-0 flex-1">
           <span className="block font-semibold">{expired ? "A ticket or licence has run out" : "Tickets or licences expiring soon"}</span>
-          <span className="block text-sm text-muted-foreground">{words}. Renew, then update it in Grid.</span>
+          <span className="block text-sm text-muted-foreground">{words}. Renew, then update it in your Wallet.</span>
         </span>
         <Icon name="chevron-right" className="size-5 shrink-0 text-muted-foreground" />
       </a>

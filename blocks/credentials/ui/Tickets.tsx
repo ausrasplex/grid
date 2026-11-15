@@ -1,6 +1,6 @@
 "use client";
 
-// My tickets & licences: your own, with card photos and expiry dates.
+// Wallet: your tickets & licences, your own, with card photos and expiry dates.
 // Expired and expiring ones come first. Tap one for its photos and details.
 
 import { useRef, useState } from "react";
@@ -54,9 +54,9 @@ export function Tickets({ initial }: { initial: TicketJson[] }) {
   return (
     <>
       <PageHeader
-        title="My tickets & licences"
+        title="Wallet"
         meta={tickets.length ? [`${tickets.length} saved`, expired ? `${expired} expired` : null, soon ? `${soon} expiring soon` : null].filter(Boolean).join(" · ") : undefined}
-        subtitle="Yours, not the business's: only you can see them. Grid emails you before one runs out."
+        subtitle="Your tickets, licences and cards. Yours, not the business's: only you can see them. Grid emails you before one runs out."
         actions={<ActionButton icon={<Plus />} label="Add" onClick={() => setEditing("new")} />}
       />
       <Stack>
