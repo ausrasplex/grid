@@ -51,7 +51,7 @@ Data model:
 - Optional details: manufacturer, model number(s), product type, tags, description.
 - **New versions** replace the current file but keep history; old versions stay viewable.
 - Duplicate check by file hash ("This file is already in Manuals").
-- Word and Excel files are converted to PDF on upload (in the worker), so they open in the same viewer; the original is kept for download.
+- Word files are converted to PDF on upload (in the worker), so they open in the same viewer; the original is kept for download. Spreadsheets aren't: they open in the spreadsheet viewer (see "Spreadsheet viewer").
 - Per document (default from the library): **Available offline** and **Allow download**. With download off, the file can only be viewed in the app.
 
 ### Viewing
@@ -61,6 +61,49 @@ Data model:
 - Offline documents open with no signal.
 - Photos open full screen.
 - Plans don't use this viewer: they use the tiled plan viewer, which carries markups, pins and measurements.
+- Spreadsheets open in the spreadsheet viewer below.
+
+### Job documents (agreed November 2026)
+
+Files that belong to one job, not the business-wide library: fit-off sheets, points lists for controllers, schedules, test results, the builder's drawings register.
+
+- **A Documents section on each job** (a panel on the job page, like Photos). Upload straight to the job from the phone or computer: PDF, photos, Word, Excel, CSV.
+- **Folders per job:** a starter set (Fit-off, Points lists, Schedules, Certificates) set per business in Settings › Document libraries, plus any folder made on the job. A folder can be left empty or removed.
+- **Versions** work like library documents and plan revisions: a new upload replaces the current file, the old ones stay in the history and stay viewable.
+- **Available offline** per file (and per folder), for plant rooms and basements.
+- **Library documents linked to the job** ("Pin to a project", see Links) show in the same section, marked as from the library. Unlinking doesn't touch the library copy.
+- **Who sees them:** anyone who can see the job and has `documents.view`. Job documents follow the job: when multi-company jobs arrive (phase 8), each business's job documents stay its own unless shared, like photos.
+- **Deleting** a job document is a soft delete into Recently deleted (Settings › Storage), restorable until the clean-up removes it. Deleting a business removes its job documents with it (the `purgeCompany` hook).
+- **Search** covers job documents too (PDF text and spreadsheet cell text), filtered to the jobs the person can see; a job's own search box searches only that job.
+
+### Spreadsheet viewer (agreed November 2026)
+
+Excel (`.xlsx`, `.xls`), OpenDocument (`.ods`) and CSV files open in a viewer made for spreadsheets, instead of being squashed into a PDF. Used for job documents and library documents alike. **View only:** editing stays in Excel or Google Sheets; upload a new version to change it.
+
+- **Sheet tabs** along the bottom, one per sheet in the file (hidden sheets left out).
+- **Frozen header row and first column** while scrolling. Grid guesses the header row (the first full row); it can be changed per sheet ("Header row: 3"), saved with that version.
+- **Looks like the file:** column widths, merged cells, bold, fills, number and date formats, hidden rows and columns hidden. Formulas show their last saved value (no recalculating).
+- **Search** the whole file: matches highlighted, next/previous, jumps across sheets.
+- **Filter a column:** tap a header for its values with counts (e.g. Level 2, or one controller) and tick the ones to show. **Sort** by a column. Both only change the view, never the file, and are cleared with one tap.
+- **Phone-friendly:** pinch to zoom, smooth scrolling through thousands of rows (only the rows on screen are drawn), and a **row card**: tap a row number to see that row as a list of "Header: value" lines, easier to read on a phone than a wide row.
+- **Offline:** works with no signal when the file is Available offline.
+- **Download** the original, if the document allows download.
+- **How it works:** on upload the worker reads the file once (SheetJS, in the background job `documents.sheet`) into a compact per-sheet JSON (cells, formats, merges, widths), kept in `cacheRoot()` since Grid can rebuild it from the original. The phone downloads that, not the Excel file. Cell text goes into search like PDF page text.
+- **The viewer has a slot,** `documents.sheet`, that other Blocks draw into (a column beside the row numbers, a toolbar button, a progress line), the same way the `markups` Block draws on the plan viewer through `plans.viewer`. Row ticking uses it.
+
+### Row ticking: the `tickoffs` Block (agreed November 2026, a trial)
+
+Tap a row on a fit-off sheet or points list to mark it done: "142 of 380 points done". **A trial**, so it's its own small optional Block that can be switched off or taken out without touching Documents:
+
+- **Block id `tickoffs`**, Store name "Tick-offs", depends on `documents`, not core. Turned off in the Store, the tick column and progress disappear and the ticks are kept (turn it back on and they're there). Removing it from Grid altogether means deleting `blocks/tickoffs/`, its line in `apps/web/src/blocks.ts`, and (if wanted) its tables with a migration. Nothing in the `documents` Block refers to it; it only draws into the `documents.sheet` slot and listens to documents events.
+- **Ticking:** a tick box at the start of every row below the header row (blank rows have none). Tap to tick, tap again to untick. Ticking shows who and when; the row card shows the history and an optional short note ("Tested, reads 21.4 °C").
+- **Progress** at the top of each sheet ("142 of 380 done") and on the job's Documents section next to the file. A filter shows **Not done / Done / All** (works with the column filters, e.g. "Level 2, not done").
+- **Matching rows across versions.** The ticks are kept in Grid, never written into the file. Each sheet has a **match column**, guessed from the header (Point name, Tag, Circuit, ID) and changeable, so ticks follow a row when a new version reorders or adds rows. Without one, rows match by their whole content. When a new version is uploaded, ticks move to the matching rows; any that no longer match are listed as "6 ticks don't match the new version" to look through, and are never silently lost.
+- **Offline:** ticks made with no signal wait on the phone and are sent later, like photos. If two people tick the same row, the first tick stands and both are in the history.
+- **Export:** "Download with ticks" gives a copy of the spreadsheet with Done, By and When columns added: handy for commissioning handover. The original is untouched.
+- **Permissions:** `tickoffs.view`, `tickoffs.tick` (tick and untick your own), `tickoffs.manage` (untick anyone's, set the match column, clear a sheet). Default grants: Employee view + tick; Foreman and Owner all. While solo, it's just you.
+- **Audit:** every tick and untick writes the audit log (entity `SheetTick`).
+- **Data:** `SheetTick`: `companyId`, `documentId`, `sheetName`, `rowKey` (the match column's value, or a hash of the row), `done`, `note?`, `byId`, `at`; append-only, latest per row wins, so the history is the table itself. `SheetTickSettings`: `documentId`, `sheetName`, `matchColumn?`.
 
 ### Product catalogue (for manufacturers with many products)
 
@@ -161,7 +204,7 @@ Every search bar has a **scan button** on its right. It uses a viewfinder/barcod
 ### Links into the rest of the app
 
 - **Markup icons:** link a document to an icon type (e.g. a switchboard or exhaust-fan icon). Tapping a placed icon on a plan offers its manual.
-- **Projects:** attach a library document to a project's documents so everyone on that job can see it.
+- **Projects:** attach a library document to a job's Documents section so everyone on that job can see it (see Job documents).
 - **Tasks/RFIs later:** reference a document from a task or RFI.
 
 ### Permissions (documents block)
@@ -175,6 +218,8 @@ Every search bar has a **scan button** on its right. It uses a viewfinder/barcod
 - `documents.notes.write` (add and edit product notes; making a note Shared needs `documents.notes.share`)
 - `documents.notes.share`
 
+Job documents use the same permissions, on top of being able to see the job. Row ticking has its own (`tickoffs.*`, above).
+
 Default grants: Employee view + notes.write (Private notes); Foreman view + upload + edit + products.manage + notes.share; Owner all.
 
 ### Menus
@@ -186,8 +231,9 @@ Default grants: Employee view + notes.write (Private notes); Foreman view + uplo
 ### Data model sketch
 
 - `DocumentLibrary`: `companyId`, `name`, `kind`, `isFinancial`, access settings.
-- `LibraryDocument`: `libraryId`, `title`, `manufacturer`, `models String[]`, `productType`, `tags String[]`, `currentVersionId`, `deletedAt`.
-- `DocumentVersion`: `documentId`, `fileKey`, `fileHash`, `mimeType`, `pages`, `ocrApplied`, `uploadedById`, `createdAt`.
+- `JobDocumentFolder`: `companyId`, `projectId`, `name`, `sort`. The business's starter folder names live in its settings.
+- `LibraryDocument`: `libraryId?` or `projectId?` + `folderId?` (a library document or a job document, never both), `title`, `manufacturer`, `models String[]`, `productType`, `tags String[]`, `currentVersionId`, `deletedAt`.
+- `DocumentVersion`: `documentId`, `fileKey`, `fileHash`, `mimeType`, `pages`, `ocrApplied`, `uploadedById`, `createdAt`, and for spreadsheets `sheets Json` (sheet names, row counts, chosen header rows).
 - `DocumentPage`: `versionId`, `pageNumber`, `text`, `search tsvector` (GIN index).
 - `IconDocumentLink`: `companyId`, `iconKey`, `documentId`.
 - `Manufacturer`, `ProductDivision`, `ProductFamily`, `ProductModel` are **server-wide** (no `companyId`). Each has `createdByCompanyId`, `createdById` and `status` (`ACTIVE | UNSORTED | MERGED`, plus `mergedIntoId?`). On the hosted site they also have `scope` (`LOCAL | SHARED`) and `ownerCompanyId?` for not-yet-accepted local entries.
@@ -207,11 +253,15 @@ Default grants: Employee view + notes.write (Private notes); Foreman view + uplo
 2. `documents.ocr`: `ocrmypdf` → store searchable PDF + page text.
 3. `documents.thumbnail`: first-page thumbnail (`sharp`).
 4. `documents.index`: update `tsvector` columns.
+5. `documents.sheet`: read a spreadsheet into the viewer's per-sheet JSON (in `cacheRoot()`) and its cell text for search.
 
 ### Build order
 
 1. Company connections (small; useful on its own and for stage 2 invites).
 2. Libraries, upload, versions, viewing.
+2a. Job documents: the job's Documents section, folders, versions, linking library documents.
+2b. Spreadsheet viewer, with the `documents.sheet` slot.
+2c. The `tickoffs` Block (trial): ticks, progress, matching across versions, offline ticks, Download with ticks.
 3. Text extraction + search.
 4. OCR for scans.
 5. Offline + product scanning.
