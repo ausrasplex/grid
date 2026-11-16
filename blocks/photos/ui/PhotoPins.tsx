@@ -8,7 +8,7 @@
 // first one (and travels with the photo, so it works offline too).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ImagePlus, Loader2, MapPinOff, X } from "lucide-react";
+import { Camera, ImagePlus, Loader2, MapPinOff, Trash2, X } from "lucide-react";
 import { Button, PlanToolButton, Sheet, SheetContent, api, cn, toScreen, usePlanOverlay, usePlanPointer, type PlanPointer, type SheetPoint } from "@grid/ui";
 import { addToOutbox, newId, prepareImage, type OutboxItem } from "./outbox";
 import { useOutbox } from "./useOutbox";
@@ -146,6 +146,17 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
     }
   };
 
+  /** Deletes the photo (off the plan and the job's photos). It sits in Recently deleted (Settings › Storage) until the clean-up removes it. */
+  const remove = async (photo: PinJson) => {
+    if (!window.confirm("Delete this photo? It comes off the plan and the job's photos. It can be restored from Settings › Storage for a while.")) return;
+    try {
+      await api(`/photos/${photo.id}`, { method: "DELETE" });
+      setPhotos((current) => current.filter((entry) => entry.id !== photo.id));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   // Where new photos go: the spot just tapped, or the open pin ("Add a photo here"),
   // and the note to go with them.
   const target = useRef<{ at: SheetPoint; note?: string } | null>(null);
@@ -268,9 +279,14 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
                         </span>
                       </p>
                       {photo.canChange && (
-                        <Button size="sm" variant="ghost" onClick={() => void unpin(photo)}>
-                          <MapPinOff /> Unpin
-                        </Button>
+                        <div className="flex shrink-0 gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => void unpin(photo)}>
+                            <MapPinOff /> Unpin
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => void remove(photo)}>
+                            <Trash2 /> Delete
+                          </Button>
+                        </div>
                       )}
                     </div>
                     <PhotoNotes photoId={photo.id} initial={photo.notes} canAdd={canAdd} onChange={(notes) => notesChanged(photo.id, notes)} />
@@ -287,7 +303,7 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Pinned photos are in the job&apos;s photos too. Unpin takes a photo off the plan but keeps it.</p>
+              <p className="text-xs text-muted-foreground">Pinned photos are in the job&apos;s photos too. Unpin takes a photo off the plan but keeps it; Delete removes it.</p>
             </div>
           )}
         </SheetContent>
