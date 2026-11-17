@@ -89,21 +89,21 @@ Excel (`.xlsx`, `.xls`), OpenDocument (`.ods`) and CSV files open in a viewer ma
 - **Offline:** works with no signal when the file is Available offline.
 - **Download** the original, if the document allows download.
 - **How it works:** on upload the worker reads the file once (SheetJS, in the background job `documents.sheet`) into a compact per-sheet JSON (cells, formats, merges, widths), kept in `cacheRoot()` since Grid can rebuild it from the original. The phone downloads that, not the Excel file. Cell text goes into search like PDF page text.
-- **The viewer has a slot,** `documents.sheet`, that other Blocks draw into (a column beside the row numbers, a toolbar button, a progress line), the same way the `markups` Block draws on the plan viewer through `plans.viewer`. Row ticking uses it.
+- **The viewer has a slot,** `documents.sheet`, that other Blocks draw into (a column beside the row numbers, a toolbar button, a progress line), the same way the `markups` Block draws on the plan viewer through `plans.viewer`. Row sign-offs use it.
 
-### Row ticking: the `signoffs` Block (agreed November 2026, a trial)
+### Row sign-offs: the `signoffs` Block (agreed November 2026, a trial)
 
-Tap a row on a fit-off sheet or points list to mark it done: "142 of 380 points done". **A trial**, so it's its own small optional Block that can be switched off or taken out without touching Documents:
+Sign off a row on a fit-off sheet or points list as you finish it: "142 of 380 signed off". **A trial**, so it's its own small optional Block that can be switched off or taken out without touching Documents. The screens say "sign off" throughout, never "tick".
 
-- **Block id `signoffs`**, Store name "Sign-offs", depends on `documents`, not core. Turned off in the Store, the tick column and progress disappear and the ticks are kept (turn it back on and they're there). Removing it from Grid altogether means deleting `blocks/signoffs/`, its line in `apps/web/src/blocks.ts`, and (if wanted) its tables with a migration. Nothing in the `documents` Block refers to it; it only draws into the `documents.sheet` slot and listens to documents events. (Not the same as the core `signatures` Block, which is for clients signing quotes.)
-- **Ticking:** a tick box at the start of every row below the header row (blank rows have none). Tap to tick, tap again to untick. Ticking shows who and when; the row card shows the history and an optional short note ("Tested, reads 21.4 °C").
-- **Progress** at the top of each sheet ("142 of 380 done") and on the job's Documents section next to the file. A filter shows **Not done / Done / All** (works with the column filters, e.g. "Level 2, not done").
-- **Matching rows across versions.** The ticks are kept in Grid, never written into the file. Each sheet has a **match column**, guessed from the header (Point name, Tag, Circuit, ID) and changeable, so ticks follow a row when a new version reorders or adds rows. Without one, rows match by their whole content. When a new version is uploaded, ticks move to the matching rows; any that no longer match are listed as "6 ticks don't match the new version" to look through, and are never silently lost.
-- **Offline:** ticks made with no signal wait on the phone and are sent later, like photos. If two people tick the same row, the first tick stands and both are in the history.
-- **Export:** "Download with ticks" gives a copy of the spreadsheet with Done, By and When columns added: handy for commissioning handover. The original is untouched.
-- **Permissions:** `signoffs.view`, `signoffs.tick` (tick and untick your own), `signoffs.manage` (untick anyone's, set the match column, clear a sheet). Default grants: Employee view + tick; Foreman and Owner all. While solo, it's just you.
-- **Audit:** every tick and untick writes the audit log (entity `SheetTick`).
-- **Data:** `SheetTick`: `companyId`, `documentId`, `sheetName`, `rowKey` (the match column's value, or a hash of the row), `done`, `note?`, `byId`, `at`; append-only, latest per row wins, so the history is the table itself. `SheetTickSettings`: `documentId`, `sheetName`, `matchColumn?`.
+- **Block id `signoffs`**, Store name "Sign-offs", depends on `documents`, not core. Turned off in the Store, the sign-off column and progress disappear and the sign-offs are kept (turn it back on and they're there). Removing it from Grid altogether means deleting `blocks/signoffs/`, its line in `apps/web/src/blocks.ts`, and (if wanted) its tables with a migration. Nothing in the `documents` Block refers to it; it only draws into the `documents.sheet` slot and listens to documents events. (Not the same as the core `signatures` Block, which is for clients signing quotes.)
+- **Signing off:** a sign-off box at the start of every row below the header row (blank rows have none). Tap to sign the row off, tap again to undo it. Each sign-off shows who and when; the row card shows the history and an optional short note ("Tested, reads 21.4 °C").
+- **Progress** at the top of each sheet ("142 of 380 signed off") and on the job's Documents section next to the file. A filter shows **To do / Signed off / All** (works with the column filters, e.g. "Level 2, to do").
+- **Matching rows across versions.** Sign-offs are kept in Grid, never written into the file. Each sheet has a **match column**, guessed from the header (Point name, Tag, Circuit, ID) and changeable, so sign-offs follow a row when a new version reorders or adds rows. Without one, rows match by their whole content. When a new version is uploaded, sign-offs move to the matching rows; any that no longer match are listed as "6 sign-offs don't match the new version" to look through, and are never silently lost.
+- **Offline:** sign-offs made with no signal wait on the phone and are sent later, like photos. If two people sign off the same row, the first stands and both are in the history.
+- **Export:** "Download with sign-offs" gives a copy of the spreadsheet with Signed off, By and When columns added: handy for commissioning handover. The original is untouched.
+- **Permissions:** `signoffs.view`, `signoffs.sign` (sign off rows and undo your own), `signoffs.manage` (undo anyone's, set the match column, clear a sheet). Default grants: Employee view + sign; Foreman and Owner all. While solo, it's just you.
+- **Audit:** every sign-off and undo writes the audit log (entity `SheetSignoff`).
+- **Data:** `SheetSignoff`: `companyId`, `documentId`, `sheetName`, `rowKey` (the match column's value, or a hash of the row), `signedOff`, `note?`, `byId`, `at`; append-only, latest per row wins, so the history is the table itself. `SheetSignoffSettings`: `documentId`, `sheetName`, `matchColumn?`.
 
 ### Product catalogue (for manufacturers with many products)
 
@@ -218,7 +218,7 @@ Every search bar has a **scan button** on its right. It uses a viewfinder/barcod
 - `documents.notes.write` (add and edit product notes; making a note Shared needs `documents.notes.share`)
 - `documents.notes.share`
 
-Job documents use the same permissions, on top of being able to see the job. Row ticking has its own (`signoffs.*`, above).
+Job documents use the same permissions, on top of being able to see the job. Row sign-offs have their own (`signoffs.*`, above).
 
 Default grants: Employee view + notes.write (Private notes); Foreman view + upload + edit + products.manage + notes.share; Owner all.
 
@@ -261,7 +261,7 @@ Default grants: Employee view + notes.write (Private notes); Foreman view + uplo
 2. Libraries, upload, versions, viewing.
 2a. Job documents: the job's Documents section, folders, versions, linking library documents.
 2b. Spreadsheet viewer, with the `documents.sheet` slot.
-2c. The `signoffs` Block (trial): ticks, progress, matching across versions, offline ticks, Download with ticks.
+2c. The `signoffs` Block (trial): sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs.
 3. Text extraction + search.
 4. OCR for scans.
 5. Offline + product scanning.
