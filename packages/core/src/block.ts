@@ -219,7 +219,7 @@ export interface BlockJob {
 /** One thing a clean-up removed (or would, in a dry run). */
 export interface CleanupItem {
   companyId: string | null;
-  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "deleted-business" | "stray";
+  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "deleted-document" | "deleted-business" | "stray";
   label: string;
   refId?: string | null;
   bytes: number;

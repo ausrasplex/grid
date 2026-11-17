@@ -22,8 +22,9 @@ import signatures from "@grid/block-signatures/block";
 import quotes from "@grid/block-quotes/block";
 import plans from "@grid/block-plans/block";
 import markups from "@grid/block-markups/block";
+import documents from "@grid/block-documents/block";
 
-const definitions = [users, companies, clients, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes];
+const definitions = [users, companies, clients, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents];
 
 /** Lazy page loaders, keyed by block id. */
 export const blockPages: Record<string, () => Promise<BlockPages>> = {
@@ -37,6 +38,7 @@ export const blockPages: Record<string, () => Promise<BlockPages>> = {
   templates: async () => (await import("@grid/block-templates/ui")).pages,
   quotes: async () => (await import("@grid/block-quotes/ui")).pages,
   plans: async () => (await import("@grid/block-plans/ui")).pages,
+  documents: async () => (await import("@grid/block-documents/ui")).pages,
 };
 
 /** Lazy loaders for pages people see without signing in (/p/<block>/...). */
@@ -53,6 +55,7 @@ export const blockPanels: Record<string, () => Promise<BlockPanels>> = {
   plans: async () => (await import("@grid/block-plans/ui")).panels,
   markups: async () => (await import("@grid/block-markups/ui")).panels,
   quotes: async () => (await import("@grid/block-quotes/ui")).panels,
+  documents: async () => (await import("@grid/block-documents/ui")).panels,
 };
 
 /** Renders the panels every switched-on block offers for a slot, in block order. */

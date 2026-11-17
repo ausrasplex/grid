@@ -1,10 +1,27 @@
 # Documents block + company connections: agreed design
 
-Status: **agreed, not built yet.** Build after stage 3 (needs file storage and the worker container).
+Status: **being built (phase 5b).** Part 1 (libraries, job documents, versions and the page viewer) is done: see "What 5b part 1 built" below. Company connections wait until sharing with subcontractors (later).
 Two parts:
 
 - **Company connections**: an addition to the `companies` block (or a small `connections` block).
-- **Documents**: block id `documents`, depends on `companies`.
+- **Documents**: block id `documents`, depends on `projects` (job documents) and, later, `companies` connections.
+
+## What 5b part 1 built (Nov 2026)
+
+The `documents` Block (optional, on for every trade and for sole traders; pages at `/documents`, API `/api/documents`):
+
+- **Libraries.** A business starts with Manuals, Data sheets, Certificates and Procedures (made the first time anyone opens Documents). **Settings › Document libraries** (`/documents/settings`, `documents.libraries.manage`) adds, renames and removes them (only an empty one can go) and sets **Allow download** for documents added from then on. `isFinancial`, `availableOffline` and `roles` are stored for later; there are no screens for them yet, so every library is seen by everyone with `documents.view`.
+- **Documents page** (`/documents`, `/documents/library/<id>`): chips for All and each library with counts, a search box (title, manufacturer, model numbers, tags, library; every word has to match), a picture of each document's first page, and Upload (pick a library, then files).
+- **Uploading.** `/api/files` now also takes Word, Excel, PowerPoint, OpenDocument, CSV and text files (150 MB), checked by their name and first bytes together (`officeType()` in `@grid/db`). Each file becomes a document titled from its file name. **Duplicate check:** the same file already in that library (or that job) is skipped and named ("RT-200.pdf is already in Manuals as …") with an **Add it anyway** button.
+- **Job documents** (`/documents/job/<projectId>`, and a **Documents** card on the job page, panel `job.area`): the job's folders, made from the business's **Job folders** list (Settings › Document libraries; starts as Fit-off, Points lists, Schedules, Certificates) the first time the job's Documents open. Upload to a folder, add, rename or remove folders (removing one moves what's in it to "Not in a folder"), and **Add from the library** (a pinned library document shows in a folder marked "Library"; moving it or taking it off the job doesn't touch the library copy).
+- **Viewer** (`/documents/doc/<id>[/<versionId>]`): PDF pages one under another on paper, rendered in the background (`documents.render`: pdftoppm, 2000 px on the long side, JPEG, plus a thumbnail; `<files>/.cache/documents/<versionId>`). Page x of y (tap to jump to a page), a **Pages** sheet of every page, zoom with the buttons, two fingers, or Ctrl + scroll (100–400%). Photos open in the same viewer. Word, Excel and other files show their name and size with **Download** until their viewers come (Word to PDF and the spreadsheet viewer are later parts).
+- **Versions.** Upload a new version (it becomes current); Versions lists every one with who and when, **View** an older one (with a "You're looking at an older version" note), **Make current**, and **Remove** (not the only one; its file is deleted straight away).
+- **Details:** title, library (or folder for a job document), manufacturer, model numbers, product type, tags, description, **Allow download**. With download off, only people with `documents.edit` can download the original; everyone else reads it in Grid. Photos can always be viewed.
+- **Pin to a job** from a library document (`documents.edit`): your active jobs; already-pinned jobs are listed with Take off.
+- **Delete** goes to Recently deleted (**Settings › Storage**, panel `storage.deleted`, `documents.delete`): Restore or Delete now; the storage clean-up removes it for good after the set days ("Deleted document"). Deleting a business removes its documents (`purgeCompany`).
+- **Permissions:** `documents.view`, `.upload`, `.edit`, `.delete`, `.libraries.manage`. Foreman: view, upload, edit. Employee and Viewer: view. Owner: all. (`products.manage` and the notes permissions come with the product catalogue.)
+- **Data:** `DocumentLibrary`, `DocumentSettings` (`jobFolders`), `JobDocumentFolder`, `LibraryDocument` (library or job), `DocumentVersion` (`status`, `pages`, `pageSizes`; `sheets` stored for the spreadsheet viewer), `DocumentLink` (pinned to a job).
+- **Not yet:** find on page and search inside documents (part 3, text extraction), Word to PDF, the spreadsheet viewer and Sign-offs (parts 2b and 2c), offline, the product catalogue, company connections.
 
 ## Why it exists
 
@@ -257,9 +274,9 @@ Default grants: Employee view + notes.write (Private notes); Foreman view + uplo
 
 ### Build order
 
-1. Company connections (small; useful on its own and for stage 2 invites).
-2. Libraries, upload, versions, viewing.
-2a. Job documents: the job's Documents section, folders, versions, linking library documents.
+1. Company connections (small; useful on its own and for stage 2 invites). Moved to later, with sharing libraries with subcontractors.
+2. Libraries, upload, versions, viewing. **Done (5b part 1).**
+2a. Job documents: the job's Documents section, folders, versions, linking library documents. **Done (5b part 1).**
 2b. Spreadsheet viewer, with the `documents.sheet` slot.
 2c. The `signoffs` Block (trial): sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs.
 3. Text extraction + search.

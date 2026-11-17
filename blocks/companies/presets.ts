@@ -9,7 +9,7 @@ export const TRADE_PROFILES = TRADE_IDS;
 /** A trade id from trades.ts (Company.tradeProfile). */
 export type TradeProfileId = string;
 
-const everyone = ["projects", "plans", "markups", "photos", "tasks", "notifications", "swms"];
+const everyone = ["projects", "plans", "markups", "photos", "documents", "tasks", "notifications", "swms"];
 
 export const TRADE_PRESETS: Record<TradePreset, { blocks: string[]; features: Record<string, boolean> }> = {
   BUILDER: {

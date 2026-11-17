@@ -19,6 +19,7 @@ const config: NextConfig = {
     "@grid/block-plans",
     "@grid/block-markups",
     "@grid/block-quotes",
+    "@grid/block-documents",
   ],
   // Loaded from node_modules at run time rather than bundled.
   serverExternalPackages: ["pg-boss", "sharp", "puppeteer-core", "@signpdf/signpdf", "@signpdf/signer-p12", "@signpdf/placeholder-pdf-lib", "node-forge", "pdf-lib"],

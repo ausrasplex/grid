@@ -156,6 +156,61 @@ export async function saveDocumentUpload(tx: Tx, input: { companyId: string; use
   });
 }
 
+/** Office files and CSV, by extension; checked against the file's first bytes. */
+const OFFICE_TYPES: Record<string, { mime: string; magic: "zip" | "ole" | "text" }> = {
+  docx: { mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", magic: "zip" },
+  xlsx: { mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", magic: "zip" },
+  pptx: { mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation", magic: "zip" },
+  odt: { mime: "application/vnd.oasis.opendocument.text", magic: "zip" },
+  ods: { mime: "application/vnd.oasis.opendocument.spreadsheet", magic: "zip" },
+  odp: { mime: "application/vnd.oasis.opendocument.presentation", magic: "zip" },
+  doc: { mime: "application/msword", magic: "ole" },
+  xls: { mime: "application/vnd.ms-excel", magic: "ole" },
+  ppt: { mime: "application/vnd.ms-powerpoint", magic: "ole" },
+  csv: { mime: "text/csv", magic: "text" },
+  txt: { mime: "text/plain", magic: "text" },
+};
+
+/**
+ * The type of a Word, Excel, PowerPoint, OpenDocument, CSV or text file, or
+ * null. The name gives the type; the first bytes have to agree.
+ */
+export function officeType(data: Buffer, name: string | null | undefined): { mime: string; ext: string } | null {
+  const ext = /\.([a-z0-9]{2,5})$/i.exec(name ?? "")?.[1]?.toLowerCase() ?? "";
+  const type = OFFICE_TYPES[ext];
+  if (!type) return null;
+  const head = data.subarray(0, 8);
+  if (type.magic === "zip" && !(head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04)) return null;
+  if (type.magic === "ole" && head.toString("hex") !== "d0cf11e0a1b11ae1") return null;
+  if (type.magic === "text" && data.subarray(0, 8192).includes(0)) return null;
+  return { mime: type.mime, ext };
+}
+
+/** Stores an Office, CSV or text file as it is (documents). */
+export async function saveOfficeUpload(tx: Tx, input: { companyId: string; userId: string; data: Buffer; name?: string | null }) {
+  if (input.data.length > MAX_PDF_BYTES) throw new UploadError("That file is too big (150 MB at most)");
+  const type = officeType(input.data, input.name);
+  if (!type) throw new UploadError("Grid takes PDFs, photos, Word, Excel, PowerPoint and CSV files");
+  const id = randomUUID();
+  const now = new Date();
+  const key = `${input.companyId}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${id}.${type.ext}`;
+  await put(key, input.data);
+  return tx.storedFile.create({
+    data: {
+      id,
+      companyId: input.companyId,
+      key,
+      mime: type.mime,
+      size: input.data.length,
+      sha256: createHash("sha256").update(input.data).digest("hex"),
+      variants: {},
+      originalName: input.name?.slice(0, 200) ?? null,
+      createdById: input.userId,
+    },
+    select: { id: true, width: true, height: true, size: true },
+  });
+}
+
 /**
  * Hands an uploaded file to a block's record. Only the person who uploaded
  * it, in the same company, can attach it, and only once.

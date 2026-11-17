@@ -108,7 +108,7 @@ export function PlansList({
     const ids: string[] = [];
     for (let index = 0; index < list.length; index++) {
       try {
-        const uploaded = await uploadFile(list[index]!, (percent) => setUploads((currentUploads) => currentUploads.map((upload, position) => (position === index ? { ...upload, percent } : upload))));
+        const uploaded = await uploadFile(list[index]!, (percent) => setUploads((currentUploads) => currentUploads.map((upload, position) => (position === index ? { ...upload, pct: percent } : upload))));
         ids.push(uploaded.id);
       } catch (error) {
         setUploads((currentUploads) => currentUploads.map((upload, position) => (position === index ? { ...upload, error: (error as Error).message } : upload)));

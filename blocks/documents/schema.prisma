@@ -1,0 +1,126 @@
+// Documents block (phase 5b, docs/documents-block.md): the business's
+// document libraries (Manuals, Data sheets…) and each job's documents
+// (fit-off sheets, points lists…). A document has versions; each upload
+// is a DocumentVersion and the newest is current unless someone picks
+// another. PDF pages are rendered once to images for the in-app viewer
+// (<files>/.cache/documents/<versionId>); the original stays as uploaded.
+
+enum DocumentVersionStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+model DocumentLibrary {
+  id               String    @id @default(uuid())
+  companyId        String
+  name             String
+  sort             Int       @default(0)
+  /// Quotes, pricing: never offered for sharing with connected companies (later).
+  isFinancial      Boolean   @default(false)
+  /// Defaults for documents added to it.
+  allowDownload    Boolean   @default(true)
+  availableOffline Boolean   @default(false)
+  /// Roles that can see it; empty means everyone with documents.view (screens later).
+  roles            String[]  @default([])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  documents LibraryDocument[]
+
+  @@index([companyId, deletedAt])
+}
+
+/// Per business: the folders every job starts with.
+model DocumentSettings {
+  companyId  String   @id
+  jobFolders String[] @default([])
+  updatedAt  DateTime @updatedAt
+}
+
+model JobDocumentFolder {
+  id        String    @id @default(uuid())
+  companyId String
+  projectId String
+  name      String
+  sort      Int       @default(0)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  documents LibraryDocument[]
+  links     DocumentLink[]
+
+  @@index([projectId, deletedAt])
+}
+
+/// A library document (libraryId) or a job document (projectId), never both.
+model LibraryDocument {
+  id               String    @id @default(uuid())
+  companyId        String
+  libraryId        String?
+  projectId        String?
+  folderId         String?
+  title            String
+  description      String    @default("")
+  manufacturer     String    @default("")
+  models           String[]  @default([])
+  productType      String    @default("")
+  tags             String[]  @default([])
+  currentVersionId String?
+  allowDownload    Boolean   @default(true)
+  availableOffline Boolean   @default(false)
+  createdById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  deletedById      String?
+  purgedAt         DateTime?
+
+  library  DocumentLibrary?   @relation(fields: [libraryId], references: [id], onDelete: SetNull)
+  folder   JobDocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  versions DocumentVersion[]
+  links    DocumentLink[]
+
+  @@index([companyId, libraryId, deletedAt])
+  @@index([projectId, deletedAt])
+}
+
+model DocumentVersion {
+  id           String                @id @default(uuid())
+  documentId   String
+  fileId       String
+  status       DocumentVersionStatus @default(PENDING)
+  error        String?
+  /// PDF pages (1 for a photo, 0 for files the viewer can't show yet).
+  pages        Int                   @default(0)
+  /// Each rendered page's size in pixels: [[width, height], …].
+  pageSizes    Json                  @default("[]")
+  /// Spreadsheets (later): sheet names, row counts, chosen header rows.
+  sheets       Json?
+  note         String?
+  uploadedById String
+  createdAt    DateTime              @default(now())
+
+  document LibraryDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@index([fileId])
+}
+
+/// A library document shown on a job's Documents section ("Pin to a job").
+model DocumentLink {
+  id          String   @id @default(uuid())
+  companyId   String
+  documentId  String
+  projectId   String
+  folderId    String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  document LibraryDocument    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  folder   JobDocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, projectId])
+  @@index([projectId])
+}

@@ -1,8 +1,9 @@
 // Upload: POST /api/files with multipart field "file". Returns { id }.
-// Photos (JPEG, PNG, WebP, 25 MB) or PDFs (plans, documents, 150 MB).
+// Photos (JPEG, PNG, WebP, 25 MB), PDFs (plans, documents, 150 MB), or Word,
+// Excel, PowerPoint, CSV and text files (documents, 150 MB).
 // The file then belongs to nobody until a block attaches it (e.g. photos).
 import { NextResponse, type NextRequest } from "next/server";
-import { MAX_PDF_BYTES, db, isPdf, saveDocumentUpload, saveImageUpload } from "@grid/db";
+import { MAX_PDF_BYTES, db, isPdf, officeType, saveDocumentUpload, saveImageUpload, saveOfficeUpload } from "@grid/db";
 import { getContext } from "@/lib/context";
 
 export async function POST(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
   try {
     const data = Buffer.from(await file.arrayBuffer());
     const input = { companyId: ctx.companyId, userId: ctx.userId, data, name: file.name };
-    const saved = isPdf(data) ? await saveDocumentUpload(db, input) : await saveImageUpload(db, input);
+    const saved = isPdf(data) ? await saveDocumentUpload(db, input) : officeType(data, file.name) ? await saveOfficeUpload(db, input) : await saveImageUpload(db, input);
     return NextResponse.json(saved);
   } catch (error) {
     if ((error as Error).name === "UploadError") return NextResponse.json({ error: { code: "bad_file", message: (error as Error).message } }, { status: 400 });
