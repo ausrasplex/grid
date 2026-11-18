@@ -277,12 +277,15 @@ Default grants: Employee view + notes.write (Private notes); Foreman view + uplo
 1. Company connections (small; useful on its own and for stage 2 invites). Moved to later, with sharing libraries with subcontractors.
 2. Libraries, upload, versions, viewing. **Done (5b part 1).**
 2a. Job documents: the job's Documents section, folders, versions, linking library documents. **Done (5b part 1).**
-2b. Spreadsheet viewer, with the `documents.sheet` slot.
-2c. The `signoffs` Block (trial): sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs.
-3. Text extraction + search.
+2b. Spreadsheet viewer, with the `documents.sheet` slot. **5b part 2 (next).**
+2c. The `signoffs` Block (trial): sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs. **5b part 3.**
+3. Text extraction + search. **5b part 4, the end of phase 5b.**
+
+Later (split out of 5b, Nov 2026; not scheduled, see the roadmap's 10+ row):
+
 4. OCR for scans.
-5. Offline + product scanning.
-6. Icon and project links.
+5. Offline (with phase 6's offline sync) + product scanning.
+6. Icon links: **moved to phase 4c** (built with the icons). Project links are done (pin to a job).
 7. Product catalogue (manufacturer → division → family → model), document ↔ product links, model-number search.
 8. Product notes with Private / Shared visibility and source-page links.
 9. Installed products on plans; shared catalogue on the hosted site later.
