@@ -483,7 +483,7 @@ export async function getQuote(ctx: RequestContext, id: string) {
     totals: { ...totals, costCents: showCost ? totals.costCents : 0, margin: showCost ? totals.margin : null },
     revisions: quote.revisions.map((revision) => ({ id: revision.id, label: revision.label, sentAt: revision.sentAt, sentTo: revision.sentTo, hasPdf: !!revision.pdfFileId, sentBy: names.get(revision.sentById) ?? "Someone" })),
     events: quote.events.map((event) => ({ type: event.type, at: event.at, by: event.byUserId ? (names.get(event.byUserId) ?? "Someone") : null, note: event.note })),
-    settings: { currency: settings.currency, locale: settings.locale, taxName: settings.taxName, rounding: settings.rounding, defaultTaxCodeId: settings.defaultTaxCodeId, codes: settings.codes },
+    settings: { currency: settings.currency, locale: settings.locale, taxName: settings.taxName, rounding: settings.rounding, defaultTaxCodeId: settings.defaultTaxCodeId, codes: settings.codes, swipeLeft: settings.swipeLeft, swipeRight: settings.swipeRight },
     canSeeCosts: showCost,
     /** Made outside Grid: its PDF and the total written on it. */
     uploaded: quote.uploadedFileId ? { fileId: quote.uploadedFileId, totalCents: quote.uploadedTotal != null ? cents(quote.uploadedTotal)! : null } : null,

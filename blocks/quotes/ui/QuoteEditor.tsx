@@ -5,7 +5,7 @@
 // saves itself. Once sent it's read-only: revisions, PDF, accept/decline.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, FileText, Plus, Send, Star } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, FileText, FolderInput, ListPlus, Plus, Send, Star, ToggleLeft, Trash2, type LucideIcon } from "lucide-react";
 import { AddressField, Alert,
   Badge,
   Button,
@@ -29,6 +29,7 @@ import { AddressField, Alert,
 import { calculate, formatMoney, groupBySection, markedUpUnitCents } from "../money";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { StatusBadge } from "./StatusBadge";
+import { isSwipeAction, type SwipeAction } from "../swipe";
 
 export interface LineJson {
   key: string;
@@ -87,7 +88,17 @@ export interface QuoteJson {
   lines: (Omit<LineJson, "key"> & { id?: string })[];
   revisions: { id: string; label: string; sentAt: string; sentTo: string | null; hasPdf: boolean; sentBy: string }[];
   events: { type: string; at: string; by: string | null; note: string | null }[];
-  settings: { currency: string; locale: string; taxName: string; rounding: string; defaultTaxCodeId: string | null; codes: { id: string; name: string; label: string; rate: number; active: boolean }[] };
+  settings: {
+    currency: string;
+    locale: string;
+    taxName: string;
+    rounding: string;
+    defaultTaxCodeId: string | null;
+    codes: { id: string; name: string; label: string; rate: number; active: boolean }[];
+    /** What swiping a line left or right does (Settings › Tax & currency). */
+    swipeLeft: string;
+    swipeRight: string;
+  };
   canSeeCosts: boolean;
 }
 
@@ -134,6 +145,9 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
   const [editing, setEditing] = useState<LineJson | null>(null);
   const [picking, setPicking] = useState(false);
   const [adding, setAdding] = useState(false);
+  /** The line just deleted, for Undo. */
+  const [undo, setUndo] = useState<{ line: LineJson; index: number } | null>(null);
+  const [sectionFor, setSectionFor] = useState<LineJson | null>(null);
   const [sending, setSending] = useState(false);
   const [answer, setAnswer] = useState<"accept" | "decline" | null>(null);
   const draft = quote.status === "DRAFT" && permissions.edit;
@@ -250,6 +264,29 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
       [copy[position], copy[target]] = [copy[target]!, copy[position]!];
       return copy;
     });
+  const removeLine = (line: LineJson) => {
+    const index = lines.findIndex((existing) => existing.key === line.key);
+    if (index < 0) return;
+    setLines((currentLines) => currentLines.filter((existing) => existing.key !== line.key));
+    setUndo({ line, index });
+  };
+  const duplicateLine = (line: LineJson) =>
+    setLines((currentLines) => {
+      const index = currentLines.findIndex((existing) => existing.key === line.key);
+      const copy = [...currentLines];
+      copy.splice(index + 1, 0, { ...line, key: key() });
+      return copy;
+    });
+  const swipeLeft = isSwipeAction(settings.swipeLeft) ? settings.swipeLeft : "OFF";
+  const swipeRight = isSwipeAction(settings.swipeRight) ? settings.swipeRight : "OFF";
+  const runSwipe = (action: SwipeAction, line: LineJson) => {
+    if (action === "DELETE") removeLine(line);
+    else if (action === "DUPLICATE") duplicateLine(line);
+    else if (action === "OPTIONAL") putLine({ ...line, optional: !line.optional });
+    else if (action === "QTY_UP") putLine({ ...line, qty: Math.round((line.qty + 1) * 1000) / 1000 });
+    else if (action === "SECTION") setSectionFor(line);
+  };
+  const sections = [...new Set(lines.map((line) => line.section?.trim()).filter((section): section is string => !!section))];
   const lastSection = [...lines].reverse().find((line) => line.section)?.section ?? null;
   const blank = (): LineJson => ({
     key: key(),
@@ -343,12 +380,12 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
                 {group.section && <div className="bg-muted/50 px-4 pt-3 pb-1 text-xs font-bold tracking-wide text-muted-foreground uppercase sm:px-5">{group.section}</div>}
                 <ul className="divide-y">
                   {group.items.map(({ line, index }) => (
-                    <li key={line.key}>
+                    <SwipeRow key={line.key} left={draft ? swipeLeft : "OFF"} right={draft ? swipeRight : "OFF"} line={line} onSwipe={(action) => runSwipe(action, line)}>
                       <button
                         type="button"
                         disabled={!draft}
                         onClick={() => setEditing(line)}
-                        className="flex w-full items-start gap-3 px-4 py-3 text-left enabled:hover:bg-muted enabled:active:bg-muted sm:px-5"
+                        className="flex w-full items-start gap-3 bg-card px-4 py-3 text-left enabled:hover:bg-muted enabled:active:bg-muted sm:px-5"
                       >
                         <span className="min-w-0 flex-1">
                           <span className="block font-medium whitespace-pre-line">{line.description || <em className="text-muted-foreground">No description</em>}</span>
@@ -365,7 +402,7 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
                         </span>
                         <span className={cn("shrink-0 font-semibold tabular-nums", line.optional && "text-muted-foreground")}>{money(lineAmount(index))}</span>
                       </button>
-                    </li>
+                    </SwipeRow>
                   ))}
                 </ul>
               </li>
@@ -459,8 +496,36 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
           markupOn={quote.canSeeCosts ? markupPct != null : quote.materialsMarkup}
           onClose={() => setEditing(null)}
           onSave={(line) => (putLine(line), setEditing(null))}
-          onDelete={() => (setLines((currentLines) => currentLines.filter((existing) => existing.key !== editing.key)), setEditing(null))}
+          onDelete={() => (removeLine(editing), setEditing(null))}
+          onDuplicate={() => (duplicateLine(editing), setEditing(null))}
           onMove={(direction) => move(editing.key, direction)}
+        />
+      )}
+      {undo && (
+        <UndoBar
+          key={undo.line.key}
+          text={`Removed “${undo.line.description.trim().slice(0, 40) || "line"}”`}
+          onUndo={() => {
+            const { line, index } = undo;
+            setLines((currentLines) => {
+              const copy = [...currentLines];
+              copy.splice(Math.min(index, copy.length), 0, line);
+              return copy;
+            });
+            setUndo(null);
+          }}
+          onDone={() => setUndo(null)}
+        />
+      )}
+      {sectionFor && (
+        <SectionSheet
+          line={sectionFor}
+          sections={sections}
+          onClose={() => setSectionFor(null)}
+          onPick={(section) => {
+            putLine({ ...sectionFor, section });
+            setSectionFor(null);
+          }}
         />
       )}
       <AddLineSheet
@@ -592,6 +657,7 @@ function LineSheet({
   onClose,
   onSave,
   onDelete,
+  onDuplicate,
   onMove,
 }: {
   line: LineJson;
@@ -607,6 +673,7 @@ function LineSheet({
   onClose: () => void;
   onSave: (line: LineJson) => void;
   onDelete: () => void;
+  onDuplicate: () => void;
   onMove: (direction: -1 | 1) => void;
 }) {
   const [draft, setDraft] = useState({
@@ -708,6 +775,9 @@ function LineSheet({
                 <Button type="button" variant="ghost" className="text-destructive" onClick={onDelete}>
                   Remove
                 </Button>
+                <Button type="button" variant="ghost" size="icon" aria-label="Duplicate" title="Duplicate" onClick={onDuplicate}>
+                  <Copy />
+                </Button>
                 <Button type="button" variant="ghost" size="icon" aria-label="Move up" onClick={() => onMove(-1)}>
                   <ArrowUp />
                 </Button>
@@ -719,6 +789,172 @@ function LineSheet({
             <Button type="submit">{isNew ? "Add line" : "Done"}</Button>
           </FormActions>
         </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+const SWIPE_LOOK: Record<Exclude<SwipeAction, "OFF">, { icon: LucideIcon; label: (line: LineJson) => string; destructive?: boolean }> = {
+  DELETE: { icon: Trash2, label: () => "Delete", destructive: true },
+  DUPLICATE: { icon: Copy, label: () => "Duplicate" },
+  OPTIONAL: { icon: ToggleLeft, label: (line) => (line.optional ? "Include in total" : "Make optional") },
+  SECTION: { icon: FolderInput, label: () => "Move to section" },
+  QTY_UP: { icon: ListPlus, label: () => "+1" },
+};
+
+/**
+ * A line that can be swiped: drag it left or right and let go past the
+ * mark (a third of the width, at most 160 px) to do that direction's
+ * action. Up and down still scroll; a tap still opens the line.
+ */
+function SwipeRow({ left, right, line, onSwipe, children }: { left: SwipeAction; right: SwipeAction; line: LineJson; onSwipe: (action: SwipeAction) => void; children: React.ReactNode }) {
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const row = useRef<HTMLLIElement>(null);
+  const gesture = useRef<{ x: number; y: number; id: number; active: boolean; armed: boolean } | null>(null);
+  const swallowClick = useRef(false);
+  const mark = () => Math.min(160, (row.current?.offsetWidth ?? 300) / 3);
+  // Swiping left (offset < 0) shows the left action on the right-hand side.
+  const action: SwipeAction = offset < 0 ? left : offset > 0 ? right : "OFF";
+  const look = action === "OFF" ? null : SWIPE_LOOK[action];
+  const armed = offset !== 0 && Math.abs(offset) >= mark();
+
+  if (left === "OFF" && right === "OFF") return <li>{children}</li>;
+  return (
+    <li
+      ref={row}
+      className="relative overflow-hidden"
+      style={{ touchAction: "pan-y" }}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        gesture.current = { x: event.clientX, y: event.clientY, id: event.pointerId, active: false, armed: false };
+      }}
+      onPointerMove={(event) => {
+        const current = gesture.current;
+        if (!current || current.id !== event.pointerId) return;
+        const dx = event.clientX - current.x;
+        const dy = event.clientY - current.y;
+        if (!current.active) {
+          // Mostly up or down: it's a scroll, not a swipe.
+          if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+            gesture.current = null;
+            return;
+          }
+          if (Math.abs(dx) < 10) return;
+          current.active = true;
+          setDragging(true);
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }
+        const allowed = (dx < 0 && left !== "OFF") || (dx > 0 && right !== "OFF");
+        const next = allowed ? dx : 0;
+        // A little buzz when passing the mark, on phones that can.
+        const nowArmed = next !== 0 && Math.abs(next) >= mark();
+        if (nowArmed !== current.armed) {
+          current.armed = nowArmed;
+          if (nowArmed) navigator.vibrate?.(10);
+        }
+        setOffset(next);
+      }}
+      onPointerUp={(event) => {
+        const current = gesture.current;
+        gesture.current = null;
+        if (!current?.active) return;
+        swallowClick.current = true;
+        setDragging(false);
+        setOffset(0);
+        if (current.armed && action !== "OFF") onSwipe(action);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+      onPointerCancel={() => {
+        gesture.current = null;
+        setDragging(false);
+        setOffset(0);
+      }}
+      onClickCapture={(event) => {
+        // The click that ends a swipe isn't a tap.
+        if (!swallowClick.current) return;
+        swallowClick.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
+      {look && (
+        <div
+          aria-hidden
+          className={cn(
+            "absolute inset-0 flex items-center gap-2 px-5 text-sm font-semibold",
+            offset < 0 ? "justify-end" : "justify-start",
+            look.destructive ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground",
+            !armed && "opacity-70",
+          )}
+        >
+          <look.icon className={cn("size-5 transition-transform", armed && "scale-125")} />
+          {look.label(line)}
+        </div>
+      )}
+      <div className={cn("relative", !dragging && "transition-transform duration-200")} style={{ transform: offset ? `translateX(${offset}px)` : undefined }}>
+        {children}
+      </div>
+    </li>
+  );
+}
+
+/** "Removed “Double GPO” · Undo", for a few seconds after a line is deleted. */
+function UndoBar({ text, onUndo, onDone }: { text: string; onUndo: () => void; onDone: () => void }) {
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    const timer = setTimeout(() => done.current(), 6000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div role="status" className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center gap-3 rounded-lg border bg-card py-1 pr-1 pl-4 shadow-lg md:bottom-6">
+      <span className="min-w-0 flex-1 truncate text-sm">{text}</span>
+      <Button variant="ghost" className="text-primary" onClick={onUndo}>
+        Undo
+      </Button>
+    </div>
+  );
+}
+
+/** Swipe "Move to section": the quote's sections, no section, or a new one. */
+function SectionSheet({ line, sections, onPick, onClose }: { line: LineJson; sections: string[]; onPick: (section: string | null) => void; onClose: () => void }) {
+  const [name, setName] = useState("");
+  const current = line.section?.trim() || null;
+  const choices: { label: string; value: string | null }[] = [...sections.map((section) => ({ label: section, value: section })), { label: "No section", value: null }];
+  return (
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent desktop="dialog" title="Move to section" description={line.description.trim().slice(0, 80) || undefined}>
+        <div className="flex flex-col gap-3 px-2 pb-2">
+          <ul className="flex flex-col gap-2">
+            {choices.map((choice) => (
+              <li key={choice.label}>
+                <button
+                  type="button"
+                  onClick={() => onPick(choice.value)}
+                  className={cn("flex min-h-touch w-full items-center justify-between gap-3 rounded-md bg-muted/50 px-4 text-left hover:bg-muted", choice.value === current && "font-semibold ring-2 ring-primary")}
+                >
+                  {choice.label}
+                  {choice.value === current && <span className="text-sm text-muted-foreground">Now</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (name.trim()) onPick(name.trim());
+            }}
+          >
+            <div className="flex-1">
+              <Field label="New section" placeholder="e.g. Kitchen, Switchboard" value={name} onChange={(event) => setName(event.target.value)} />
+            </div>
+            <Button type="submit" variant="outline" disabled={!name.trim()}>
+              Move
+            </Button>
+          </form>
+        </div>
       </SheetContent>
     </Sheet>
   );

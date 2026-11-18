@@ -4,6 +4,7 @@
 // rates, currency and number format all come from here.
 import { useState } from "react";
 import { Alert, Button, Field, FormActions, Label, List, PageHeader, Section, Segmented, SelectField, Sheet, SheetContent, Stack, Switch, TapRow, api, useAction } from "@grid/ui";
+import { SWIPE_ACTIONS, SWIPE_ACTION_NAMES, type SwipeAction } from "../swipe";
 
 interface Code {
   id: string;
@@ -29,6 +30,8 @@ export interface TaxSettingsJson {
   onlineAccept: boolean;
   signDrawn: boolean;
   signTyped: boolean;
+  swipeLeft: SwipeAction;
+  swipeRight: SwipeAction;
   codes: Code[];
 }
 
@@ -65,6 +68,8 @@ export function TaxSettingsForm({ initial }: { initial: TaxSettingsJson }) {
                   onlineAccept: form.onlineAccept,
                   signDrawn: form.signDrawn,
                   signTyped: form.signTyped,
+                  swipeLeft: form.swipeLeft,
+                  swipeRight: form.swipeRight,
                 },
               }),
             );
@@ -142,6 +147,22 @@ export function TaxSettingsForm({ initial }: { initial: TaxSettingsJson }) {
                   </label>
                 </>
               )}
+            </div>
+          </Section>
+          <Section title="Swiping a line" description="On a draft quote, swipe a line left or right past halfway to do this. Tapping a line still opens it.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SelectField
+                label="Swipe left"
+                value={form.swipeLeft}
+                onChange={(event) => setForm({ ...form, swipeLeft: event.target.value as SwipeAction })}
+                options={SWIPE_ACTIONS.map((value) => ({ value, label: SWIPE_ACTION_NAMES[value] }))}
+              />
+              <SelectField
+                label="Swipe right"
+                value={form.swipeRight}
+                onChange={(event) => setForm({ ...form, swipeRight: event.target.value as SwipeAction })}
+                options={SWIPE_ACTIONS.map((value) => ({ value, label: SWIPE_ACTION_NAMES[value] }))}
+              />
             </div>
           </Section>
           <Alert variant="error">{action.error}</Alert>

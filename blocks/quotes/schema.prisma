@@ -43,6 +43,9 @@ model TaxSettings {
   /// How customers may sign: drawing and/or typing their name.
   signDrawn          Boolean  @default(true)
   signTyped          Boolean  @default(true)
+  /// Swiping a line on the quote screen (swipe.ts): OFF | DELETE | DUPLICATE | OPTIONAL | SECTION | QTY_UP.
+  swipeLeft          String   @default("DELETE")
+  swipeRight         String   @default("DUPLICATE")
   updatedAt          DateTime @updatedAt
 }
 

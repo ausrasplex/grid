@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SWIPE_ACTIONS } from "./swipe";
 
 const uuid = z.string().uuid();
 const optText = (max: number) =>
@@ -28,6 +29,9 @@ export const taxSettingsSchema = z
     onlineAccept: z.boolean(),
     signDrawn: z.boolean(),
     signTyped: z.boolean(),
+    /** Swiping a line on the quote screen. */
+    swipeLeft: z.enum(SWIPE_ACTIONS).default("DELETE"),
+    swipeRight: z.enum(SWIPE_ACTIONS).default("DUPLICATE"),
   })
   .strict()
   .refine((value) => !value.onlineAccept || value.signDrawn || value.signTyped, "Allow drawing or typing a signature (or both)");
