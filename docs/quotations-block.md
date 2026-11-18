@@ -103,7 +103,10 @@ Owners set their own tax naming and rules in company settings; nothing is hard-c
 
 ### Take-off from plans
 
+- **Planned for phase 4c** (`docs/roadmap.md`, "Phase 4c"): the trade icon library (an accordion per trade, with search), placing icons on plans, counts.
+- **The flow:** on the quote, **Take-off** opens the job's plans. A quote that isn't for a job yet gets a **Quoting job** first (`docs/stage-2-projects.md`, "Quoting jobs"), so plans can be uploaded before the work is won. Upload plans, place icons, then come back to the quote's **Take-off** section and tap **Add to quote**.
 - When the job's plans are in the app, **quantities come from markup icons and measurements**: e.g. 42 "Double GPO" icons on Level 2 → 42 × "Double GPO installed"; cable run measurements → metres.
+- Each icon type links to a price book item (later an assembly) through `IconPriceLink`. The first time an icon has no link, Grid asks which item it is and remembers it for the business.
 - Take-off lines remember their source (sheet, revision, icon type, layer).
 - **When a plan revision changes the counts**, the quote shows a "Take-off changed" banner with the differences, and you choose to update or keep.
 
@@ -273,7 +276,7 @@ The client can **decline** instead, with an optional reason. The quote becomes `
 - `PriceItemHistory`: `priceItemId`, `cost`, `at`, `source` (`MANUAL | IMPORT`).
 - `Assembly`: `companyId`, `name`, `unit`, `sellOverride?`.
 - `AssemblyComponent`: `assemblyId`, `priceItemId?`, `childAssemblyId?`, `qty`.
-- `IconAssemblyLink`: `companyId`, `iconKey`, `assemblyId`.
+- `IconPriceLink` (was `IconAssemblyLink`): `companyId`, `iconKey`, `priceItemId?`, `assemblyId?`.
 - `Quote`: `companyId`, `clientId`, `number`, `title`, `mode` (`QUICK | ESTIMATE`), `status`, `projectId?`, `siteAddress`, `validUntil`, `clientView` (`LUMP | SECTIONS | ITEMISED`), `createdById`, `reviewerId?`, `currentRevisionId`.
 - `QuoteRevision`: `quoteId`, `label`, `sections Json` (snapshot), `totals Json`, `text Json`, `sentAt?`, `sentById?`.
 - `QuoteLine`: `revisionId`, `sectionKey`, `kind` (built as `LABOUR | MATERIAL | null`; assemblies later), `source` (`ITEM | ASSEMBLY | ONEOFF`), `refId?`, `description`, `qty Decimal`, `unit`, `cost Decimal`, `sell Decimal`, `taxCodeId`, `labourHours Decimal`, `optional Boolean`, `takeoffSource Json?`.
@@ -297,5 +300,5 @@ Money as `Decimal(12,2)`; all tables UUID + `updatedAt` + soft delete per sync c
 3. Assemblies and supplier CSV import.
 4. Sections, options, revisions and compare; secure link; signed acceptance through the `signatures` service (one-time code, drawn or typed signature, audit trail, sealed PDF with certificate page, verify page). Later in this step: in-person signing, multiple signers, recorded acceptance.
 5. Acceptance → project creation / chain placement; baseline for variations.
-6. Take-offs from markups and measurements, revision change detection.
+6. Take-offs from markups and measurements, revision change detection (phase 4c: trade icons, Quoting jobs).
 7. Reporting; accounting export.

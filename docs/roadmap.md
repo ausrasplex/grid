@@ -14,6 +14,7 @@ Status: **agreed.** Build for a **sole trader first** and expand to teams, then 
 | **2d. Backups (done)** (core) | Choose database and/or media; daily or weekly; keep the latest N (oldest replaced); Back up now; history with Download per backup | A dead disk or a bad upgrade isn't the end of the business | Off-site copies, encryption, Restore button |
 | **3. Quotes + signing (done: 3a, 3b)** (`templates` basics, `quotes`, `signatures`) | Clients, price book, quick quote on the phone, branded PDF, online client signing with one-time code, signed PDF; an accepted quote creates the job | Quote on site, client signs on their phone, job appears | Estimators, Foreman drafts with Owner review, full estimates with take-offs, signing in person and several signers |
 | **4. Plans, markups, photo pins, measure (done: 4a, 4b)** (`plans`, `markups`) | Upload, tiled viewer, revisions, own markup layer, photo pins, calibrated measuring | Mark up and measure plans on the tablet | Company layers with visibility, plan update requests linked to RFIs |
+| **4c. Trade icons and take-offs** (planned: after the rest of 5b) (`markups`, `quotes`, `projects`) | A symbol library for every trade (accordion per trade, with search) placed on plans; counts per sheet, level and job; take-offs into quotes; Quoting jobs so a quote can have plans before it's won | Count 42 GPOs off the drawings and have them priced on the quote; the same icons become the install plan when the job is won | Assemblies behind icons, custom icon artwork, trades sharing plans with their own icon layers (phase 8) |
 | **5a. My tickets & licences (the wallet, first part) (done)** | Your own tickets and licences (White Card, electrical licence, EWP…) with card photos, numbers and expiry dates; reminders before they run out | Every ticket on your phone; never caught out by an expired licence | Sharing with a business, inductions, site requirements and the employer-only section (phase 9) |
 | **5b. Documents & assets** (part 1 done: libraries, job documents, viewer) | Own manual library with search and product catalogue; job documents (fit-off sheets, points lists) with a built-in spreadsheet viewer; row sign-offs as a trial Block (`signoffs`); tools, test & tag, van | Manuals on hand, fit-off and points lists readable on the phone and signed off as you go, test-and-tag reminders, van servicing | Sharing libraries with subcontractors, Shared notes, fleet-wide assets |
 | **6. Offline sync, notifications, email** | Full offline, push, own SMTP | Works in plant rooms and basements | Team notifications and approvals |
@@ -89,6 +90,30 @@ Detailed designs: `photos-block.md`, `backups.md`, `stage-2-projects.md`, `quota
 
 - A **business size** choice sits alongside the trade preset (`startingBlocks(trade, size)` in `blocks/companies/presets.ts`). Blocks that aren't built yet are skipped, so a new company today starts with only the core. Solo turns on: `sites`, `projects`, `photos`, `quotes`, `templates`, `plans`, `markups`, `documents`, `assets`.
 - It leaves the team blocks off (`rfis`, `revisions`, `variations`, `swms`, `forms`, team `inductions`). They're one switch away in Settings › Blocks.
+
+## Phase 4c: trade icons and take-offs (planned, decided Nov 2026)
+
+Built after the rest of 5b. Trade symbols placed on plans, counted, and turned into quote lines.
+
+**The icon library**
+- **Every trade, from the start:** Electrical, Data & comms, Plumbing, HVAC, Fire, Security, Gas and Solar, plus **Custom** for the business's own icons. No trade is switched off; the layout below keeps the list quick to get through.
+- **Grouped by trade, each group an accordion.** Tap a trade's heading to close it and skip past it. Grid remembers which groups you've closed (per person, on that device).
+- **Search bar at the top** of the library. Searches icon names and other words for them ("power point" finds GPO) across every trade, closed groups included. While searching, only the groups with matches show, opened; clearing the search puts the groups back as they were.
+- **Icons:** simple, original line symbols that read clearly at small sizes. Each has a key (`electrical.gpo-double`), a name ("Double GPO"), a trade and search words. Built-in icons live in code; custom icons are stored per business (`CustomIcon`).
+
+**Placing and counting**
+- In the plan viewer's markup tools: pick an icon, then tap the plan to place it. It stays picked so you can tap 20 GPOs in a row.
+- A placed icon is a markup (`PlanMarkup.kind = ICON` with `iconKey`), so it has the same visibility, undo, delete and Recently deleted as other markups.
+- Each trade's icons sit on their own layer that can be shown or hidden, ready for several trades sharing one set of plans (phase 8).
+- **Counts** per icon for the sheet, the level and the whole job, in a panel beside the plan.
+
+**Take-offs into quotes** (`docs/quotations-block.md` §3, "Take-off from plans")
+- On a quote, **Take-off** opens the job's plans. A quote that isn't for a job yet gets a **Quoting job** (`docs/stage-2-projects.md`, "Quoting jobs"), so plans can be uploaded before the work is won.
+- Back on the quote, the **Take-off** section lists the counts. Each icon type links to a price book item (later an assembly). The first time an icon has no link, Grid asks which item it is and remembers it for the business. **Add to quote** turns the counts into lines; measured lengths come in as metres the same way.
+- When a new plan revision changes the counts, the quote shows "Take-off changed" with the differences, and you choose to update or keep.
+- When the quote is won, the Quoting job becomes the real job, so the plans and every placed icon are already there for the install.
+
+**Data (sketch):** `PlanMarkup` gains `ICON` and `iconKey`; `CustomIcon` (`companyId`, `trade`, `name`, `keywords`, `fileId`, soft delete); `IconPriceLink` (`companyId`, `iconKey`, `priceItemId?`, `assemblyId?`); `ProjectStatus` gains `QUOTING` and `NOT_WON`; quote lines remember their take-off source (sheet, revision, icon, level).
 
 ## Phase 5a: my tickets & licences (done, Nov 2026)
 

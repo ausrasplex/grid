@@ -198,6 +198,17 @@ When a company's request reaches the host, the host chooses where it sits:
 - **Jump to:** `/jobs/search`, the header search (a box with Ctrl K from tablet up). Matches job numbers (exact first, "1042" finds "J-1042"), job names, clients, sites and addresses.
 - Not yet: the camera scanner (Scan is still a placeholder page), plan sheets and quotes in search (they come with those Blocks), and "Outside current areas" (needs work items).
 
+### Quoting jobs (decided Nov 2026, built with phase 4c)
+
+A quote that needs plans (for a take-off) before the work is won gets a job to hold them.
+
+- **When:** tapping **Take-off** on a quote that has no job. A quote already for a job (extra work on an existing job) uses that job's plans; no Quoting job is made.
+- **What it is:** an ordinary job with status `QUOTING`, linked from the quote (`Quote.projectId`), at the quote's site, building and level (or a private site from its address, as usual). Same name as the quote.
+- **Kept out of the way:** Quoting jobs don't show in the Sites list, the site's active jobs, Home "On site now", or the site's active count, so a site with only Quoting jobs stays archived/hidden. Jump to finds them, with a **Quoting** badge. The job page shows a banner: "Quoting: becomes a job when Q-1042 is accepted".
+- **Won:** accepting the quote turns the job `ACTIVE` (instead of making a new one), keeping its plans, icons and markups. Job number as normal.
+- **Not won:** a declined, withdrawn or expired quote closes the job as `NOT_WON`: kept with its plans (useful if the client comes back), hidden like the above, shown only from the quote. Reopening the quote puts it back to `QUOTING`.
+- **Only from a quote:** you can't make a Quoting job from New job, and a Quoting job can't be switched to active by hand; the quote decides.
+
 **2b. Multi-company (when teams and builders come on):**
 4. Invites, chain, placement and moves (§2, §4, §5).
 5. Site and project QR access requests (§1f, §3).
