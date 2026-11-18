@@ -133,6 +133,7 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
   const [saveError, setSaveError] = useState<string | null>(null);
   const [editing, setEditing] = useState<LineJson | null>(null);
   const [picking, setPicking] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [sending, setSending] = useState(false);
   const [answer, setAnswer] = useState<"accept" | "decline" | null>(null);
   const draft = quote.status === "DRAFT" && permissions.edit;
@@ -328,6 +329,13 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
           flush
           title="Prices"
           description={draft ? `Prices ${form.pricesIncludeTax ? "include" : "exclude"} ${settings.taxName}. Tap a line to change it.` : undefined}
+          actions={
+            draft && (
+              <Button variant="outline" size="icon" aria-label="Add a line" onClick={() => setAdding(true)}>
+                <Plus />
+              </Button>
+            )
+          }
         >
           <ul className="divide-y border-t">
             {groupBySection(lines).map((group) => (
@@ -362,18 +370,10 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
                 </ul>
               </li>
             ))}
-            {lines.length === 0 && <li className="px-4 py-6 text-center text-sm text-muted-foreground sm:px-5">No lines yet. Add labour and materials below.</li>}
+            {lines.length === 0 && (
+              <li className="px-4 py-6 text-center text-sm text-muted-foreground sm:px-5">{draft ? "No lines yet. Tap + to add labour and materials." : "No lines."}</li>
+            )}
           </ul>
-          {draft && (
-            <div className="grid grid-cols-2 gap-2 border-t p-3 sm:flex sm:justify-end">
-              <Button variant="outline" onClick={() => setPicking(true)}>
-                <Star /> Price book
-              </Button>
-              <Button variant="outline" onClick={() => setEditing(blank())}>
-                <Plus /> Custom line
-              </Button>
-            </div>
-          )}
           {draft && quote.canSeeCosts && (
             <div className="flex flex-col gap-3 border-t px-4 py-3 sm:px-5">
               <label className="flex items-center justify-between gap-3">
@@ -463,6 +463,12 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
           onMove={(direction) => move(editing.key, direction)}
         />
       )}
+      <AddLineSheet
+        open={adding}
+        onOpenChange={setAdding}
+        onPriceBook={() => (setAdding(false), setPicking(true))}
+        onCustom={() => (setAdding(false), setEditing(blank()))}
+      />
       <PriceBookPicker
         open={picking}
         onOpenChange={setPicking}
@@ -713,6 +719,37 @@ function LineSheet({
             <Button type="submit">{isNew ? "Add line" : "Done"}</Button>
           </FormActions>
         </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/** The + on Prices: add from the price book, or type a custom line. */
+function AddLineSheet({ open, onOpenChange, onPriceBook, onCustom }: { open: boolean; onOpenChange: (open: boolean) => void; onPriceBook: () => void; onCustom: () => void }) {
+  const choices = [
+    { label: "Price book", description: "Labour and materials you've saved, at your prices", icon: Star, onClick: onPriceBook },
+    { label: "Custom line", description: "Type in anything that isn't in the price book", icon: Plus, onClick: onCustom },
+  ];
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent desktop="dialog" title="Add a line">
+        <ul className="flex flex-col gap-2 px-2 pb-2">
+          {choices.map((choice) => (
+            <li key={choice.label}>
+              <button
+                type="button"
+                onClick={choice.onClick}
+                className="flex min-h-touch w-full items-center gap-3 rounded-md bg-muted/50 px-4 py-3 text-left hover:bg-muted active:bg-muted"
+              >
+                <choice.icon className="size-5 shrink-0 text-primary" aria-hidden />
+                <span className="min-w-0">
+                  <span className="block font-medium">{choice.label}</span>
+                  <span className="block text-sm text-muted-foreground">{choice.description}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </SheetContent>
     </Sheet>
   );
