@@ -26,7 +26,7 @@ import { AddressField, Alert,
   cn,
   useAction,
 } from "@grid/ui";
-import { calculate, formatMoney, groupBySection } from "../money";
+import { calculate, formatMoney, groupBySection, markedUpUnitCents } from "../money";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { StatusBadge } from "./StatusBadge";
 
@@ -34,11 +34,15 @@ export interface LineJson {
   key: string;
   section: string | null;
   priceItemId: string | null;
+  /** Labour, material, or null for other. Material lines get the materials markup. */
+  kind: "LABOUR" | "MATERIAL" | null;
   description: string;
   qty: number;
   unit: string;
   cost: number | null;
   sell: number;
+  /** From the server: the price the materials markup set, for people who can't see costs. */
+  markupSell?: number | null;
   taxCodeId: string | null;
   optional: boolean;
 }
@@ -76,6 +80,9 @@ export interface QuoteJson {
     verifyCode: string | null;
   } | null;
   declineReason: string | null;
+  /** Materials markup on this quote; the % only for people who can see costs. */
+  materialsMarkup: boolean;
+  materialsMarkupPct: number | null;
   /** As saved: each line also has its database id (never sent back). */
   lines: (Omit<LineJson, "key"> & { id?: string })[];
   revisions: { id: string; label: string; sentAt: string; sentTo: string | null; hasPdf: boolean; sentBy: string }[];
@@ -119,6 +126,8 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
     intro: initial.intro ?? "",
     terms: initial.terms ?? "",
     internalNotes: initial.internalNotes ?? "",
+    materialsMarkup: initial.materialsMarkup,
+    materialsMarkupPct: initial.materialsMarkupPct == null ? "" : String(initial.materialsMarkupPct),
   });
   const [save, setSave] = useState<"saved" | "pending" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -130,13 +139,20 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
   const settings = quote.settings;
   const money = useCallback((cents: number) => formatMoney(cents, settings.currency, settings.locale), [settings.currency, settings.locale]);
 
+  // The materials markup % in use: null when it's off (or blank).
+  const markupPct = form.materialsMarkup && form.materialsMarkupPct.trim() !== "" ? toNum(form.materialsMarkupPct) : null;
   const totals = useMemo(
     () =>
       calculate(
-        lines.map((line) => ({ qty: line.qty, unitCents: Math.round(line.sell * 100), unitCostCents: line.cost == null ? null : Math.round(line.cost * 100), taxCodeId: line.taxCodeId, optional: line.optional })),
-        { pricesIncludeTax: form.pricesIncludeTax, rounding: settings.rounding as "LINE" | "TOTAL", codes: settings.codes },
+        lines.map((line) =>
+          quote.canSeeCosts
+            ? { qty: line.qty, unitCents: Math.round(line.sell * 100), unitCostCents: line.cost == null ? null : Math.round(line.cost * 100), taxCodeId: line.taxCodeId, optional: line.optional, material: line.kind === "MATERIAL" }
+            : // Without costs the markup can't be worked out here: use the price the server set.
+              { qty: line.qty, unitCents: Math.round((line.markupSell ?? line.sell) * 100), unitCostCents: null, taxCodeId: line.taxCodeId, optional: line.optional },
+        ),
+        { pricesIncludeTax: form.pricesIncludeTax, rounding: settings.rounding as "LINE" | "TOTAL", codes: settings.codes, materialsMarkupPct: markupPct },
       ),
-    [lines, form.pricesIncludeTax, settings.rounding, settings.codes],
+    [lines, form.pricesIncludeTax, settings.rounding, settings.codes, markupPct, quote.canSeeCosts],
   );
 
   // --- autosave ---------------------------------------------------------
@@ -151,12 +167,14 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
       intro: form.intro,
       terms: form.terms,
       internalNotes: form.internalNotes,
+      ...(quote.canSeeCosts ? { materialsMarkup: form.materialsMarkup, materialsMarkupPct: form.materialsMarkupPct.trim() === "" ? null : toNum(form.materialsMarkupPct) } : {}),
       lines: lines
         .filter((line) => line.description.trim())
         // Only the fields a line has (the server refuses anything else).
         .map((line) => ({
           section: line.section,
           priceItemId: line.priceItemId,
+          kind: line.kind,
           description: line.description,
           qty: line.qty,
           unit: line.unit,
@@ -176,8 +194,14 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
     if (saving.current) await saving.current;
     if (json === lastSaved.current) return;
     setSave("saving");
-    const pending = api(`/quotes/${quote.id}`, { method: "PATCH", body })
-      .then(() => {
+    const pending = api<QuoteJson>(`/quotes/${quote.id}`, { method: "PATCH", body })
+      .then((saved) => {
+        // Without costs, the server works out the materials markup prices: show them.
+        // Saved lines are the ones with a description, in order.
+        if (!quote.canSeeCosts) {
+          let position = 0;
+          setLines((currentLines) => currentLines.map((line) => (line.description.trim() ? { ...line, markupSell: saved.lines[position++]?.markupSell ?? null } : line)));
+        }
         lastSaved.current = json;
         setSave("saved");
         setSaveError(null);
@@ -190,7 +214,7 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
       .finally(() => (saving.current = null));
     saving.current = pending;
     await pending;
-  }, [json, body, quote.id]);
+  }, [json, body, quote.id, quote.canSeeCosts]);
 
   useEffect(() => {
     if (!draft || json === lastSaved.current) return;
@@ -230,11 +254,13 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
     key: key(),
     section: lastSection,
     priceItemId: null,
+    kind: null,
     description: "",
     qty: 1,
     unit: "each",
     cost: null,
     sell: 0,
+    markupSell: null,
     taxCodeId: settings.defaultTaxCodeId,
     optional: false,
   });
@@ -319,10 +345,15 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
                         <span className="min-w-0 flex-1">
                           <span className="block font-medium whitespace-pre-line">{line.description || <em className="text-muted-foreground">No description</em>}</span>
                           <span className="block text-sm text-muted-foreground tabular-nums">
-                            {line.qty} {line.unit} × {money(Math.round(line.sell * 100))}
+                            {line.qty} {line.unit} × {money(totals.lines[index]?.unitCents ?? Math.round(line.sell * 100))}
                             {codeLabel(line.taxCodeId) && ` · ${codeLabel(line.taxCodeId)}`}
+                            {line.kind === "MATERIAL" && " · Material"}
+                            {line.kind === "LABOUR" && " · Labour"}
                             {line.optional && " · Optional extra"}
                           </span>
+                          {quote.canSeeCosts && markupPct != null && line.kind === "MATERIAL" && line.cost == null && (
+                            <span className="block text-sm text-warning">No cost, so not marked up</span>
+                          )}
                         </span>
                         <span className={cn("shrink-0 font-semibold tabular-nums", line.optional && "text-muted-foreground")}>{money(lineAmount(index))}</span>
                       </button>
@@ -343,7 +374,30 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
               </Button>
             </div>
           )}
-          <Totals totals={totals} money={money} includesTax={form.pricesIncludeTax} taxName={settings.taxName} canSeeCosts={quote.canSeeCosts} />
+          {draft && quote.canSeeCosts && (
+            <div className="flex flex-col gap-3 border-t px-4 py-3 sm:px-5">
+              <label className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="block font-medium">Materials markup</span>
+                  <span className="block text-sm text-muted-foreground">Prices every material at its cost plus this %, instead of its own price. Only you see it.</span>
+                </span>
+                <Switch checked={form.materialsMarkup} onCheckedChange={(checked) => setForm({ ...form, materialsMarkup: checked })} />
+              </label>
+              {form.materialsMarkup && (
+                <div className="max-w-48">
+                  <Field
+                    label="Markup %"
+                    inputMode="decimal"
+                    placeholder="e.g. 30"
+                    value={form.materialsMarkupPct}
+                    onChange={(event) => setForm({ ...form, materialsMarkupPct: event.target.value })}
+                    hint={markupPct == null ? "Enter a % to mark up" : `${totals.lines.filter((line) => line.markedUp).length} material lines marked up`}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <Totals totals={totals} money={money} includesTax={form.pricesIncludeTax} taxName={settings.taxName} canSeeCosts={quote.canSeeCosts} markupPct={markupPct} />
         </Section>
 
         {draft ? (
@@ -401,6 +455,8 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
           canSeeCosts={quote.canSeeCosts}
           taxName={settings.taxName}
           includesTax={form.pricesIncludeTax}
+          markupPct={markupPct}
+          markupOn={quote.canSeeCosts ? markupPct != null : quote.materialsMarkup}
           onClose={() => setEditing(null)}
           onSave={(line) => (putLine(line), setEditing(null))}
           onDelete={() => (setLines((currentLines) => currentLines.filter((existing) => existing.key !== editing.key)), setEditing(null))}
@@ -420,7 +476,7 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
           // Tapping the same item again adds one more rather than a second line.
           const same = lines.find((line) => line.priceItemId === item.id && !line.optional && line.sell === sell);
           if (same) return putLine({ ...same, qty: same.qty + 1 });
-          putLine({ ...blank(), priceItemId: item.id, description: item.name, unit: item.unit, sell, cost: item.cost, taxCodeId: item.taxCodeId ?? settings.defaultTaxCodeId });
+          putLine({ ...blank(), priceItemId: item.id, kind: item.kind, description: item.name, unit: item.unit, sell, cost: item.cost, taxCodeId: item.taxCodeId ?? settings.defaultTaxCodeId });
         }}
       />
       {sending && (
@@ -444,12 +500,14 @@ function Totals({
   includesTax,
   taxName,
   canSeeCosts,
+  markupPct,
 }: {
   totals: ReturnType<typeof calculate>;
   money: (cents: number) => string;
   includesTax: boolean;
   taxName: string;
   canSeeCosts: boolean;
+  markupPct: number | null;
 }) {
   return (
     <dl className="flex flex-col gap-1 border-t px-4 py-3 text-sm tabular-nums sm:px-5">
@@ -489,6 +547,12 @@ function Totals({
           </dd>
         </div>
       )}
+      {canSeeCosts && markupPct != null && (
+        <div className="flex justify-between text-muted-foreground">
+          <dt>Materials markup (only you see this)</dt>
+          <dd>{markupPct}%</dd>
+        </div>
+      )}
     </dl>
   );
 }
@@ -517,6 +581,8 @@ function LineSheet({
   canSeeCosts,
   taxName,
   includesTax,
+  markupPct,
+  markupOn,
   onClose,
   onSave,
   onDelete,
@@ -528,6 +594,10 @@ function LineSheet({
   canSeeCosts: boolean;
   taxName: string;
   includesTax: boolean;
+  /** The quote's materials markup %, when it's on and the % is known here (people who see costs). */
+  markupPct: number | null;
+  /** The materials markup is on (for people who can't see the %). */
+  markupOn: boolean;
   onClose: () => void;
   onSave: (line: LineJson) => void;
   onDelete: () => void;
@@ -542,8 +612,19 @@ function LineSheet({
     taxCodeId: line.taxCodeId ?? "",
     section: line.section ?? "",
     optional: line.optional,
+    kind: (line.kind ?? "OTHER") as "LABOUR" | "MATERIAL" | "OTHER",
   });
-  const amount = toNum(draft.qty) * toNum(draft.sell);
+  const taxRate = codes.find((code) => code.id === draft.taxCodeId)?.rate ?? 0;
+  // The price the materials markup sets on this line, when it does. Without
+  // costs, it's the server's price (for a line it already priced).
+  const hasCost = canSeeCosts ? draft.cost.trim() !== "" : line.markupSell != null;
+  const markedUp =
+    draft.kind === "MATERIAL" && markupOn && hasCost
+      ? canSeeCosts && markupPct != null
+        ? (markedUpUnitCents({ material: true, unitCostCents: Math.round(toNum(draft.cost) * 100) }, markupPct, taxRate, includesTax) ?? 0) / 100
+        : (line.markupSell ?? null)
+      : null;
+  const amount = toNum(draft.qty) * (markedUp ?? toNum(draft.sell));
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
       <SheetContent desktop="dialog" title={isNew ? "New line" : "Line"}>
@@ -561,6 +642,8 @@ function LineSheet({
               taxCodeId: draft.taxCodeId || null,
               section: draft.section.trim() || null,
               optional: draft.optional,
+              kind: draft.kind === "OTHER" ? null : draft.kind,
+              markupSell: draft.kind === "MATERIAL" ? line.markupSell : null,
             });
           }}
         >
@@ -576,12 +659,36 @@ function LineSheet({
               className="w-full rounded-md border border-input bg-card px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
+          <div className="flex flex-col gap-2">
+            <Label>Type</Label>
+            <Segmented
+              label="Type"
+              value={draft.kind}
+              onChange={(value) => setDraft({ ...draft, kind: value })}
+              items={[
+                { value: "LABOUR", label: "Labour" },
+                { value: "MATERIAL", label: "Material" },
+                { value: "OTHER", label: "Other" },
+              ]}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Qty" inputMode="decimal" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: event.target.value })} required />
             <Field label="Unit" placeholder="each, hr, m" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} />
-            <Field label={`Price ${includesTax ? "incl." : "ex"} ${taxName}`} inputMode="decimal" placeholder="0.00" value={draft.sell} onChange={(event) => setDraft({ ...draft, sell: event.target.value })} required />
+            {markedUp != null ? (
+              <Field
+                label={`Price ${includesTax ? "incl." : "ex"} ${taxName}`}
+                value={markedUp.toFixed(2)}
+                readOnly
+                disabled
+                hint={canSeeCosts && markupPct != null ? `Cost + ${markupPct}% materials markup` : "Set by the materials markup"}
+              />
+            ) : (
+              <Field label={`Price ${includesTax ? "incl." : "ex"} ${taxName}`} inputMode="decimal" placeholder="0.00" value={draft.sell} onChange={(event) => setDraft({ ...draft, sell: event.target.value })} required />
+            )}
             {canSeeCosts && <Field label="Cost (each)" hint="Only you see this" inputMode="decimal" value={draft.cost} onChange={(event) => setDraft({ ...draft, cost: event.target.value })} />}
           </div>
+          {canSeeCosts && markupPct != null && draft.kind === "MATERIAL" && !hasCost && <p className="text-sm text-warning">Add a cost to mark this material up. Until then it uses the price above.</p>}
           <p className="text-sm text-muted-foreground tabular-nums">Line amount: {amount.toFixed(2)}</p>
           <SelectField label="Tax" value={draft.taxCodeId} onChange={(event) => setDraft({ ...draft, taxCodeId: event.target.value })} options={[{ value: "", label: "No tax" }, ...codes.filter((code) => code.active || code.id === line.taxCodeId).map((code) => ({ value: code.id, label: code.name }))]} />
           <Field label="Section" hint="Optional, e.g. Kitchen, Switchboard. Groups lines on the quote." value={draft.section} onChange={(event) => setDraft({ ...draft, section: event.target.value })} />

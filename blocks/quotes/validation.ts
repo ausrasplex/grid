@@ -100,6 +100,8 @@ export const lineSchema = z
   .object({
     section: optText(100),
     priceItemId: uuid.nullable().optional(),
+    /** Labour, material or (null) other. Material lines get the materials markup. */
+    kind: z.enum(["LABOUR", "MATERIAL"]).nullable().default(null),
     description: z.string().trim().min(1).max(2000),
     qty: z.number().min(-1_000_000).max(1_000_000),
     unit: z.string().trim().min(1).max(20),
@@ -121,6 +123,9 @@ export const updateQuoteSchema = z
     intro: optText(10000),
     terms: optText(20000),
     internalNotes: optText(10000),
+    /** Materials markup: on or off, and the % (kept when switched off). Needs quotes.costs.view. */
+    materialsMarkup: z.boolean(),
+    materialsMarkupPct: z.number().min(0).max(10000).nullable(),
     lines: z.array(lineSchema).max(500),
   })
   .partial()

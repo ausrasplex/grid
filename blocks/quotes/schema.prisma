@@ -125,6 +125,11 @@ model Quote {
   terms            String?
   /// Never on the PDF.
   internalNotes    String?
+  /// Materials markup: when on, every material line with a cost is priced at
+  /// cost + this % (the line's own price is kept for when it's switched off).
+  /// Set per quote; the client only ever sees the resulting prices.
+  materialsMarkup    Boolean       @default(false)
+  materialsMarkupPct Decimal?      @db.Decimal(7, 2)
   /// A quote made outside Grid: its PDF (StoredFile, block quotes) and the
   /// total written on it (including tax). It has no lines and no revisions;
   /// Grid tracks its answer and makes the job like any other quote.
@@ -166,6 +171,9 @@ model QuoteLine {
   sort        Int
   section     String?
   priceItemId String?
+  /// Labour or material (from the price book item, or picked); null is Other.
+  /// The materials markup only prices MATERIAL lines.
+  kind        PriceItemKind?
   description String
   qty         Decimal  @db.Decimal(12, 3)
   unit        String   @default("each")

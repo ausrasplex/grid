@@ -11,7 +11,7 @@ import { createProject, getProject } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import { clientIdsNamed, clientsById, requireClient, type ClientRow } from "@grid/block-clients";
 import { createSignRequest, latestSignRequest, maskEmail, revokeSignRequests } from "@grid/block-signatures";
-import { calculate, formatMoney, type LineInput } from "./money";
+import { calculate, formatMoney, type LineInput, type Settings as MathSettings, type TaxRate } from "./money";
 import { totalsFor, type QuoteSnapshot } from "./snapshot";
 
 export type { QuoteSnapshot } from "./snapshot";
@@ -310,14 +310,28 @@ async function event(tx: Tx, quoteId: string, type: string, byUserId: string | n
   await tx.quoteEvent.create({ data: { quoteId, type, byUserId, note: note ?? null } });
 }
 
-function linesForMaths(lines: { qty: Prisma.Decimal | number; sell: Prisma.Decimal | number; cost: Prisma.Decimal | number | null; taxCodeId: string | null; optional: boolean }[]): LineInput[] {
+function linesForMaths(lines: { qty: Prisma.Decimal | number; sell: Prisma.Decimal | number; cost: Prisma.Decimal | number | null; taxCodeId: string | null; optional: boolean; kind: string | null }[]): LineInput[] {
   return lines.map((line) => ({
     qty: Number(line.qty),
     unitCents: cents(line.sell)!,
     unitCostCents: cents(line.cost),
     taxCodeId: line.taxCodeId,
     optional: line.optional,
+    material: line.kind === "MATERIAL",
   }));
+}
+
+/** The quote's maths settings: its tax mode, the company's rounding and rates, and its materials markup. */
+function mathSettings(
+  quote: { pricesIncludeTax: boolean; materialsMarkup: boolean; materialsMarkupPct: Prisma.Decimal | null },
+  settings: { rounding: string; codes: TaxRate[] },
+): MathSettings {
+  return {
+    pricesIncludeTax: quote.pricesIncludeTax,
+    rounding: settings.rounding as "LINE" | "TOTAL",
+    codes: settings.codes,
+    materialsMarkupPct: quote.materialsMarkup && quote.materialsMarkupPct != null ? Number(quote.materialsMarkupPct) : null,
+  };
 }
 
 /**
@@ -362,7 +376,7 @@ export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | 
   const agreed = await acceptedTotals(rows);
   const clients = await clientsById(db, companyId, rows.map((row) => row.clientId));
   return rows.map((row) => {
-    const totals = calculate(linesForMaths(row.lines), { pricesIncludeTax: row.pricesIncludeTax, rounding: settings.rounding as "LINE" | "TOTAL", codes: settings.codes });
+    const totals = calculate(linesForMaths(row.lines), mathSettings(row, settings));
     return {
       id: row.id,
       number: row.number,
@@ -419,7 +433,7 @@ export async function getQuote(ctx: RequestContext, id: string) {
   const quote = await ownQuote(db, companyId, id);
   const settings = await taxSettings(companyId);
   const showCost = ctx.permissions.has("quotes.costs.view");
-  const totals = calculate(linesForMaths(quote.lines), { pricesIncludeTax: quote.pricesIncludeTax, rounding: settings.rounding as "LINE" | "TOTAL", codes: settings.codes });
+  const totals = calculate(linesForMaths(quote.lines), mathSettings(quote, settings));
   const names = new Map(
     (await db.user.findMany({ where: { id: { in: [...quote.events.map((event) => event.byUserId ?? ""), ...quote.revisions.map((revision) => revision.sentById)] } }, select: { id: true, name: true } })).map((user) => [user.id, user.name]),
   );
@@ -448,15 +462,21 @@ export async function getQuote(ctx: RequestContext, id: string) {
     acceptedTotalCents: (await acceptedTotals([quote])).get(quote.currentRevisionId ?? "") ?? null,
     declinedAt: quote.declinedAt,
     declineReason: quote.declineReason,
-    lines: quote.lines.map((line) => ({
+    /** On for everyone; the % only with quotes.costs.view. */
+    materialsMarkup: quote.materialsMarkup,
+    materialsMarkupPct: showCost && quote.materialsMarkupPct != null ? Number(quote.materialsMarkupPct) : null,
+    lines: quote.lines.map((line, index) => ({
       id: line.id,
       section: line.section,
       priceItemId: line.priceItemId,
+      kind: line.kind,
       description: line.description,
       qty: Number(line.qty),
       unit: line.unit,
       cost: showCost && line.cost != null ? Number(line.cost) : null,
       sell: Number(line.sell),
+      /** The price per unit set by the materials markup, when it prices this line (so it shows without the cost). */
+      markupSell: totals.lines[index]!.markedUp ? totals.lines[index]!.unitCents / 100 : null,
       taxCodeId: line.taxCodeId,
       optional: line.optional,
     })),
@@ -480,12 +500,28 @@ export async function updateQuote(ctx: RequestContext, id: string, input: Update
     if (quote.status !== "DRAFT") throw conflict("This quote has been sent. Tap Edit to make a new revision.");
     // A different client must be one on the list (keeping a since-removed one is fine).
     if (input.clientId && input.clientId !== quote.clientId) await requireClient(tx, companyId, input.clientId);
-    const { lines, ...fields } = input;
-    await tx.quote.update({ where: { id }, data: fields });
+    const showCost = ctx.permissions.has("quotes.costs.view");
+    const { lines, materialsMarkup, materialsMarkupPct, ...fields } = input;
+    // The materials markup is set by people who can see costs; anyone else's change is ignored.
+    const markup = showCost ? { ...(materialsMarkup !== undefined ? { materialsMarkup } : {}), ...(materialsMarkupPct !== undefined ? { materialsMarkupPct } : {}) } : {};
+    await tx.quote.update({ where: { id }, data: { ...fields, ...markup } });
+    const markupChanged =
+      (markup.materialsMarkup !== undefined && markup.materialsMarkup !== quote.materialsMarkup) ||
+      (markup.materialsMarkupPct !== undefined && markup.materialsMarkupPct !== (quote.materialsMarkupPct == null ? null : Number(quote.materialsMarkupPct)));
+    if (markupChanged) {
+      const on = markup.materialsMarkup ?? quote.materialsMarkup;
+      const pct = markup.materialsMarkupPct !== undefined ? markup.materialsMarkupPct : quote.materialsMarkupPct == null ? null : Number(quote.materialsMarkupPct);
+      await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Quote", entityId: id, action: "materials_markup_changed", diff: { number: quote.number, on, pct } });
+    }
     if (lines) {
-      // Without permission to see costs, keep the costs that were there.
-      const keepCosts = !ctx.permissions.has("quotes.costs.view");
+      // Without permission to see costs, keep the costs that were there, and
+      // take a new price book line's cost from its item (the markup needs it).
+      const keepCosts = !showCost;
       const oldCost = new Map(quote.lines.map((line) => [line.priceItemId ?? line.description, line.cost]));
+      const newItemIds = keepCosts ? lines.flatMap((line) => (line.priceItemId && !oldCost.has(line.priceItemId) ? [line.priceItemId] : [])) : [];
+      const itemCost = new Map(
+        newItemIds.length ? (await tx.priceItem.findMany({ where: { companyId, id: { in: newItemIds } }, select: { id: true, cost: true } })).map((item) => [item.id, item.cost]) : [],
+      );
       await tx.quoteLine.deleteMany({ where: { quoteId: id } });
       if (lines.length) {
         await tx.quoteLine.createMany({
@@ -494,10 +530,11 @@ export async function updateQuote(ctx: RequestContext, id: string, input: Update
             sort: index,
             section: line.section ?? null,
             priceItemId: line.priceItemId ?? null,
+            kind: line.kind,
             description: line.description,
             qty: line.qty,
             unit: line.unit,
-            cost: keepCosts ? (oldCost.get(line.priceItemId ?? line.description) ?? null) : (line.cost ?? null),
+            cost: keepCosts ? (oldCost.get(line.priceItemId ?? line.description) ?? itemCost.get(line.priceItemId ?? "") ?? null) : (line.cost ?? null),
             sell: line.sell,
             taxCodeId: line.taxCodeId,
             optional: line.optional,
@@ -521,8 +558,7 @@ async function buildSnapshot(companyId: string, quoteId: string, userId: string,
     db.company.findUniqueOrThrow({ where: { id: companyId }, select: { abn: true } }),
     db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, email: true } }),
   ]);
-  const mathSettings = { pricesIncludeTax: quote.pricesIncludeTax, rounding: settings.rounding as "LINE" | "TOTAL", codes: settings.codes };
-  const totals = calculate(linesForMaths(quote.lines), mathSettings);
+  const totals = calculate(linesForMaths(quote.lines), mathSettings(quote, settings));
   const codeFor = (id: string | null) => settings.codes.find((code) => code.id === id);
   return {
     number: quote.number,
@@ -540,7 +576,7 @@ async function buildSnapshot(companyId: string, quoteId: string, userId: string,
       description: line.description,
       qty: Number(line.qty),
       unit: line.unit,
-      unitCents: cents(line.sell)!,
+      unitCents: totals.lines[index]!.unitCents,
       amountCents: totals.lines[index]!.amountCents,
       taxLabel: codeFor(line.taxCodeId)?.label ?? "",
       taxRate: codeFor(line.taxCodeId)?.rate ?? 0,
@@ -881,7 +917,7 @@ export async function quoteForJob(ctx: RequestContext, projectId: string) {
   const quote = await db.quote.findFirst({ where: { companyId, projectId, deletedAt: null }, include: { lines: true }, orderBy: { createdAt: "desc" } });
   if (!quote) return null;
   const settings = await taxSettings(companyId);
-  const totals = calculate(linesForMaths(quote.lines), { pricesIncludeTax: quote.pricesIncludeTax, rounding: settings.rounding as "LINE" | "TOTAL", codes: settings.codes });
+  const totals = calculate(linesForMaths(quote.lines), mathSettings(quote, settings));
   const agreed = (await acceptedTotals([quote])).get(quote.currentRevisionId ?? "");
   const total = quote.uploadedTotal != null ? cents(quote.uploadedTotal)! : (agreed ?? totals.totalCents);
   return { id: quote.id, number: quote.number, status: quote.status, total: formatMoney(total, settings.currency, settings.locale) };

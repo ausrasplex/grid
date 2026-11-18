@@ -56,6 +56,29 @@ test("margin only when every line has a cost", () => {
   assert.equal(calculate([{ qty: 1, unitCents: 10000, taxCodeId: "gst" }], taxExclusive).margin, null);
 });
 
+test("materials markup prices material lines from cost and ignores their own price", () => {
+  const lines: LineInput[] = [
+    { qty: 2, unitCents: 9999, unitCostCents: 1000, taxCodeId: "gst", material: true },
+    { qty: 1, unitCents: 9000, unitCostCents: 5000, taxCodeId: "gst" },
+    { qty: 1, unitCents: 4000, unitCostCents: null, taxCodeId: "gst", material: true },
+  ];
+  const totals = calculate(lines, { ...taxExclusive, materialsMarkupPct: 30 });
+  // 10.00 cost + 30% = 13.00 each; labour and the costless material keep their prices.
+  assert.deepEqual(totals.lines.map((line) => [line.unitCents, line.markedUp]), [[1300, true], [9000, false], [4000, false]]);
+  assert.equal(totals.subtotalExCents, 2600 + 9000 + 4000);
+  // Off: every line uses its own price.
+  assert.equal(calculate(lines, { ...taxExclusive, materialsMarkupPct: null }).subtotalExCents, 19998 + 9000 + 4000);
+  // 0% is on: material at cost.
+  assert.equal(calculate(lines, { ...taxExclusive, materialsMarkupPct: 0 }).lines[0]!.unitCents, 1000);
+});
+
+test("materials markup adds tax when the quote's prices include it", () => {
+  const totals = calculate([{ qty: 1, unitCents: 1, unitCostCents: 1000, taxCodeId: "gst", material: true }], { ...taxExclusive, pricesIncludeTax: true, materialsMarkupPct: 30 });
+  assert.equal(totals.lines[0]!.unitCents, 1430);
+  assert.equal(totals.totalCents, 1430);
+  assert.equal(totals.taxCents, 130);
+});
+
 test("formatting and parsing money", () => {
   assert.equal(formatMoney(123456), "$1,234.56");
   assert.equal(parseMoney("$1,250.5"), 125050);

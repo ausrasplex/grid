@@ -77,6 +77,7 @@ Suggested placement: after stage 4 (markups), so take-offs work; quick quotes do
 - **Line items:** price book items, assemblies or one-off lines; quantity, unit, cost, sell, labour hours.
 - **Options / alternates:** optional lines the client can tick on acceptance (e.g. "Add 6 downlights to alfresco").
 - **Totals:** markup or margin per line, section or overall; discount; **tax per the company's tax settings (§3a)**; subtotals per section.
+- **Materials markup (built):** a switch and a % on each quote (`Quote.materialsMarkup`, `materialsMarkupPct`), off by default, with no company-wide default. When it's on, every material line with a cost is priced at cost + the %, plus tax when the quote's prices include tax. The line's own price is ignored but kept, so switching the markup off brings it back. A material line with no cost keeps its own price, and the editor says "No cost, so not marked up". Each line is Labour, Material or Other (`QuoteLine.kind`): price book lines take their item's kind, and typed lines start as Other. The client never sees the markup, only the prices; sent revisions freeze the marked-up prices in the snapshot. Only people with `quotes.costs.view` see or change the switch and %. Everyone else sees the prices the server works out, and a new price book line they add takes its cost from the item so it can be marked up. Changing the markup is written to the activity log. The maths is `markedUpUnitCents()` in `money.ts`.
 - **Text sections from templates:** inclusions, exclusions, assumptions, payment terms, validity period (default 30 days).
 - **Attachments:** photos, plan extracts, data sheets (Documents block).
 
@@ -275,7 +276,7 @@ The client can **decline** instead, with an optional reason. The quote becomes `
 - `IconAssemblyLink`: `companyId`, `iconKey`, `assemblyId`.
 - `Quote`: `companyId`, `clientId`, `number`, `title`, `mode` (`QUICK | ESTIMATE`), `status`, `projectId?`, `siteAddress`, `validUntil`, `clientView` (`LUMP | SECTIONS | ITEMISED`), `createdById`, `reviewerId?`, `currentRevisionId`.
 - `QuoteRevision`: `quoteId`, `label`, `sections Json` (snapshot), `totals Json`, `text Json`, `sentAt?`, `sentById?`.
-- `QuoteLine`: `revisionId`, `sectionKey`, `kind` (`ITEM | ASSEMBLY | ONEOFF`), `refId?`, `description`, `qty Decimal`, `unit`, `cost Decimal`, `sell Decimal`, `taxCodeId`, `labourHours Decimal`, `optional Boolean`, `takeoffSource Json?`.
+- `QuoteLine`: `revisionId`, `sectionKey`, `kind` (built as `LABOUR | MATERIAL | null`; assemblies later), `source` (`ITEM | ASSEMBLY | ONEOFF`), `refId?`, `description`, `qty Decimal`, `unit`, `cost Decimal`, `sell Decimal`, `taxCodeId`, `labourHours Decimal`, `optional Boolean`, `takeoffSource Json?`.
 - `TaxSettings` (1:1 with company): `taxName`, `pricesIncludeTax Boolean`, `registrationLabel`, `registrationNumber`, `currency`, `locale`, `rounding` (`LINE | TOTAL`), `documentTitle`, `defaultTaxCodeId`.
 - `TaxCode`: `companyId`, `name`, `label`, `rate Decimal(6,4)`, `exempt Boolean`, `active Boolean`.
 - `PriceItem` and `Assembly` gain `taxCodeId?` (falls back to the company default).

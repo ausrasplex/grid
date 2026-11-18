@@ -20,6 +20,8 @@ export interface LineInput {
   /** Optional extra the customer can choose; not in the total unless chosen. */
   optional?: boolean;
   chosen?: boolean;
+  /** A material line: priced by the quote's materials markup when that's on. */
+  material?: boolean;
 }
 
 export interface Settings {
@@ -27,9 +29,19 @@ export interface Settings {
   /** "LINE": round tax on each line. "TOTAL": once per tax rate. */
   rounding: "LINE" | "TOTAL";
   codes: TaxRate[];
+  /**
+   * The quote's materials markup %, or null when it's off. Material lines
+   * with a cost are priced at cost + this % (plus tax when the quote's
+   * prices include it); their own price is ignored.
+   */
+  materialsMarkupPct?: number | null;
 }
 
 export interface LineResult {
+  /** The price per unit used, cents: the line's own, or from the materials markup. */
+  unitCents: number;
+  /** Priced by the materials markup. */
+  markedUp: boolean;
   /** The line's price as entered (qty × unit), cents. */
   amountCents: number;
   exCents: number;
@@ -57,17 +69,33 @@ export interface Totals {
 const milli = (quantity: number) => Math.round(quantity * 1000);
 const lineAmount = (qty: number, unitCents: number) => Math.round((milli(qty) * unitCents) / 1000);
 
+/**
+ * The price per unit for a material line under the materials markup, in
+ * cents, or null when the markup doesn't price it (off, not a material, or
+ * no cost to mark up). Costs are ex tax; tax is added when the quote's
+ * prices include it.
+ */
+export function markedUpUnitCents(line: Pick<LineInput, "material" | "unitCostCents">, markupPct: number | null | undefined, taxRate: number, pricesIncludeTax: boolean): number | null {
+  if (markupPct == null || !line.material || line.unitCostCents == null) return null;
+  const exTax = sellFromMarkup(line.unitCostCents, markupPct);
+  return pricesIncludeTax ? Math.round(exTax * (1 + taxRate)) : exTax;
+}
+
 export function calculate(lines: LineInput[], settings: Settings): Totals {
   const rate = (id: string | null) => settings.codes.find((code) => code.id === id)?.rate ?? 0;
   const results: LineResult[] = lines.map((line) => {
-    const amount = lineAmount(line.qty, line.unitCents);
     const taxRate = rate(line.taxCodeId);
+    const markedUp = markedUpUnitCents(line, settings.materialsMarkupPct, taxRate, settings.pricesIncludeTax);
+    const unitCents = markedUp ?? line.unitCents;
+    const amount = lineAmount(line.qty, unitCents);
     // Exact (unrounded) tax, rounded below as the settings say.
     const exExact = settings.pricesIncludeTax ? amount / (1 + taxRate) : amount;
     const taxExact = settings.pricesIncludeTax ? amount - exExact : amount * taxRate;
     const tax = Math.round(taxExact);
     const amountEx = settings.pricesIncludeTax ? amount - tax : amount;
     return {
+      unitCents,
+      markedUp: markedUp != null,
       amountCents: amount,
       exCents: amountEx,
       taxCents: tax,
