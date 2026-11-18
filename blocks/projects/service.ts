@@ -259,6 +259,8 @@ export interface JobSummary {
   jobNumber: string | null;
   startedAt: Date;
   completedAt: Date | null;
+  /** Finished and archived (phase 2e): viewing copies dropped, drawn again when opened. */
+  archivedAt: Date | null;
   siteId: string;
   siteName: string;
 }
@@ -272,6 +274,7 @@ const summarySelect = (companyId: string) =>
     status: true,
     startedAt: true,
     completedAt: true,
+    archivedAt: true,
     siteId: true,
     references: { where: { companyId, label: JOB_LABEL }, select: { value: true }, take: 1 },
     covers: { select: { buildingId: true, levelId: true } },
@@ -289,6 +292,7 @@ function toSummary(row: SummaryRow, siteName: string): JobSummary {
     jobNumber: row.references[0]?.value ?? null,
     startedAt: row.startedAt,
     completedAt: row.completedAt,
+    archivedAt: row.archivedAt,
     siteId: row.siteId,
     siteName,
   };
@@ -321,6 +325,7 @@ export async function getProject(ctx: RequestContext, projectId: string): Promis
     listing: project.listing,
     startedAt: project.startedAt,
     completedAt: project.completedAt,
+    archivedAt: project.archivedAt,
     siteId: project.siteId,
     siteName: site.name,
     jobNumber: project.references.find((reference) => reference.label === JOB_LABEL)?.value ?? null,
@@ -539,11 +544,14 @@ export async function setProjectStatus(ctx: RequestContext, projectId: string, s
   const result = await db.$transaction(async (tx) => {
     const project = await accessibleProject(tx, companyId, projectId);
     assertHost(companyId, project);
-    if (project.status === status) return { id: projectId, status, siteId: project.siteId };
+    if (project.status === status) return { id: projectId, status, siteId: project.siteId, restored: false };
+    // Reopening an archived job restores it first (its copies are drawn again).
+    const restored = status === "ACTIVE" && !!project.archivedAt;
     await tx.project.update({
       where: { id: projectId },
-      data: { status, completedAt: status === "COMPLETED" ? new Date() : null },
+      data: { status, completedAt: status === "COMPLETED" ? new Date() : null, ...(restored ? { archivedAt: null, archivedById: null } : {}) },
     });
+    if (restored) await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, projectId, entityType: "Project", entityId: projectId, action: "restored" });
     await tx.projectCompany.updateMany({ where: { projectId, companyId }, data: { status } });
     await syncSite(tx, project.siteId, companyId, ctx.userId);
     await audit(tx, {
@@ -555,10 +563,57 @@ export async function setProjectStatus(ctx: RequestContext, projectId: string, s
       entityId: projectId,
       action: status === "COMPLETED" ? "completed" : "reopened",
     });
-    return { id: projectId, status, siteId: project.siteId };
+    return { id: projectId, status, siteId: project.siteId, restored };
   });
+  if (result.restored) await emit("projects.restored", { projectId, siteId: result.siteId, companyId }, ctx);
   await emit(status === "COMPLETED" ? "projects.completed" : "projects.reopened", { projectId, siteId: result.siteId }, ctx);
   return result;
+}
+
+/**
+ * Archive a finished job (phase 2e, docs/stage-2-projects.md "Job storage"):
+ * every Block drops its big viewing copies ("projects.archived"), keeping
+ * originals, markups and thumbnails. Opening it draws them again for a day.
+ */
+export async function archiveProject(ctx: RequestContext, projectId: string) {
+  const companyId = requireCompany(ctx);
+  const result = await db.$transaction(async (tx) => {
+    const project = await accessibleProject(tx, companyId, projectId);
+    assertHost(companyId, project);
+    if (project.status !== "COMPLETED") throw conflict("Finish the job before archiving it");
+    if (project.archivedAt) return { id: projectId, archivedAt: project.archivedAt, siteId: project.siteId, changed: false };
+    const archivedAt = new Date();
+    await tx.project.update({ where: { id: projectId }, data: { archivedAt, archivedById: ctx.userId } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, projectId, entityType: "Project", entityId: projectId, action: "archived" });
+    return { id: projectId, archivedAt, siteId: project.siteId, changed: true };
+  });
+  if (result.changed) await emit("projects.archived", { projectId, siteId: result.siteId, companyId }, ctx);
+  return { id: result.id, archivedAt: result.archivedAt };
+}
+
+/** Back to an ordinary finished job: every Block draws its copies again and keeps them ("projects.restored"). */
+export async function restoreProject(ctx: RequestContext, projectId: string) {
+  const companyId = requireCompany(ctx);
+  const result = await db.$transaction(async (tx) => {
+    const project = await accessibleProject(tx, companyId, projectId);
+    assertHost(companyId, project);
+    if (!project.archivedAt) return { siteId: project.siteId, changed: false };
+    await tx.project.update({ where: { id: projectId }, data: { archivedAt: null, archivedById: null } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, projectId, entityType: "Project", entityId: projectId, action: "restored" });
+    return { siteId: project.siteId, changed: true };
+  });
+  if (result.changed) await emit("projects.restored", { projectId, siteId: result.siteId, companyId }, ctx);
+  return { id: projectId, archivedAt: null };
+}
+
+/** Is the job archived? For Blocks deciding whether a copy is temporary. No access check. */
+export async function isJobArchived(projectId: string): Promise<boolean> {
+  return (await db.project.count({ where: { id: projectId, archivedAt: { not: null } } })) > 0;
+}
+
+/** Every archived job (any business), for the nightly clean-up of temporary copies. No access check. */
+export async function archivedJobIds(): Promise<string[]> {
+  return (await db.project.findMany({ where: { archivedAt: { not: null }, deletedAt: null }, select: { id: true } })).map((project) => project.id);
 }
 
 export async function projectRouteCode(ctx: RequestContext, projectId: string) {

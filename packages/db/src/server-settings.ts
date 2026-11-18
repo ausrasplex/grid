@@ -16,6 +16,11 @@ export interface StorageSettings {
   mode: CleanupMode;
   /** When the nightly clean-up runs, server time, "HH:MM". */
   time: string;
+  /**
+   * Archived jobs: copies drawn again when someone opens a sheet or document
+   * are removed after this many days without being opened (1, 3 or 7).
+   */
+  archivedCopyDays: number;
 }
 
 const KEY = "storage";
@@ -25,7 +30,7 @@ const KEY = "storage";
  * Storage), not in environment variables, so each setting has one home.
  */
 export function storageDefaults(): StorageSettings {
-  return { unfiledDays: 7, deletedDays: 30, mode: "on", time: "02:30" };
+  return { unfiledDays: 7, deletedDays: 30, mode: "on", time: "02:30", archivedCopyDays: 1 };
 }
 
 export async function getStorageSettings(tx: Tx = db): Promise<StorageSettings> {

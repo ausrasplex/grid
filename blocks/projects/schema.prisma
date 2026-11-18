@@ -41,6 +41,11 @@ model Project {
   listing       ProjectListing @default(UNLISTED)
   startedAt     DateTime       @default(now())
   completedAt   DateTime?
+  /// Archived (phase 2e): a finished job whose big viewing copies (plan tiles,
+  /// page pictures) were dropped to save space. Opening it draws them again
+  /// for a day. Still COMPLETED. docs/stage-2-projects.md "Job storage".
+  archivedAt    DateTime?
+  archivedById  String?
   createdById   String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt

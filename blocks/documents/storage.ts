@@ -27,7 +27,7 @@ export async function jobStorage(companyId: string, projectIds: string[]): Promi
     const projectId = document.projectId!;
     const line =
       lines.get(projectId) ??
-      { projectId, key: "documents.job", label: "Documents", count: 0, one: "document", many: "documents", originalBytes: 0, copyBytes: 0, deletedBytes: 0, unmeasured: 0 };
+      { projectId, key: "documents.job", label: "Documents", count: 0, one: "document", many: "documents", originalBytes: 0, copyBytes: 0, archiveBytes: 0, deletedBytes: 0, unmeasured: 0 };
     lines.set(projectId, line);
     const deleted = !!document.deletedAt;
     if (!deleted) line.count += 1;
@@ -42,6 +42,7 @@ export async function jobStorage(companyId: string, projectIds: string[]): Promi
       }
       line.originalBytes += file.size;
       line.copyBytes += fileCopies + renderCopies;
+      line.archiveBytes += renderCopies;
       if (version.status === "READY" && version.cacheBytes === null && hasCopies(file.mime)) line.unmeasured += 1;
     }
   }

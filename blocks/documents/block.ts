@@ -1,4 +1,4 @@
-import { defineBlock } from "@grid/core";
+import { app, defineBlock } from "@grid/core";
 
 export default defineBlock({
   id: "documents",
@@ -30,7 +30,7 @@ export default defineBlock({
   // Recently deleted running out, and deleting a whole business.
   cleanup: async () => {
     const purge = await import("./purge");
-    return { purgeDeleted: purge.purgeDeleted, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+    return { purgeDeleted: purge.purgeDeleted, dropArchivedCopies: (await import("./archive")).dropArchivedCopies, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
   },
   jobStorage: async () => (await import("./storage")).jobStorage,
   jobs: async () => ({
@@ -45,6 +45,9 @@ export default defineBlock({
       expireInSeconds: 10 * 60,
       retryLimit: 0,
     },
+    // Archived jobs (phase 2e): drop the copies, or make them all again on restore.
+    "documents.archive": { handler: async (data) => (await import("./archive")).dropForJob(String(data.projectId)), expireInSeconds: 30 * 60, retryLimit: 1 },
+    "documents.restore": { handler: async (data) => void (await (await import("./archive")).restoreJob(String(data.projectId))), expireInSeconds: 10 * 60, retryLimit: 1 },
     // Sizes for page pictures made before Grid recorded them (the job Storage section).
     "documents.measure": {
       handler: async () => void (await (await import("./storage")).measure()),
@@ -53,4 +56,8 @@ export default defineBlock({
     },
   }),
   emits: ["documents.added", "documents.versioned"],
+  on: {
+    "projects.archived": async (payload) => app().jobs.send("documents.archive", { projectId: payload.projectId }),
+    "projects.restored": async (payload) => app().jobs.send("documents.restore", { projectId: payload.projectId }),
+  },
 });

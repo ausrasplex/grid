@@ -47,6 +47,7 @@ const VERBS: Record<string, string> = {
   withdrawn: "Withdrew",
   completed: "Finished",
   reopened: "Reopened",
+  archived: "Archived",
   converted: "Converted",
 };
 

@@ -13,6 +13,8 @@ export {
   areasOf,
   covers,
   search,
+  isJobArchived,
+  archivedJobIds,
   type JobView,
   type JobSummary,
   type Area,
@@ -46,4 +48,9 @@ export interface PlaceStartPanelProps {
 export interface ProjectEvent {
   projectId: string;
   siteId: string;
+}
+
+/** "projects.archived" and "projects.restored" (phase 2e): drop or redraw your viewing copies for the job. */
+export interface ProjectArchiveEvent extends ProjectEvent {
+  companyId: string;
 }

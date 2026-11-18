@@ -44,7 +44,7 @@ export const routes: Routes = {
   "POST /add": { permission: "documents.upload", handler: (ctx, request) => svc.addDocuments(ctx, addDocumentsSchema.parse(request.body)) },
 
   // One document
-  "GET /doc/:id": { permission: "documents.view", handler: (ctx, request) => svc.getDocument(ctx, request.params.id!) },
+  "GET /doc/:id": { permission: "documents.view", handler: (ctx, request) => svc.getDocument(ctx, request.params.id!, request.query.get("version")) },
   "PATCH /doc/:id": { permission: "documents.edit", handler: (ctx, request) => svc.updateDocument(ctx, request.params.id!, updateDocumentSchema.parse(request.body)) },
   "POST /doc/:id/versions": { permission: "documents.upload", handler: (ctx, request) => svc.addVersion(ctx, request.params.id!, newVersionSchema.parse(request.body)) },
   "POST /doc/:id/current": { permission: "documents.edit", handler: (ctx, request) => svc.setCurrentVersion(ctx, request.params.id!, currentSchema.parse(request.body).versionId) },

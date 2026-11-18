@@ -1,12 +1,29 @@
 "use client";
 
-// Finish / reopen a job, and copy its link (a quick-route code).
+// Finish / reopen a job, archive / restore a finished one (phase 2e), and
+// copy its link (a quick-route code).
 
 import { useState } from "react";
-import { Alert, Button, FormActions, Icon, Sheet, SheetContent, api, useAction } from "@grid/ui";
+import { Alert, Button, FormActions, Icon, Sheet, SheetContent, api, formatBytes, useAction } from "@grid/ui";
 
-export function FinishJob({ jobId, status, siteName, lastActiveHere }: { jobId: string; status: "ACTIVE" | "COMPLETED"; siteName: string; lastActiveHere: boolean }) {
+export function FinishJob({
+  jobId,
+  status,
+  archived,
+  archiveBytes,
+  siteName,
+  lastActiveHere,
+}: {
+  jobId: string;
+  status: "ACTIVE" | "COMPLETED";
+  archived: boolean;
+  /** What archiving would free (plan tiles, page pictures). */
+  archiveBytes: number;
+  siteName: string;
+  lastActiveHere: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const action = useAction();
   const set = (next: "ACTIVE" | "COMPLETED") =>
     action.run(async () => {
@@ -15,13 +32,49 @@ export function FinishJob({ jobId, status, siteName, lastActiveHere }: { jobId: 
       return true;
     });
 
+  const post = (what: "archive" | "restore") =>
+    action.run(async () => {
+      await api(`/projects/${jobId}/${what}`, { body: {} });
+      window.location.reload();
+      return true;
+    });
+
   if (status === "COMPLETED") {
+    const frees = archiveBytes > 0 ? `about ${formatBytes(archiveBytes)}` : "the space";
     return (
       <div className="flex flex-col gap-2">
         <Button variant="outline" size="lg" block disabled={action.busy} onClick={() => set("ACTIVE")}>
           <Icon name="reopen" /> Reopen job
         </Button>
+        {archived ? (
+          <Button variant="outline" size="lg" block disabled={action.busy} onClick={() => post("restore")}>
+            <Icon name="archive" /> {action.busy ? "Restoring…" : "Restore job"}
+          </Button>
+        ) : (
+          <Button variant="outline" size="lg" block disabled={action.busy} onClick={() => setArchiving(true)}>
+            <Icon name="archive" /> Archive job
+          </Button>
+        )}
         <Alert variant="error">{action.error}</Alert>
+        <Sheet open={archiving} onOpenChange={setArchiving}>
+          <SheetContent
+            desktop="dialog"
+            title="Archive this job?"
+            description={`Frees ${frees} used by plan tiles and document pages. Nothing is lost: every upload, photo, markup and note stays. Opening a plan or document draws it again for a quick look, then it's removed again after a while. Restore the job to keep everything drawn.`}
+          >
+            <div className="flex flex-col gap-3 px-2 pt-2">
+              <Alert variant="error">{action.error}</Alert>
+              <FormActions>
+                <Button variant="outline" size="lg" onClick={() => setArchiving(false)}>
+                  Not now
+                </Button>
+                <Button size="lg" disabled={action.busy} onClick={() => post("archive")}>
+                  {action.busy ? "Archiving…" : "Archive job"}
+                </Button>
+              </FormActions>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     );
   }

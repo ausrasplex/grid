@@ -18,6 +18,8 @@ export const routes: Routes = {
 
   "PATCH /version/:id": { permission: "plans.manage", handler: (ctx, request) => svc.updateVersion(ctx, request.params.id!, updateVersionSchema.parse(request.body)) },
   "DELETE /version/:id": { permission: "plans.manage", handler: (ctx, request) => svc.deleteVersion(ctx, request.params.id!) },
+  // Archived jobs: the viewer says it opened a revision, which draws it again if needed (phase 2e).
+  "POST /version/:id/open": { permission: "plans.view", handler: async (ctx, request) => (await import("./archive")).openVersion(ctx, request.params.id!) },
   "POST /version/:id/retry": { permission: "plans.upload", handler: (ctx, request) => svc.retryRender(ctx, request.params.id!) },
 
   // Deep-zoom tiles for the viewer (OpenSeadragon asks for plan.dzi, then plan_files/<level>/<x>_<y>.jpeg).

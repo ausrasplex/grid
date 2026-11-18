@@ -1,4 +1,4 @@
-import { defineBlock } from "@grid/core";
+import { app, defineBlock } from "@grid/core";
 
 export default defineBlock({
   id: "plans",
@@ -24,7 +24,12 @@ export default defineBlock({
   // Recently deleted running out, and deleting a whole business.
   cleanup: async () => {
     const purge = await import("./purge");
-    return { purgeDeleted: (await import("./service")).purgeDeleted, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+    return {
+      purgeDeleted: (await import("./service")).purgeDeleted,
+      dropArchivedCopies: (await import("./archive")).dropArchivedCopies,
+      companyUsage: purge.companyUsage,
+      purgeCompany: purge.purgeCompany,
+    };
   },
   levelUsage: async () => (await import("./service")).levelUsage,
   jobStorage: async () => (await import("./storage")).jobStorage,
@@ -41,6 +46,9 @@ export default defineBlock({
       expireInSeconds: 10 * 60,
       retryLimit: 0,
     },
+    // Archived jobs (phase 2e): drop the tiles, or draw them all again on restore.
+    "plans.archive": { handler: async (data) => (await import("./archive")).dropForJob(String(data.projectId)), expireInSeconds: 30 * 60, retryLimit: 1 },
+    "plans.restore": { handler: async (data) => void (await (await import("./archive")).restoreJob(String(data.projectId))), expireInSeconds: 10 * 60, retryLimit: 1 },
     // Tile sizes for sheets drawn before Grid recorded them (the job Storage section).
     "plans.measure": {
       handler: async () => void (await (await import("./storage")).measure()),
@@ -49,4 +57,8 @@ export default defineBlock({
     },
   }),
   emits: ["plans.uploaded"],
+  on: {
+    "projects.archived": async (payload) => app().jobs.send("plans.archive", { projectId: payload.projectId }),
+    "projects.restored": async (payload) => app().jobs.send("plans.restore", { projectId: payload.projectId }),
+  },
 });

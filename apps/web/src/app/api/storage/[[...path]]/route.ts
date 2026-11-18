@@ -32,6 +32,7 @@ const settingsSchema = z
     unfiledDays: z.number().int().min(1).max(365),
     deletedDays: z.number().int().min(1).max(365),
     mode: z.enum(["on", "dry-run", "off"]),
+    archivedCopyDays: z.union([z.literal(1), z.literal(3), z.literal(7)]),
     time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour time, e.g. 02:30"),
   })
   .strict();

@@ -233,6 +233,31 @@ Why: on a home server the disk is finite. The owner needs to see what each job u
 - **Restore** (`projects.complete`): clears `archivedAt`. The job goes back to Finished and everything is redrawn in the background, kept for good. Reopening an archived job restores it first.
 - Written to the activity log: archived, restored.
 
+**What parts 1–2 built (Nov 2026):**
+- **Storage hook:** `jobStorage` in the manifest (`JobStorageLine` in `@grid/core`). Photos, plans and documents each report:
+  - count, originals and copies;
+  - `archiveBytes`, what archiving frees;
+  - Recently deleted, and copies not measured yet.
+- **Measuring:** `folderBytes()` in `@grid/db` measures a cache folder, and each render records its `cacheBytes`. `plans.measure` and `documents.measure` run at 3:30 and 3:35 am.
+- **Where it shows:**
+  - the job page's **Storage** section;
+  - the **Jobs** table at `/jobs` (More menu). Sites stays highlighted there too, because job pages are under /jobs. The Archived tab shows once a job is archived.
+  - The API is `GET /api/projects/table` and `GET /api/projects/<id>/storage`.
+- **Archive job / Restore job** are on a finished job's page:
+  - `POST /api/projects/<id>/archive` and `/restore`, for `projects.complete` and the host only, written to the activity log.
+  - They send the events `projects.archived` / `projects.restored`, and Plans and Documents queue `<block>.archive` / `<block>.restore` jobs to drop or redraw their copies.
+  - Reopening an archived job restores it.
+- **Opening an archived job's copies:**
+  - Plans: `PlanVersion.tilesDroppedAt` and `openedAt`. The viewer calls `POST /api/plans/version/<id>/open` for each revision it shows.
+  - Documents: `DocumentVersion.copiesDroppedAt` and `openedAt`. Opening the document page does it (`getDocument` with the version on screen).
+  - Photos don't change: they have no dropped copies.
+- **Nightly clean-up:** it asks each Block's `dropArchivedCopies`, shown as `archived-copy` in the history, and respects dry run. **Settings › Storage › Keep redrawn copies of archived jobs** is 1, 3 or 7 days (`archivedCopyDays`, default 1).
+- **Read-only:**
+  - Adding plans or documents to an archived job (upload, new version, pin) is refused with "Restore it to add…".
+  - Photos and notes are already read-only on any finished job.
+  - Markups on an archived job's plans aren't blocked yet. They're tiny and kept anyway.
+- **Redraw plans/documents** (Settings › Plans & PDFs) skips dropped copies, so it doesn't undo archiving.
+
 **3. Export job as a ZIP** (the handover pack)
 - Photos in area folders, plans by sheet and revision, the job's documents in their folders, and a PDF summary (job details, counts, the photo report). Made in the background; a link to download it, kept for a week in the cache.
 - It's a copy for the client, the builder or a shelf. It isn't a way to take a job out of Grid: the job stays.

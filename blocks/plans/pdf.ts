@@ -125,6 +125,13 @@ export async function renderToTiles(input: { file: string; mime: string; page: n
   }
 }
 
+/** Archived jobs: removes the tiles but keeps the thumbnail, so the sheet list still shows (phase 2e). */
+export async function dropTiles(versionId: string) {
+  const folder = tilesDir(versionId);
+  await rm(path.join(folder, "plan_files"), { recursive: true, force: true });
+  await rm(path.join(folder, "plan.dzi"), { force: true });
+}
+
 export async function removeTiles(versionId: string) {
   await rm(tilesDir(versionId), { recursive: true, force: true });
 }

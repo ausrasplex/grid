@@ -294,7 +294,7 @@ async function JobPage({
       />
       <PageHeader
         title={job.name}
-        meta={[job.jobNumber, job.clientName, job.status === "COMPLETED" ? "Finished" : null].filter(Boolean).join(" · ") || undefined}
+        meta={[job.jobNumber, job.clientName, job.archivedAt ? "Archived" : job.status === "COMPLETED" ? "Finished" : null].filter(Boolean).join(" · ") || undefined}
         actions={
           <>
             <CopyLink codePath={`/projects/${job.id}/code`} />
@@ -304,8 +304,13 @@ async function JobPage({
       />
       <div className="flex flex-col gap-4 sm:gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_26rem]">
       <Stack>
-        {job.status === "COMPLETED" && job.completedAt && (
-          <Alert>Finished on {date(job.completedAt)}. It's listed under earlier jobs at {site.name}; reopen it to carry on.</Alert>
+        {job.archivedAt ? (
+          <Alert>
+            Archived on {date(job.archivedAt)}. Plans and documents are drawn again when you open them, for a quick look, and removed again after a while. Restore it to keep them, or reopen it to carry on.
+          </Alert>
+        ) : (
+          job.status === "COMPLETED" &&
+          job.completedAt && <Alert>Finished on {date(job.completedAt)}. It's listed under earlier jobs at {site.name}; reopen it to carry on.</Alert>
         )}
 
         {areas.length > 1 && (
@@ -361,7 +366,9 @@ async function JobPage({
 
         {storage && <JobStorage storage={storage} />}
 
-        {canFinish && <FinishJob jobId={job.id} status={job.status} siteName={site.name} lastActiveHere={finishLeavesSiteEmpty} />}
+        {canFinish && (
+          <FinishJob jobId={job.id} status={job.status} archived={!!job.archivedAt} archiveBytes={storage?.totals.archiveBytes ?? 0} siteName={site.name} lastActiveHere={finishLeavesSiteEmpty} />
+        )}
       </Stack>
       </div>
     </>
@@ -400,7 +407,7 @@ export const pages: BlockPages = {
       const table = await jobsTable(ctx);
       return (
         <JobsTable
-          rows={table.rows.map((row) => ({ ...row, startedAt: row.startedAt.toISOString() }))}
+          rows={table.rows.map((row) => ({ ...row, startedAt: row.startedAt.toISOString(), archived: !!row.archivedAt }))}
           columns={table.columns}
           showStorage={table.showStorage}
           canCreate={can(ctx, "projects.create")}

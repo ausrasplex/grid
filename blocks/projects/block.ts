@@ -13,7 +13,7 @@ export default defineBlock({
     { key: "projects.view", label: "See jobs" },
     { key: "projects.create", label: "Start jobs" },
     { key: "projects.edit", label: "Change job details and what a job covers" },
-    { key: "projects.complete", label: "Finish and reopen jobs" },
+    { key: "projects.complete", label: "Finish, reopen and archive jobs, and see what they store" },
   ],
   grants: {
     FOREMAN: ["projects.view", "projects.create", "projects.edit", "projects.complete"],
@@ -34,7 +34,7 @@ export default defineBlock({
   routeTargets: {
     Project: (id) => `/jobs/${id}`,
   },
-  emits: ["projects.created", "projects.completed", "projects.reopened"],
+  emits: ["projects.created", "projects.completed", "projects.reopened", "projects.archived", "projects.restored"],
   levelUsage: async () => (await import("./service")).levelUsage,
   on: {
     // Jobs keep a copy of the client's name (lists, search, the Sites list).

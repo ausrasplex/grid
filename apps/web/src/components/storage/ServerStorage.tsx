@@ -10,6 +10,7 @@ interface Settings {
   deletedDays: number;
   mode: "on" | "dry-run" | "off";
   time: string;
+  archivedCopyDays: number;
 }
 interface Usage {
   businesses: { id: string; name: string; files: number; bytes: number }[];
@@ -85,6 +86,17 @@ export function ServerStorage({ initial }: { initial: Settings }) {
                 { value: "dry-run", label: "Dry run: only list what would go" },
                 { value: "off", label: "Off" },
               ]}
+            />
+            <SelectField
+              label="Keep redrawn copies of archived jobs"
+              value={String(settings.archivedCopyDays)}
+              onChange={(event) => setSettings({ ...settings, archivedCopyDays: Number(event.target.value) })}
+              options={[
+                { value: "1", label: "1 day after last opened" },
+                { value: "3", label: "3 days after last opened" },
+                { value: "7", label: "7 days after last opened" },
+              ]}
+              hint="Opening a sheet or document on an archived job draws it again for a quick look. It goes again this long after it was last opened."
             />
             <Field label="Runs nightly at" type="time" value={settings.time} onChange={(event) => setSettings({ ...settings, time: event.target.value })} hint="Server time." />
           </div>

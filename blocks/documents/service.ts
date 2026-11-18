@@ -12,7 +12,8 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { app, badRequest, can, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { attachFile, audit, db, folderBytes, purgeStoredFile, storedFilePath, type Prisma, type Tx } from "@grid/db";
-import { canSeeJob, getProject, myActiveJobs } from "@grid/block-projects";
+import { canSeeJob, getProject, isJobArchived, myActiveJobs } from "@grid/block-projects";
+import { assertNotArchived, openOnArchivedJob } from "./archive";
 import { documentKind, titleFromFileName, type DocumentKind } from "./kinds";
 import { pagesDir, removePages, renderPdfPages, sheetFile, writeSheets } from "./render";
 import { readWorkbook, summarise, type SheetSummary } from "./sheets";
@@ -318,6 +319,7 @@ export async function addDocuments(ctx: RequestContext, input: AddDocumentsInput
   const library = input.libraryId ? await ownLibrary(db, companyId, input.libraryId) : null;
   if (input.projectId) {
     await jobOrThrow(ctx, input.projectId);
+    await assertNotArchived(input.projectId);
     if (input.folderId) await ownFolder(db, companyId, input.projectId, input.folderId);
   }
   const fileIds = [...new Set(input.fileIds)];
@@ -384,6 +386,7 @@ export async function addVersion(ctx: RequestContext, documentId: string, input:
   const companyId = requireCompany(ctx);
   const result = await db.$transaction(async (tx) => {
     const document = await ownDocument(tx, ctx, documentId);
+    if (document.projectId) await assertNotArchived(document.projectId);
     const [file] = await myUploads(tx, ctx, [input.fileId]);
     await attachFile(tx, file!.id, { companyId, userId: ctx.userId, blockId: MOD });
     const version = await tx.documentVersion.create({ data: { documentId, fileId: file!.id, note: input.note, uploadedById: ctx.userId, ...versionStart(file!.mime) } });
@@ -400,8 +403,18 @@ export async function addVersion(ctx: RequestContext, documentId: string, input:
 // One document
 // ---------------------------------------------------------------------
 
-export async function getDocument(ctx: RequestContext, documentId: string) {
+/**
+ * One document. `openVersionId` is the version on screen (else the current
+ * one): on an archived job it's made again if its copies were dropped (phase 2e).
+ */
+export async function getDocument(ctx: RequestContext, documentId: string, openVersionId?: string | null) {
   const document = await ownDocument(db, ctx, documentId);
+  const archived = !!document.projectId && (await isJobArchived(document.projectId));
+  if (archived) {
+    const shown = openVersionId ?? document.currentVersionId;
+    const version = shown ? await db.documentVersion.findFirst({ where: { id: shown, documentId }, select: { id: true } }) : null;
+    if (version) await openOnArchivedJob(version.id);
+  }
   const versions = await db.documentVersion.findMany({ where: { documentId }, orderBy: { createdAt: "desc" } });
   const files = await filesOf(versions.map((version) => version.fileId));
   // Spreadsheets uploaded before the spreadsheet viewer: prepare them now.
@@ -437,12 +450,16 @@ export async function getDocument(ctx: RequestContext, documentId: string) {
     job: job ? { id: job.id, name: job.name } : null,
     folder,
     links,
+    /** On an archived job: copies are made again for a quick look when opened. */
+    archived,
     currentVersionId,
     versions: versions.map((version) => {
       const file = files.get(version.fileId);
       return {
         id: version.id,
         status: version.status,
+        /** Archived job: the page pictures or sheet data were dropped. */
+        dropped: !!version.copiesDroppedAt,
         error: version.error,
         pages: version.pages,
         pageSizes: (version.pageSizes ?? []) as [number, number][],
@@ -561,6 +578,7 @@ export async function jobsToPinTo(ctx: RequestContext) {
 export async function linkToJob(ctx: RequestContext, documentId: string, input: { projectId: string; folderId: string | null }) {
   const companyId = requireCompany(ctx);
   await jobOrThrow(ctx, input.projectId);
+  await assertNotArchived(input.projectId);
   return db.$transaction(async (tx) => {
     const document = await ownDocument(tx, ctx, documentId);
     if (!document.libraryId) throw badRequest("Only library documents can be pinned to a job");
@@ -627,11 +645,11 @@ export async function renderVersion(versionId: string, again = false) {
       // Keep header rows already chosen (a re-render after Try again).
       const before = new Map(((version.sheets ?? []) as unknown as SheetSummary[]).map((sheet) => [sheet.name, sheet.headerRow]));
       const summary = summarise(sheets).map((sheet) => ({ ...sheet, headerRow: Math.min(before.get(sheet.name) ?? sheet.headerRow, Math.max(0, sheet.rows - 1)) }));
-      await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, sheets: summary as unknown as Prisma.InputJsonValue, cacheBytes: await folderBytes(pagesDir(versionId)) } });
+      await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, sheets: summary as unknown as Prisma.InputJsonValue, cacheBytes: await folderBytes(pagesDir(versionId)), copiesDroppedAt: null } });
       return;
     }
     const sizes = await renderPdfPages(storedFilePath(file), versionId);
-    await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, pages: sizes.length, pageSizes: sizes, cacheBytes: await folderBytes(pagesDir(versionId)) } });
+    await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, pages: sizes.length, pageSizes: sizes, cacheBytes: await folderBytes(pagesDir(versionId)), copiesDroppedAt: null } });
   } catch (error) {
     console.error(`[documents] couldn't render version ${versionId}`, error);
     if (again) return;
@@ -641,7 +659,7 @@ export async function renderVersion(versionId: string, again = false) {
 
 /** Settings › Plans & PDFs › Re-render existing: every PDF version that's showing, drawn again at the current level. */
 export async function rerenderAll() {
-  const versions = await db.documentVersion.findMany({ where: { status: "READY", pages: { gt: 0 }, document: { deletedAt: null, purgedAt: null } }, select: { id: true, fileId: true } });
+  const versions = await db.documentVersion.findMany({ where: { status: "READY", pages: { gt: 0 }, copiesDroppedAt: null, document: { deletedAt: null, purgedAt: null } }, select: { id: true, fileId: true } });
   const pdfs = new Set((await db.storedFile.findMany({ where: { id: { in: versions.map((version) => version.fileId) }, mime: "application/pdf" }, select: { id: true } })).map((file) => file.id));
   for (const version of versions) if (pdfs.has(version.fileId)) await app().jobs.send("documents.render", { versionId: version.id, again: true });
   return { queued: versions.filter((version) => pdfs.has(version.fileId)).length };

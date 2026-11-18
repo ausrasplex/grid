@@ -3,6 +3,8 @@
 //   1. Uploads never filed against a job, after `unfiledDays`.
 //   2. What people deleted, once Recently deleted has run out (`deletedDays`):
 //      each Block with a `cleanup` hook purges its own records.
+//      Also: archived jobs' copies drawn again for a quick look and not
+//      opened for `archivedCopyDays` (each Block's dropArchivedCopies).
 //   3. Businesses deleted before that (docs/roadmap.md "Deleting a business"):
 //      every Block's purgeCompany hook, then all their files (not people's
 //      Wallet photos, which belong to the person), route codes and log.
@@ -84,6 +86,8 @@ export async function runCleanup(options: { trigger: "schedule" | "manual"; user
       if (!block.cleanup) continue;
       const hook = await block.cleanup();
       if (hook.purgeDeleted) items.push(...(await hook.purgeDeleted({ before: new Date(now - settings.deletedDays * DAY), dryRun })));
+      // Archived jobs: copies drawn again for a quick look, not opened since (phase 2e).
+      if (hook.dropArchivedCopies) items.push(...(await hook.dropArchivedCopies({ openedBefore: new Date(now - settings.archivedCopyDays * DAY), dryRun })));
     }
 
     // 3. Businesses deleted before Recently deleted ran out: removed for good.

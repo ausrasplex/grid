@@ -17,16 +17,19 @@ export interface JobsTableRowJson {
   siteName: string;
   address: string;
   status: "ACTIVE" | "COMPLETED";
+  /** Finished and archived (phase 2e). */
+  archived: boolean;
   startedAt: string;
   counts: Record<string, number>;
-  storage: { originalBytes: number; copyBytes: number; deletedBytes: number; unmeasured: number } | null;
+  storage: { originalBytes: number; copyBytes: number; archiveBytes: number; deletedBytes: number; unmeasured: number } | null;
 }
 
-type Tab = "active" | "finished" | "all";
+type Tab = "active" | "finished" | "archived" | "all";
 /** "name", "client", "started", "size", or a count column's key. */
 type SortKey = string;
 
 const date = (value: string) => new Date(value).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+const tabOf = (row: JobsTableRowJson): Exclude<Tab, "all"> => (row.archived ? "archived" : row.status === "ACTIVE" ? "active" : "finished");
 const sizeOf = (row: JobsTableRowJson) => (row.storage ? row.storage.originalBytes + row.storage.copyBytes : 0);
 
 export function JobsTable({
@@ -44,11 +47,16 @@ export function JobsTable({
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: "started", descending: true });
 
-  const counts = { active: rows.filter((row) => row.status === "ACTIVE").length, finished: rows.filter((row) => row.status === "COMPLETED").length, all: rows.length };
+  const counts = {
+    active: rows.filter((row) => tabOf(row) === "active").length,
+    finished: rows.filter((row) => tabOf(row) === "finished").length,
+    archived: rows.filter((row) => tabOf(row) === "archived").length,
+    all: rows.length,
+  };
 
   const shown = useMemo(() => {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const inTab = rows.filter((row) => tab === "all" || (tab === "active" ? row.status === "ACTIVE" : row.status === "COMPLETED"));
+    const inTab = rows.filter((row) => tab === "all" || tabOf(row) === tab);
     const matching = words.length
       ? inTab.filter((row) => {
           const text = [row.jobNumber, row.name, row.clientName, row.siteName, row.address].filter(Boolean).join(" ").toLowerCase();
@@ -105,6 +113,7 @@ export function JobsTable({
             items={[
               { value: "active", label: "Active", count: counts.active },
               { value: "finished", label: "Finished", count: counts.finished },
+              ...(counts.archived ? [{ value: "archived" as const, label: "Archived", count: counts.archived }] : []),
               { value: "all", label: "All", count: counts.all },
             ]}
           />
@@ -138,7 +147,7 @@ export function JobsTable({
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
                             <span className="truncate font-semibold">{row.name}</span>
-                            {row.status === "COMPLETED" && <Badge variant="secondary">Finished</Badge>}
+                            {row.archived ? <Badge variant="outline">Archived</Badge> : row.status === "COMPLETED" && <Badge variant="secondary">Finished</Badge>}
                           </span>
                           <span className="block truncate text-sm text-muted-foreground">{[row.jobNumber, row.clientName, row.address].filter(Boolean).join(" · ")}</span>
                           <span className="block truncate text-xs text-muted-foreground">
@@ -176,7 +185,7 @@ export function JobsTable({
                           </a>
                           <span className="flex items-center gap-2 text-xs text-muted-foreground">
                             {row.jobNumber}
-                            {row.status === "COMPLETED" && <Badge variant="secondary">Finished</Badge>}
+                            {row.archived ? <Badge variant="outline">Archived</Badge> : row.status === "COMPLETED" && <Badge variant="secondary">Finished</Badge>}
                           </span>
                         </td>
                         <td className="max-w-48 truncate px-3 py-2">{row.clientName ?? <span className="text-muted-foreground">—</span>}</td>

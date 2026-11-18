@@ -230,6 +230,8 @@ export interface JobStorageLine {
   originalBytes: number;
   /** What Grid made from them (thumbnails, tiles, page pictures): can be made again. */
   copyBytes: number;
+  /** The part of copyBytes that archiving the job removes (plan tiles, page pictures; not small thumbnails). */
+  archiveBytes: number;
   /** Still on disk in Recently deleted (originals and copies). */
   deletedBytes: number;
   /** Copies whose size isn't known yet (made before sizes were recorded). */
@@ -249,7 +251,7 @@ export interface BlockJob {
 /** One thing a clean-up removed (or would, in a dry run). */
 export interface CleanupItem {
   companyId: string | null;
-  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "deleted-document" | "deleted-business" | "stray";
+  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "deleted-document" | "deleted-business" | "archived-copy" | "stray";
   label: string;
   refId?: string | null;
   bytes: number;
@@ -257,6 +259,12 @@ export interface CleanupItem {
 
 export interface BlockCleanup {
   purgeDeleted?(options: { before: Date; dryRun: boolean }): Promise<CleanupItem[]>;
+  /**
+   * Archived jobs (phase 2e): viewing copies drawn again when someone opened
+   * one, last opened before `openedBefore`, are removed again (originals and
+   * thumbnails stay). docs/stage-2-projects.md "Job storage".
+   */
+  dropArchivedCopies?(options: { openedBefore: Date; dryRun: boolean }): Promise<CleanupItem[]>;
   /**
    * Deleting a business (docs/roadmap.md "Deleting a business"): what this
    * block holds for it, for the confirmation ("12 jobs, 240 photos").

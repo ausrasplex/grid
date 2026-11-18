@@ -25,7 +25,7 @@ export async function jobStorage(companyId: string, projectIds: string[]): Promi
   for (const sheet of sheets) {
     const line =
       lines.get(sheet.projectId) ??
-      { projectId: sheet.projectId, key: "plans.sheets", label: "Plans", count: 0, one: "plan sheet", many: "plan sheets", originalBytes: 0, copyBytes: 0, deletedBytes: 0, unmeasured: 0 };
+      { projectId: sheet.projectId, key: "plans.sheets", label: "Plans", count: 0, one: "plan sheet", many: "plan sheets", originalBytes: 0, copyBytes: 0, archiveBytes: 0, deletedBytes: 0, unmeasured: 0 };
     lines.set(sheet.projectId, line);
     const deleted = !!sheet.deletedAt;
     if (!deleted) line.count += 1;
@@ -38,7 +38,10 @@ export async function jobStorage(companyId: string, projectIds: string[]): Promi
       if (version.cacheBytes === null) {
         if (!deleted) line.unmeasured += 1;
       } else if (deleted) line.deletedBytes += version.cacheBytes;
-      else line.copyBytes += version.cacheBytes;
+      else {
+        line.copyBytes += version.cacheBytes;
+        line.archiveBytes += version.cacheBytes;
+      }
     }
   }
   for (const [projectId, line] of lines) {

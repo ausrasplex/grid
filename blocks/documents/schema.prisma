@@ -101,6 +101,11 @@ model DocumentVersion {
   /// Bytes the page pictures or sheet data take in the cache (null: made before sizes
   /// were recorded, or nothing to make; "documents.measure" fills it in overnight).
   cacheBytes   Int?
+  /// Page pictures or sheet data removed because the job is archived.
+  /// Opening the document makes them again.
+  copiesDroppedAt DateTime?
+  /// Last opened while the job is archived (see PlanVersion.openedAt).
+  openedAt        DateTime?
   note         String?
   uploadedById String
   createdAt    DateTime              @default(now())

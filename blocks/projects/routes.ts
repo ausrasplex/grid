@@ -28,6 +28,8 @@ export const routes: Routes = {
     permission: "projects.complete",
     handler: (ctx, request) => svc.setProjectStatus(ctx, request.params.projectId!, statusSchema.parse(request.body).status),
   },
+  "POST /:projectId/archive": { permission: "projects.complete", handler: (ctx, request) => svc.archiveProject(ctx, request.params.projectId!) },
+  "POST /:projectId/restore": { permission: "projects.complete", handler: (ctx, request) => svc.restoreProject(ctx, request.params.projectId!) },
   "GET /:projectId/storage": { permission: "projects.complete", handler: (ctx, request) => storage.jobStorage(ctx, request.params.projectId!) },
   "GET /:projectId/code": { permission: "projects.view", handler: (ctx, request) => svc.projectRouteCode(ctx, request.params.projectId!) },
 };

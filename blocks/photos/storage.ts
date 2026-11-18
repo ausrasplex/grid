@@ -16,7 +16,7 @@ export async function jobStorage(companyId: string, projectIds: string[]): Promi
   for (const photo of photos) {
     const line =
       lines.get(photo.projectId) ??
-      { projectId: photo.projectId, key: "photos.photos", label: "Photos", count: 0, one: "photo", many: "photos", originalBytes: 0, copyBytes: 0, deletedBytes: 0, unmeasured: 0 };
+      { projectId: photo.projectId, key: "photos.photos", label: "Photos", count: 0, one: "photo", many: "photos", originalBytes: 0, copyBytes: 0, archiveBytes: 0, deletedBytes: 0, unmeasured: 0 };
     lines.set(photo.projectId, line);
     const file = files.get(photo.fileId);
     if (photo.deletedAt) {

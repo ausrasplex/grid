@@ -32,6 +32,8 @@ async function linesFor(companyId: string, projectIds: string[]): Promise<JobSto
 export interface StorageTotals {
   originalBytes: number;
   copyBytes: number;
+  /** What archiving would free (or has freed, minus anything opened since). */
+  archiveBytes: number;
   deletedBytes: number;
   unmeasured: number;
 }
@@ -39,6 +41,7 @@ export interface StorageTotals {
 const totalsOf = (lines: Omit<JobStorageLine, "projectId">[]): StorageTotals => ({
   originalBytes: lines.reduce((total, line) => total + line.originalBytes, 0),
   copyBytes: lines.reduce((total, line) => total + line.copyBytes, 0),
+  archiveBytes: lines.reduce((total, line) => total + line.archiveBytes, 0),
   deletedBytes: lines.reduce((total, line) => total + line.deletedBytes, 0),
   unmeasured: lines.reduce((total, line) => total + line.unmeasured, 0),
 });
@@ -67,6 +70,7 @@ export interface JobsTableRow {
   status: "ACTIVE" | "COMPLETED";
   startedAt: Date;
   completedAt: Date | null;
+  archivedAt: Date | null;
   /** Count per line key ("photos.photos": 412). */
   counts: Record<string, number>;
   /** Only for people with projects.complete. */
@@ -92,6 +96,7 @@ export async function jobsTable(ctx: RequestContext): Promise<JobsTable> {
       status: true,
       startedAt: true,
       completedAt: true,
+      archivedAt: true,
       siteId: true,
       references: { where: { companyId, label: JOB_LABEL }, select: { value: true }, take: 1 },
     },
@@ -123,6 +128,7 @@ export async function jobsTable(ctx: RequestContext): Promise<JobsTable> {
         status: project.status,
         startedAt: project.startedAt,
         completedAt: project.completedAt,
+        archivedAt: project.archivedAt,
         counts: Object.fromEntries(jobLines.map((line) => [line.key, line.count])),
         storage: showStorage ? totalsOf(jobLines) : null,
       };

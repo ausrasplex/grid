@@ -45,11 +45,15 @@ export interface SheetJson {
   /** This sheet's own sharpness, or null for the server's (serverQuality). */
   quality: PlanLevel | null;
   serverQuality: PlanLevel;
+  /** The job is archived: tiles are drawn again for a quick look when opened. */
+  archived: boolean;
   currentVersionId: string | null;
   versions: {
     id: string;
     revision: string;
     status: "PENDING" | "READY" | "FAILED";
+    /** Archived job: the tiles were dropped (the thumbnail stays). */
+    dropped: boolean;
     error: string | null;
     widthPx: number | null;
     heightPx: number | null;
@@ -96,6 +100,8 @@ export function Viewer({
   const [sheet, setSheet] = useState(initial);
   const [viewingId, setViewingId] = useState(versionId ?? initial.currentVersionId);
   const version = sheet.versions.find((version) => version.id === viewingId) ?? sheet.versions[0];
+  // Tiles to show: drawn, and not dropped for an archived job.
+  const ready = version?.status === "READY" && !version.dropped;
   const isCurrent = version?.id === sheet.currentVersionId;
   const box = useRef<HTMLDivElement>(null);
   const viewer = useRef<OpenSeadragonType.Viewer | null>(null);
@@ -124,6 +130,15 @@ export function Viewer({
     return latest;
   };
 
+  // Archived job: say this revision was opened, which draws it again if its tiles were dropped.
+  useEffect(() => {
+    if (!sheet.archived || !version) return;
+    void api<{ status: string }>(`/plans/version/${version.id}/open`, { body: {} })
+      .then((opened) => (version.dropped || opened.status !== version.status ? reload() : undefined))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheet.archived, version?.id]);
+
   // Still being prepared: check every few seconds.
   useEffect(() => {
     if (version?.status !== "PENDING") return;
@@ -134,7 +149,7 @@ export function Viewer({
 
   // The viewer itself.
   useEffect(() => {
-    if (!version || version.status !== "READY" || !box.current) return;
+    if (!version || !ready || !box.current) return;
     let alive = true;
     setLoading(true);
     void import("openseadragon").then(({ default: OSD }) => {
@@ -231,7 +246,7 @@ export function Viewer({
       viewer.current?.destroy();
       viewer.current = null;
     };
-  }, [version?.id, version?.status]);
+  }, [version?.id, ready]);
 
   // Arrow keys walk the set; +/- zoom.
   useEffect(() => {
@@ -277,7 +292,7 @@ export function Viewer({
       toolbar,
     };
   }, [sheet, version, isCurrent, view, tool, setTool, hidden, onPointer, toolbar]);
-  const showOverlays = overlays.length > 0 && version?.status === "READY" && overlay !== null;
+  const showOverlays = overlays.length > 0 && ready && overlay !== null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-neutral-800 text-white">
@@ -333,7 +348,7 @@ export function Viewer({
       )}
 
       <main className="relative min-h-0 flex-1">
-        {version?.status === "READY" ? (
+        {ready ? (
           <>
             <div ref={box} className={cn("absolute inset-0", tool && "cursor-crosshair")} aria-label={`Plan ${sheet.number}`} role="img" />
             {showOverlays && (
@@ -366,7 +381,7 @@ export function Viewer({
         ) : version ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-white/80">
             <Loader2 className="size-8 animate-spin" />
-            <p>Preparing the sheet for zooming. Big sets take a minute.</p>
+            <p>{sheet.archived ? "Getting this sheet ready. This job is archived, so it's drawn again for a quick look: a few seconds, longer for a big or very sharp sheet." : "Preparing the sheet for zooming. Big sets take a minute."}</p>
           </div>
         ) : (
           <div className="flex h-full items-center justify-center p-6 text-white/80">This sheet has no uploads.</div>

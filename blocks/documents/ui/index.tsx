@@ -41,7 +41,7 @@ export const pages: BlockPages = {
   library: async ({ ctx, params: [libraryId] }) => home(ctx, libraryId ?? null),
 
   doc: async ({ ctx, params: [documentId, versionId] }) => {
-    const document = await getDocument(ctx, documentId ?? "");
+    const document = await getDocument(ctx, documentId ?? "", versionId ?? null);
     const [libraries, job, settings] = await Promise.all([
       document.library ? listLibraries(ctx) : Promise.resolve([]),
       document.job ? jobDocuments(ctx, document.job.id) : Promise.resolve(null),

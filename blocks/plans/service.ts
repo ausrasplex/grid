@@ -10,8 +10,9 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { app, badRequest, conflict, notFound, requireCompany, type CleanupItem, type LevelUsage, type RequestContext } from "@grid/core";
 import { attachFile, audit, db, folderBytes, getRenderingSettings, isPlanLevel, purgeStoredFile, storedBytes, storedFilePath, type PlanLevel, type Prisma, type Tx } from "@grid/db";
-import { canSeeJob } from "@grid/block-projects";
+import { canSeeJob, isJobArchived } from "@grid/block-projects";
 import { disciplineName, disciplineOf, guessSheet } from "./parse";
+import { assertNotArchived } from "./archive";
 import { pdfPages, removeTiles, renderToTiles, tilesDir, titleBlockText } from "./pdf";
 import type { ImportRow, UpdateSheetInput } from "./validation";
 
@@ -56,6 +57,8 @@ const versionView = (version: Prisma.PlanVersionGetPayload<object>) => ({
   note: version.note,
   createdAt: version.createdAt,
   uploadedById: version.uploadedById,
+  /** Archived job: the tiles were dropped; opening it draws them again (phase 2e). */
+  dropped: !!version.tilesDroppedAt,
 });
 
 /** A job's sheets, in set order, with their current revision. */
@@ -109,6 +112,8 @@ export async function getSheet(ctx: RequestContext, sheetId: string) {
     /** This sheet's own level, or null for the server's (`serverQuality`). */
     quality: isPlanLevel(sheet.quality) ? sheet.quality : null,
     serverQuality: (await getRenderingSettings()).plans,
+    /** The job is archived: copies are drawn for a quick look (POST /version/:id/open). */
+    archived: await isJobArchived(sheet.projectId),
     currentVersionId: sheet.currentVersionId ?? versions[0]?.id ?? null,
     versions: versions.map((version) => ({
       ...versionView(version),
@@ -231,6 +236,7 @@ export async function previewImport(ctx: RequestContext, projectId: string, file
 export async function commitImport(ctx: RequestContext, projectId: string, rows: ImportRow[]) {
   const companyId = requireCompany(ctx);
   await jobOrThrow(ctx, projectId);
+  await assertNotArchived(projectId);
   const used = rows.filter((row) => row.action !== "skip");
   const files = await myUploads(ctx, [...new Set(rows.map((row) => row.fileId))]);
   const created: string[] = [];
@@ -299,7 +305,7 @@ export async function renderVersion(versionId: string, again = false) {
     const rendered = await renderToTiles({ file: full, mime: file.mime, page: planVersion.page, versionId: planVersion.id, level, widthPt: size?.widthPt, heightPt: size?.heightPt });
     await db.planVersion.update({
       where: { id: planVersion.id },
-      data: { status: "READY", error: null, widthPx: rendered.widthPx, heightPx: rendered.heightPx, dpi: rendered.dpi, pageWidthPt: size?.widthPt ?? null, pageHeightPt: size?.heightPt ?? null, cacheBytes: await folderBytes(tilesDir(planVersion.id)) },
+      data: { status: "READY", error: null, widthPx: rendered.widthPx, heightPx: rendered.heightPx, dpi: rendered.dpi, pageWidthPt: size?.widthPt ?? null, pageHeightPt: size?.heightPt ?? null, cacheBytes: await folderBytes(tilesDir(planVersion.id)), tilesDroppedAt: null },
     });
   } catch (error) {
     console.error(`[plans] couldn't render version ${planVersion.id}`, error);
@@ -310,7 +316,7 @@ export async function renderVersion(versionId: string, again = false) {
 
 /** Settings › Plans & PDFs › Re-render existing: every showing revision of sheets on the server's level, drawn again. */
 export async function rerenderAll() {
-  const versions = await db.planVersion.findMany({ where: { status: "READY", sheet: { quality: null, deletedAt: null, purgedAt: null } }, select: { id: true } });
+  const versions = await db.planVersion.findMany({ where: { status: "READY", tilesDroppedAt: null, sheet: { quality: null, deletedAt: null, purgedAt: null } }, select: { id: true } });
   for (const version of versions) await app().jobs.send("plans.render", { versionId: version.id, again: true });
   return { queued: versions.length };
 }

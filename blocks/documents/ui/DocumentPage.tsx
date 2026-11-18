@@ -16,6 +16,8 @@ import { KindIcon, UploadList, useUploads } from "./shared";
 export interface VersionJson {
   id: string;
   status: "PENDING" | "READY" | "FAILED";
+  /** Archived job: the page pictures or sheet data were dropped; opening it makes them again. */
+  dropped: boolean;
   error: string | null;
   pages: number;
   pageSizes: [number, number][];
@@ -33,6 +35,8 @@ export interface VersionJson {
 export interface DocumentJson {
   id: string;
   title: string;
+  /** On an archived job (phase 2e). */
+  archived: boolean;
   description: string;
   manufacturer: string;
   models: string[];
@@ -228,7 +232,7 @@ function VersionView({
   const action = useAction();
   if (version.kind === "pdf" || (version.kind === "spreadsheet" && (version.status !== "READY" || version.sheets.length))) {
     const spreadsheet = version.kind === "spreadsheet";
-    if (version.status === "PENDING")
+    if (version.status === "PENDING" || version.dropped)
       return (
         <div className="flex flex-col items-center gap-2 rounded-xl border bg-card px-4 py-12 text-center text-muted-foreground">
           <Loader2 className="size-6 animate-spin" />
