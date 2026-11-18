@@ -107,13 +107,23 @@ Built after the rest of 5b. Trade symbols placed on plans, counted, and turned i
 - Each trade's icons sit on their own layer that can be shown or hidden, ready for several trades sharing one set of plans (phase 8).
 - **Counts** per icon for the sheet, the level and the whole job, in a panel beside the plan.
 
+**Numbered versions of an icon (decided Nov 2026)**
+- The same symbol can stand for different things on a job: **DGPO 1** a standard double power point, **DGPO 2** an expensive one. Each number is its own version, with its own price book item.
+- **Set per job only.** Each job sets up its own numbers; nothing carries over from other jobs or the business. On the same job, the plans and the quote share them (a Quoting job's numbers carry on when it's won).
+- **Placing:** after picking an icon, a row of chips shows its numbers for this job (**1 · 2 · 3 · +**). The picked number is used for every icon you place until you change it. An icon with only one version shows no chips and no number.
+- **On the plan:** each placed icon shows its number small beside the symbol, so two versions can't be confused.
+- **Each number has** a price book item (later an assembly) and an optional short name ("Standard", "Iconic", "Weatherproof") shown on the chips and in the counts. **+** adds the next number and asks for its item; it can also be set up from the quote's Take-off section.
+- **Counts split by number** (DGPO 1 × 38, DGPO 2 × 4), and each becomes its own quote line.
+- **Changing a placed icon's number:** select one or more placed icons and switch them to another number; counts and the take-off follow.
+- A number can't be removed while icons on the plans use it.
+
 **Take-offs into quotes** (`docs/quotations-block.md` §3, "Take-off from plans")
 - On a quote, **Take-off** opens the job's plans. A quote that isn't for a job yet gets a **Quoting job** (`docs/stage-2-projects.md`, "Quoting jobs"), so plans can be uploaded before the work is won.
-- Back on the quote, the **Take-off** section lists the counts. Each icon type links to a price book item (later an assembly). The first time an icon has no link, Grid asks which item it is and remembers it for the business. **Add to quote** turns the counts into lines; measured lengths come in as metres the same way.
+- Back on the quote, the **Take-off** section lists the counts by icon and number. Each number links to a price book item (later an assembly) for this job. A number with no item yet shows **Pick an item** before it can be added. **Add to quote** turns the counts into lines; measured lengths come in as metres the same way.
 - When a new plan revision changes the counts, the quote shows "Take-off changed" with the differences, and you choose to update or keep.
 - When the quote is won, the Quoting job becomes the real job, so the plans and every placed icon are already there for the install.
 
-**Data (sketch):** `PlanMarkup` gains `ICON` and `iconKey`; `CustomIcon` (`companyId`, `trade`, `name`, `keywords`, `fileId`, soft delete); `IconPriceLink` (`companyId`, `iconKey`, `priceItemId?`, `assemblyId?`); `ProjectStatus` gains `QUOTING` and `NOT_WON`; quote lines remember their take-off source (sheet, revision, icon, level).
+**Data (sketch):** `PlanMarkup` gains `ICON`, `iconKey` and `iconNumber`; `CustomIcon` (`companyId`, `trade`, `name`, `keywords`, `fileId`, soft delete); `JobIconVersion` (`companyId`, `projectId`, `iconKey`, `number`, `name?`, `priceItemId?`, `assemblyId?`, unique on project + icon + number); `ProjectStatus` gains `QUOTING` and `NOT_WON`; quote lines remember their take-off source (sheet, revision, icon, level).
 
 ## Phase 5a: my tickets & licences (done, Nov 2026)
 

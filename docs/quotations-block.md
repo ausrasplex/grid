@@ -106,7 +106,7 @@ Owners set their own tax naming and rules in company settings; nothing is hard-c
 - **Planned for phase 4c** (`docs/roadmap.md`, "Phase 4c"): the trade icon library (an accordion per trade, with search), placing icons on plans, counts.
 - **The flow:** on the quote, **Take-off** opens the job's plans. A quote that isn't for a job yet gets a **Quoting job** first (`docs/stage-2-projects.md`, "Quoting jobs"), so plans can be uploaded before the work is won. Upload plans, place icons, then come back to the quote's **Take-off** section and tap **Add to quote**.
 - When the job's plans are in the app, **quantities come from markup icons and measurements**: e.g. 42 "Double GPO" icons on Level 2 → 42 × "Double GPO installed"; cable run measurements → metres.
-- Each icon type links to a price book item (later an assembly) through `IconPriceLink`. The first time an icon has no link, Grid asks which item it is and remembers it for the business.
+- **Numbered versions, set per job** (`docs/roadmap.md`, "Numbered versions of an icon"): the same icon can be DGPO 1 (standard) and DGPO 2 (expensive) on one job. Each number links to its own price book item (later an assembly) through `JobIconVersion`, and becomes its own quote line. Nothing carries over between jobs. A number with no item yet shows **Pick an item** in the Take-off section.
 - Take-off lines remember their source (sheet, revision, icon type, layer).
 - **When a plan revision changes the counts**, the quote shows a "Take-off changed" banner with the differences, and you choose to update or keep.
 
@@ -276,7 +276,7 @@ The client can **decline** instead, with an optional reason. The quote becomes `
 - `PriceItemHistory`: `priceItemId`, `cost`, `at`, `source` (`MANUAL | IMPORT`).
 - `Assembly`: `companyId`, `name`, `unit`, `sellOverride?`.
 - `AssemblyComponent`: `assemblyId`, `priceItemId?`, `childAssemblyId?`, `qty`.
-- `IconPriceLink` (was `IconAssemblyLink`): `companyId`, `iconKey`, `priceItemId?`, `assemblyId?`.
+- `JobIconVersion` (was `IconAssemblyLink`; numbered versions are set per job): `companyId`, `projectId`, `iconKey`, `number`, `name?`, `priceItemId?`, `assemblyId?`.
 - `Quote`: `companyId`, `clientId`, `number`, `title`, `mode` (`QUICK | ESTIMATE`), `status`, `projectId?`, `siteAddress`, `validUntil`, `clientView` (`LUMP | SECTIONS | ITEMISED`), `createdById`, `reviewerId?`, `currentRevisionId`.
 - `QuoteRevision`: `quoteId`, `label`, `sections Json` (snapshot), `totals Json`, `text Json`, `sentAt?`, `sentById?`.
 - `QuoteLine`: `revisionId`, `sectionKey`, `kind` (built as `LABOUR | MATERIAL | null`; assemblies later), `source` (`ITEM | ASSEMBLY | ONEOFF`), `refId?`, `description`, `qty Decimal`, `unit`, `cost Decimal`, `sell Decimal`, `taxCodeId`, `labourHours Decimal`, `optional Boolean`, `takeoffSource Json?`.
