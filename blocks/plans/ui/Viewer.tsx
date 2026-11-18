@@ -10,6 +10,7 @@
 // passes taps on to the tool in use, and holds the tool bar under the plan.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { LEVEL_NAMES, PLAN_LEVELS, PLAN_LEVEL_DISK, PLAN_LEVEL_SIZES, type PlanLevel } from "@grid/db/render-levels";
 import type OpenSeadragonType from "openseadragon";
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Info, Loader2, Maximize, Minus, Plus, RotateCw } from "lucide-react";
 import {
@@ -41,6 +42,9 @@ export interface SheetJson {
   disciplineName: string;
   buildingId: string | null;
   levelId: string | null;
+  /** This sheet's own sharpness, or null for the server's (serverQuality). */
+  quality: PlanLevel | null;
+  serverQuality: PlanLevel;
   currentVersionId: string | null;
   versions: {
     id: string;
@@ -137,7 +141,7 @@ export function Viewer({
       if (!alive || !box.current) return;
       const zoomViewer = OSD({
         element: box.current,
-        tileSources: `/api/plans/tiles/${version.id}/plan.dzi`,
+        tileSources: `/api/plans/tiles/${version.id}/${version.widthPx ?? 0}/plan.dzi`,
         showNavigationControl: false,
         showNavigator: false,
         animationTime: 0.35,
@@ -485,7 +489,14 @@ function Revisions({ sheet, viewing, canManage, onView, onChanged }: { sheet: Sh
 }
 
 function SheetDetails({ sheet, areas, canManage, version, onSaved }: { sheet: SheetJson; areas: AreaJson[]; canManage: boolean; version: SheetJson["versions"][number] | null; onSaved: () => Promise<unknown> }) {
-  const [form, setForm] = useState({ number: sheet.number, title: sheet.title, discipline: sheet.discipline, area: sheet.buildingId ? `${sheet.buildingId}:${sheet.levelId ?? ""}` : "" });
+  const [form, setForm] = useState({
+    number: sheet.number,
+    title: sheet.title,
+    discipline: sheet.discipline,
+    area: sheet.buildingId ? `${sheet.buildingId}:${sheet.levelId ?? ""}` : "",
+    quality: (sheet.quality ?? "") as PlanLevel | "",
+  });
+  const shownAt = version?.dpi ? `Shown at ${version.dpi} dpi (${version.widthPx} × ${version.heightPx} px).` : null;
   const action = useAction();
   const discOptions = [{ value: "", label: "Other" }, ...[...new Map(Object.entries(DISCIPLINES).map(([code, name]) => [name, code])).entries()].map(([name, code]) => ({ value: code, label: name }))];
   if (!canManage) {
@@ -497,6 +508,14 @@ function SheetDetails({ sheet, areas, canManage, version, onSaved }: { sheet: Sh
         <dd>{sheet.title || "—"}</dd>
         <dt className="text-muted-foreground">Discipline</dt>
         <dd>{sheet.disciplineName}</dd>
+        {shownAt && (
+          <>
+            <dt className="text-muted-foreground">Sharpness</dt>
+            <dd>
+              {LEVEL_NAMES[sheet.quality ?? sheet.serverQuality]}. {shownAt}
+            </dd>
+          </>
+        )}
       </dl>
     );
   }
@@ -506,9 +525,12 @@ function SheetDetails({ sheet, areas, canManage, version, onSaved }: { sheet: Sh
       onSubmit={async (event) => {
         event.preventDefault();
         const [buildingId, levelId] = form.area ? form.area.split(":") : [null, null];
-        const result = await action.run(() =>
-          api(`/plans/sheet/${sheet.id}`, { method: "PATCH", body: { number: form.number, title: form.title, discipline: form.discipline, buildingId: buildingId || null, levelId: levelId || null } }),
-        );
+        const result = await action.run(async () => {
+          await api(`/plans/sheet/${sheet.id}`, { method: "PATCH", body: { number: form.number, title: form.title, discipline: form.discipline, buildingId: buildingId || null, levelId: levelId || null } });
+          // A different sharpness draws every revision again.
+          if ((form.quality || null) !== sheet.quality) await api(`/plans/sheet/${sheet.id}/quality`, { method: "PUT", body: { quality: form.quality || null } });
+          return true;
+        });
         if (result) await onSaved();
       }}
     >
@@ -524,11 +546,20 @@ function SheetDetails({ sheet, areas, canManage, version, onSaved }: { sheet: Sh
           options={[{ value: "", label: "The whole job" }, ...areas.map((area) => ({ value: `${area.buildingId}:${area.levelId ?? ""}`, label: area.label }))]}
         />
       )}
-      {version?.dpi && (
-        <p className="text-xs text-muted-foreground">
-          Shown at {version.dpi} dpi ({version.widthPx} × {version.heightPx} px).
-        </p>
-      )}
+      <SelectField
+        label="Sharpness"
+        hint={
+          form.quality && form.quality !== (sheet.quality ?? "")
+            ? `Every revision of this sheet is drawn again at ${LEVEL_NAMES[form.quality]} (${PLAN_LEVEL_SIZES[form.quality].dpi} dpi). Takes ${form.quality === "EXTREME" ? "up to a few minutes" : "a minute or so"}; uses ${PLAN_LEVEL_DISK[form.quality]}.`
+            : `For a sheet with tiny text, like a switchboard schedule or riser. ${shownAt ?? ""}`
+        }
+        value={form.quality}
+        onChange={(event) => setForm({ ...form, quality: event.target.value as PlanLevel | "" })}
+        options={[
+          { value: "", label: `Server setting (${LEVEL_NAMES[sheet.serverQuality]})` },
+          ...PLAN_LEVELS.map((level) => ({ value: level, label: `${LEVEL_NAMES[level]}, ${PLAN_LEVEL_SIZES[level].dpi} dpi` })),
+        ]}
+      />
       <Alert variant="error">{action.error}</Alert>
       <FormActions>
         <Button

@@ -87,3 +87,8 @@ export async function sendJob(name: string, data: Record<string, unknown>) {
   // Scheduled jobs are off in this container: do it here, in the background.
   void job.handler(data).catch((error) => console.error(`[jobs] ${name} failed`, error));
 }
+
+/** Whether a Block in this build offers a background job by that name (e.g. "plans.rerender"). */
+export async function hasJob(name: string) {
+  return name in (await blockJobs());
+}

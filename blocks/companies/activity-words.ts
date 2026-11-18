@@ -26,6 +26,7 @@ const THINGS: Record<string, string> = {
   TaxCode: "tax code",
   SignRequest: "signing link",
   QuoteUserSettings: "quote screen setting",
+  ServerSetting: "server setting",
 };
 
 /** Actions that read as "<did> a <thing>". Anything else reads "<Thing>: <action words>". */

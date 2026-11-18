@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Prisma 7 client, audit log helper and secret encryption shared by all blocks.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./render-levels": "./src/render-levels.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7",

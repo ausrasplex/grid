@@ -34,9 +34,15 @@ export default defineBlock({
   },
   jobs: async () => ({
     "documents.render": {
-      handler: async (data) => (await import("./service")).renderVersion(String(data.versionId)),
+      handler: async (data) => (await import("./service")).renderVersion(String(data.versionId), data.again === true),
       expireInSeconds: 30 * 60,
       retryLimit: 1,
+    },
+    // Settings › Plans & PDFs › Re-render existing (queued by the server setting).
+    "documents.rerender": {
+      handler: async () => void (await (await import("./service")).rerenderAll()),
+      expireInSeconds: 10 * 60,
+      retryLimit: 0,
     },
   }),
   emits: ["documents.added", "documents.versioned"],

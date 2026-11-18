@@ -30,22 +30,36 @@ export function runTool(cmd: string, args: string[], timeoutMs: number): Promise
   });
 }
 
+/** The longest side of the PDF's biggest page, in inches (0 if pdfinfo can't tell). */
+export async function pdfLongestSideInches(file: string): Promise<number> {
+  try {
+    const info = await runTool("pdfinfo", ["-f", "1", "-l", "5000", file], 60_000);
+    let longest = 0;
+    for (const match of info.matchAll(/size:\s+([\d.]+)\s+x\s+([\d.]+)\s+pts/g)) longest = Math.max(longest, Number(match[1]), Number(match[2]));
+    return longest / 72;
+  } catch {
+    return 0;
+  }
+}
+
 /** "p12.jpg" for page 12. */
 export const pdfPageFile = (page: number) => `p${page}.jpg`;
 
 /**
  * Renders every page of the PDF at `file` into `folder` (p1.jpg, p2.jpg…
- * and thumb.jpg), `edge` pixels on the long side. Returns each page's size
- * in pixels, in page order. Works in a temporary folder, then swaps it in,
- * so a half-finished render is never served.
+ * and thumb.jpg), at `dpi` (see pageDpi in render-levels.ts), or `edge`
+ * pixels on each page's long side. Returns each page's size in pixels, in
+ * page order. Works in a temporary folder, then swaps it in, so a
+ * half-finished render is never served.
  */
-export async function renderPdfPages(file: string, folder: string, options: { edge?: number; timeoutMs?: number } = {}): Promise<[number, number][]> {
+export async function renderPdfPages(file: string, folder: string, options: { dpi?: number; edge?: number; timeoutMs?: number } = {}): Promise<[number, number][]> {
   const work = await mkdtemp(path.join(tmpdir(), "grid-pdf-"));
   try {
     const out = path.join(work, "out");
     await mkdir(out);
     // pdftoppm names pages page-01.jpg, page-002.jpg… depending on the count.
-    await runTool("pdftoppm", ["-jpeg", "-jpegopt", "quality=82", "-scale-to", String(options.edge ?? 2000), "-aa", "yes", "-aaVector", "yes", file, path.join(work, "page")], options.timeoutMs ?? 30 * 60_000);
+    const size = options.dpi ? ["-r", String(options.dpi)] : ["-scale-to", String(options.edge ?? 2000)];
+    await runTool("pdftoppm", ["-jpeg", "-jpegopt", "quality=82", ...size, "-aa", "yes", "-aaVector", "yes", file, path.join(work, "page")], options.timeoutMs ?? 30 * 60_000);
     const rendered = (await readdir(work))
       .map((name) => ({ name, page: Number(/^page-(\d+)\.jpg$/.exec(name)?.[1] ?? 0) }))
       .filter((entry) => entry.page > 0)

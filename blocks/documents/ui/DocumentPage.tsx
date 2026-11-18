@@ -261,7 +261,7 @@ function VersionView({
         </div>
       );
     if (spreadsheet) return <SheetViewer versionId={version.id} summaries={version.sheets} canEdit={canEdit} />;
-    return <PageViewer title={title} pages={version.pageSizes.map(([width, height], index) => ({ src: `/api/documents/pages/${version.id}/p${index + 1}.jpg`, width, height }))} />;
+    return <PageViewer title={title} pages={version.pageSizes.map(([width, height], index) => ({ src: `/api/documents/pages/${version.id}/p${index + 1}.jpg?w=${width}`, width, height }))} />;
   }
   if (version.kind === "image") return <PageViewer title={title} pages={[{ src: `/api/files/${version.fileId}?v=display`, width: 0, height: 0 }]} />;
   const later = version.kind === "word" ? "Opening Word files in Grid is coming." : null;

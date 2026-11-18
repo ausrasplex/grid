@@ -1,7 +1,7 @@
 // HTTP routes, mounted at /api/plans.
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
-import { currentSchema, importSchema, previewSchema, updateSheetSchema, updateVersionSchema } from "./validation";
+import { currentSchema, importSchema, previewSchema, qualitySchema, updateSheetSchema, updateVersionSchema } from "./validation";
 
 export const routes: Routes = {
   "GET /job/:projectId": { permission: "plans.view", handler: (ctx, request) => svc.listSheets(ctx, request.params.projectId!) },
@@ -11,6 +11,7 @@ export const routes: Routes = {
 
   "GET /sheet/:id": { permission: "plans.view", handler: (ctx, request) => svc.getSheet(ctx, request.params.id!) },
   "PATCH /sheet/:id": { permission: "plans.manage", handler: (ctx, request) => svc.updateSheet(ctx, request.params.id!, updateSheetSchema.parse(request.body)) },
+  "PUT /sheet/:id/quality": { permission: "plans.manage", handler: (ctx, request) => svc.setSheetQuality(ctx, request.params.id!, qualitySchema.parse(request.body).quality) },
   "POST /sheet/:id/current": { permission: "plans.manage", handler: (ctx, request) => svc.setCurrentVersion(ctx, request.params.id!, currentSchema.parse(request.body).versionId) },
   "DELETE /sheet/:id": { permission: "plans.manage", handler: (ctx, request) => svc.deleteSheet(ctx, request.params.id!) },
   "POST /sheet/:id/restore": { permission: "plans.manage", handler: (ctx, request) => svc.restoreSheet(ctx, request.params.id!) },
@@ -20,6 +21,13 @@ export const routes: Routes = {
   "POST /version/:id/retry": { permission: "plans.upload", handler: (ctx, request) => svc.retryRender(ctx, request.params.id!) },
 
   // Deep-zoom tiles for the viewer (OpenSeadragon asks for plan.dzi, then plan_files/<level>/<x>_<y>.jpeg).
+  // Tiles with the rendered width in the address: a sharper re-render gets a new address, so phones don't keep the old tiles.
+  "GET /tiles/:versionId/:stamp/plan.dzi": { permission: "plans.view", handler: (ctx, request) => svc.tileResponse(ctx, request.params.versionId!, "plan.dzi") },
+  "GET /tiles/:versionId/:stamp/thumb.jpg": { permission: "plans.view", handler: (ctx, request) => svc.tileResponse(ctx, request.params.versionId!, "thumb.jpg") },
+  "GET /tiles/:versionId/:stamp/plan_files/:level/:tile": {
+    permission: "plans.view",
+    handler: (ctx, request) => svc.tileResponse(ctx, request.params.versionId!, `plan_files/${request.params.level}/${request.params.tile}`),
+  },
   "GET /tiles/:versionId/plan.dzi": { permission: "plans.view", handler: (ctx, request) => svc.tileResponse(ctx, request.params.versionId!, "plan.dzi") },
   "GET /tiles/:versionId/thumb.jpg": { permission: "plans.view", handler: (ctx, request) => svc.tileResponse(ctx, request.params.versionId!, "thumb.jpg") },
   "GET /tiles/:versionId/plan_files/:level/:tile": {

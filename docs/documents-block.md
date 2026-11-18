@@ -35,6 +35,12 @@ The `documents` Block (optional, on for every trade and for sole traders; pages 
 - `GET /api/documents/sheets/<versionId>/<n>` (cached by the phone for good, a version never changes) and `PATCH /api/documents/version/<id>/sheets/<n>` (`{ headerRow }`).
 - **Not yet:** bold and other font styles (the free SheetJS doesn't read them; fills do show), the `documents.sheet` slot (comes with Sign-offs, part 3, when there's a Block to draw into it), offline (phase 6), and cell text in search (part 4).
 
+## Sharpness of PDF pages (built Nov 2026)
+
+- PDF pages are drawn at the server's **Documents** level, set in **Settings › Plans & PDFs**: **Low** 150 dpi (up to 2000 px on a page's long side), **Medium** 200 dpi (2600 px, the standard), **High** 250 dpi (3300 px). The pixel cap keeps big pages (an A1 drawing in a library) to a size a phone can hold, since each page is one picture. No Extreme, for the same reason.
+- **Redraw documents** (Settings › Plans & PDFs) queues `documents.rerender`: every showing PDF version drawn again in the background, viewable throughout. Page addresses carry the page width (`p1.jpg?w=2339`) so phones fetch the new pictures.
+- The page renderer is shared: `renderPdfPages()` and `pdfLongestSideInches()` in `@grid/db`, `PageViewer` in `@grid/ui`.
+
 ## Why it exists
 
 Subcontractors are often handed parts to install that came without documentation. If the main contractor keeps manuals and data sheets in the app, anyone they work with regularly can find them on the spot.

@@ -3,6 +3,7 @@
 
 import { db, type Tx } from "./client";
 import type { Prisma } from "./generated/client";
+import { isPageLevel, isPlanLevel, type PageLevel, type PlanLevel } from "./render-levels";
 
 export type CleanupMode = "on" | "dry-run" | "off";
 
@@ -147,6 +148,41 @@ export async function getMapsSettings(tx: Tx = db): Promise<MapsSettings & { upd
 export async function setMapsSettings(input: MapsSettings, userId: string, tx: Tx = db) {
   const value = input as unknown as Prisma.InputJsonValue;
   await tx.serverSetting.upsert({ where: { key: MAPS_KEY }, create: { key: MAPS_KEY, value, updatedById: userId }, update: { value, updatedById: userId } });
+}
+
+// ---------------------------------------------------------------------
+// Plans & PDFs: how sharp plans, documents and quote PDFs are drawn for the
+// in-app viewers (render-levels.ts). Set in Settings › Plans & PDFs by the
+// server admin: better hardware can draw sharper.
+// ---------------------------------------------------------------------
+
+export interface RenderingSettings {
+  plans: PlanLevel;
+  documents: PageLevel;
+  quotes: PageLevel;
+}
+
+const RENDERING_KEY = "rendering";
+
+export function renderingDefaults(): RenderingSettings {
+  return { plans: "MEDIUM", documents: "MEDIUM", quotes: "MEDIUM" };
+}
+
+export async function getRenderingSettings(tx: Tx = db): Promise<RenderingSettings & { updatedAt: Date | null }> {
+  const row = await tx.serverSetting.findUnique({ where: { key: RENDERING_KEY } });
+  const saved = (row?.value as Partial<RenderingSettings> | undefined) ?? {};
+  const defaults = renderingDefaults();
+  return {
+    plans: isPlanLevel(saved.plans) ? saved.plans : defaults.plans,
+    documents: isPageLevel(saved.documents) ? saved.documents : defaults.documents,
+    quotes: isPageLevel(saved.quotes) ? saved.quotes : defaults.quotes,
+    updatedAt: row?.updatedAt ?? null,
+  };
+}
+
+export async function setRenderingSettings(input: RenderingSettings, userId: string, tx: Tx = db) {
+  const value = input as unknown as Prisma.InputJsonValue;
+  await tx.serverSetting.upsert({ where: { key: RENDERING_KEY }, create: { key: RENDERING_KEY, value, updatedById: userId }, update: { value, updatedById: userId } });
 }
 
 export { lastDue, nextDue } from "./schedule";

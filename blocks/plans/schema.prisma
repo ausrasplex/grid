@@ -23,6 +23,9 @@ model PlanSheet {
   buildingId       String?
   levelId          String?
   currentVersionId String?
+  /// How sharp this sheet is drawn (LOW | MEDIUM | HIGH | EXTREME), or null
+  /// for the server's Plans level (Settings › Plans & PDFs).
+  quality          String?
   createdById      String
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

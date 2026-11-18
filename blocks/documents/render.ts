@@ -1,25 +1,25 @@
 // Getting a document version ready for the in-app viewer, kept in
 // <files>/.cache/documents/<versionId> (Grid can make it again from the
-// original, so backups skip it): a PDF's page pictures (2000 px on the long
-// side, sharp enough to zoom into on a phone, by the shared renderPdfPages
-// in @grid/db), or a spreadsheet's per-sheet JSON.
+// original, so backups skip it): a PDF's page pictures (at the server's
+// Documents level, Settings › Plans & PDFs, by the shared renderPdfPages in
+// @grid/db), or a spreadsheet's per-sheet JSON.
 
 import "server-only";
 import { cp, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { cacheRoot, pdfPageFile, renderPdfPages as renderPages } from "@grid/db";
-
-/** Long side of a rendered page, in pixels. */
-export const PAGE_EDGE = 2000;
+import { cacheRoot, getRenderingSettings, pageDpi, pdfLongestSideInches, pdfPageFile, renderPdfPages as renderPages } from "@grid/db";
 
 export const pagesDir = (versionId: string) => cacheRoot("documents", versionId);
 
 /** "p12.jpg" for page 12. */
 export const pageFile = pdfPageFile;
 
-/** Renders every page of a version's PDF. Returns each page's size in pixels, in page order. */
-export const renderPdfPages = (file: string, versionId: string) => renderPages(file, pagesDir(versionId), { edge: PAGE_EDGE });
+/** Renders every page of a version's PDF at the server's Documents level. Returns each page's size in pixels, in page order. */
+export async function renderPdfPages(file: string, versionId: string) {
+  const { documents } = await getRenderingSettings();
+  return renderPages(file, pagesDir(versionId), { dpi: pageDpi(documents, await pdfLongestSideInches(file)) });
+}
 
 /** "sheet-0.json" for the first sheet. */
 export const sheetFile = (index: number) => `sheet-${index}.json`;

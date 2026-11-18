@@ -29,9 +29,16 @@ export default defineBlock({
   levelUsage: async () => (await import("./service")).levelUsage,
   jobs: async () => ({
     "plans.render": {
-      handler: async (data) => (await import("./service")).renderVersion(String(data.versionId)),
-      expireInSeconds: 20 * 60,
+      handler: async (data) => (await import("./service")).renderVersion(String(data.versionId), data.again === true),
+      // Extreme on a big sheet can take a few minutes.
+      expireInSeconds: 30 * 60,
       retryLimit: 1,
+    },
+    // Settings › Plans & PDFs › Re-render existing (queued by the server setting).
+    "plans.rerender": {
+      handler: async () => void (await (await import("./service")).rerenderAll()),
+      expireInSeconds: 10 * 60,
+      retryLimit: 0,
     },
   }),
   emits: ["plans.uploaded"],

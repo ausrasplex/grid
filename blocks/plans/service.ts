@@ -9,7 +9,7 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { app, badRequest, conflict, notFound, requireCompany, type CleanupItem, type LevelUsage, type RequestContext } from "@grid/core";
-import { attachFile, audit, db, purgeStoredFile, storedBytes, storedFilePath, type Prisma, type Tx } from "@grid/db";
+import { attachFile, audit, db, getRenderingSettings, isPlanLevel, purgeStoredFile, storedBytes, storedFilePath, type PlanLevel, type Prisma, type Tx } from "@grid/db";
 import { canSeeJob } from "@grid/block-projects";
 import { disciplineName, disciplineOf, guessSheet } from "./parse";
 import { pdfPages, removeTiles, renderToTiles, tilesDir, titleBlockText } from "./pdf";
@@ -106,6 +106,9 @@ export async function getSheet(ctx: RequestContext, sheetId: string) {
     disciplineName: disciplineName(sheet.discipline),
     buildingId: sheet.buildingId,
     levelId: sheet.levelId,
+    /** This sheet's own level, or null for the server's (`serverQuality`). */
+    quality: isPlanLevel(sheet.quality) ? sheet.quality : null,
+    serverQuality: (await getRenderingSettings()).plans,
     currentVersionId: sheet.currentVersionId ?? versions[0]?.id ?? null,
     versions: versions.map((version) => ({
       ...versionView(version),
@@ -271,9 +274,15 @@ export async function commitImport(ctx: RequestContext, projectId: string, rows:
 // Rendering (background job "plans.render")
 // ---------------------------------------------------------------------
 
-export async function renderVersion(versionId: string) {
-  const planVersion = await db.planVersion.findUnique({ where: { id: versionId } });
+/**
+ * Draws a version's tiles at its sheet's level (or the server's). `again`
+ * is a re-render of one that's already showing (Settings › Plans & PDFs ›
+ * Re-render existing): it stays viewable, and a failure keeps the old tiles.
+ */
+export async function renderVersion(versionId: string, again = false) {
+  const planVersion = await db.planVersion.findUnique({ where: { id: versionId }, include: { sheet: { select: { quality: true } } } });
   if (!planVersion) return;
+  const level = isPlanLevel(planVersion.sheet.quality) ? planVersion.sheet.quality : (await getRenderingSettings()).plans;
   const file = await db.storedFile.findUnique({ where: { id: planVersion.fileId } });
   if (!file || file.purgedAt) {
     await db.planVersion.update({ where: { id: planVersion.id }, data: { status: "FAILED", error: "The uploaded file is missing" } });
@@ -287,15 +296,43 @@ export async function renderVersion(versionId: string) {
       if (!page) throw new Error(`The PDF has no page ${planVersion.page}`);
       size = page;
     }
-    const rendered = await renderToTiles({ file: full, mime: file.mime, page: planVersion.page, versionId: planVersion.id, widthPt: size?.widthPt, heightPt: size?.heightPt });
+    const rendered = await renderToTiles({ file: full, mime: file.mime, page: planVersion.page, versionId: planVersion.id, level, widthPt: size?.widthPt, heightPt: size?.heightPt });
     await db.planVersion.update({
       where: { id: planVersion.id },
       data: { status: "READY", error: null, widthPx: rendered.widthPx, heightPx: rendered.heightPx, dpi: rendered.dpi, pageWidthPt: size?.widthPt ?? null, pageHeightPt: size?.heightPt ?? null },
     });
   } catch (error) {
     console.error(`[plans] couldn't render version ${planVersion.id}`, error);
+    if (again) return;
     await db.planVersion.update({ where: { id: planVersion.id }, data: { status: "FAILED", error: ((error as Error).message || "Couldn't read the file").slice(0, 300) } });
   }
+}
+
+/** Settings › Plans & PDFs › Re-render existing: every showing revision of sheets on the server's level, drawn again. */
+export async function rerenderAll() {
+  const versions = await db.planVersion.findMany({ where: { status: "READY", sheet: { quality: null, deletedAt: null, purgedAt: null } }, select: { id: true } });
+  for (const version of versions) await app().jobs.send("plans.render", { versionId: version.id, again: true });
+  return { queued: versions.length };
+}
+
+/**
+ * One sheet drawn sharper or softer than the server's level (null goes
+ * back to the server's). Every revision is drawn again; the sheet shows
+ * "getting ready" until it's done.
+ */
+export async function setSheetQuality(ctx: RequestContext, sheetId: string, quality: PlanLevel | null) {
+  const companyId = requireCompany(ctx);
+  const sheet = await ownSheet(db, ctx, sheetId);
+  if (sheet.quality === quality) return getSheet(ctx, sheetId);
+  const versions = await db.$transaction(async (tx) => {
+    await tx.planSheet.update({ where: { id: sheetId }, data: { quality } });
+    const redraw = await tx.planVersion.findMany({ where: { sheetId, status: { in: ["READY", "FAILED"] } }, select: { id: true } });
+    await tx.planVersion.updateMany({ where: { id: { in: redraw.map((version) => version.id) } }, data: { status: "PENDING", error: null } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "PlanSheet", entityId: sheetId, action: "quality_changed", diff: { number: sheet.number, from: sheet.quality ?? "server", to: quality ?? "server" } });
+    return redraw;
+  });
+  for (const version of versions) await app().jobs.send("plans.render", { versionId: version.id });
+  return getSheet(ctx, sheetId);
 }
 
 export async function retryRender(ctx: RequestContext, versionId: string) {

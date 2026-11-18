@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PLAN_LEVELS } from "@grid/db/render-levels";
 
 const sheetNumberField = z.string().trim().min(1, "Give the sheet a number").max(40);
 const revisionSchema = z.string().trim().max(12).transform((value) => value.toUpperCase());
@@ -37,3 +38,6 @@ export const updateVersionSchema = z.object({ revision: revisionSchema, note: z.
 
 export type ImportRow = z.infer<typeof importRowSchema>;
 export type UpdateSheetInput = z.infer<typeof updateSheetSchema>;
+
+/** One sheet's own sharpness, or null for the server's Plans level. */
+export const qualitySchema = z.object({ quality: z.enum(PLAN_LEVELS).nullable() }).strict();

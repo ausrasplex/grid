@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
-import { attachFile, audit, cacheRoot, db, readStoredFile, renderPdfPages, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
+import { attachFile, audit, cacheRoot, db, getRenderingSettings, pageDpi, pdfLongestSideInches, readStoredFile, renderPdfPages, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
 import { createProject, getProject } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import { clientIdsNamed, clientsById, requireClient, type ClientRow } from "@grid/block-clients";
@@ -697,19 +697,19 @@ export async function quotePdf(ctx: RequestContext, id: string, options: QuotePd
 // ---------------------------------------------------------------------
 // The PDF inside Grid: its pages as pictures, so it opens on its own page
 // in the app instead of the phone's PDF app or a browser tab. Kept in
-// <files>/.cache/quotes/pdf/<quoteId>/<key> (key = the PDF's fingerprint,
-// so a changed draft gets new pictures and an unchanged one reuses them).
+// <files>/.cache/quotes/pdf/<quoteId>/<key> (key = the PDF's fingerprint
+// and the Quote PDFs level, Settings › Plans & PDFs: a changed draft or a
+// changed level gets new pictures, an unchanged one reuses them).
 // ---------------------------------------------------------------------
 
-/** Long side of a page picture, in pixels: sharp enough to zoom in on a phone. */
-const PDF_PAGE_EDGE = 1800;
 /** How many renders of one quote to keep (older drafts are cleared). */
 const PDF_RENDERS_KEPT = 4;
 const pdfFolder = (quoteId: string, key?: string) => (key ? cacheRoot("quotes", "pdf", quoteId, key) : cacheRoot("quotes", "pdf", quoteId));
 
 export async function quotePdfPages(ctx: RequestContext, id: string, options: QuotePdfOptions = {}) {
   const { pdf, filename, label, quote } = await quotePdfFile(ctx, id, options);
-  const key = createHash("sha256").update(pdf).digest("hex").slice(0, 24);
+  const { quotes: level } = await getRenderingSettings();
+  const key = createHash("sha256").update(pdf).update(level).digest("hex").slice(0, 24);
   const folder = pdfFolder(id, key);
   let sizes = (await readFile(path.join(folder, "sizes.json"), "utf8").then((text) => JSON.parse(text) as [number, number][]).catch(() => null)) ?? null;
   if (!sizes) {
@@ -717,7 +717,7 @@ export async function quotePdfPages(ctx: RequestContext, id: string, options: Qu
     try {
       const file = path.join(work, "quote.pdf");
       await writeFile(file, pdf);
-      sizes = await renderPdfPages(file, folder, { edge: PDF_PAGE_EDGE, timeoutMs: 2 * 60_000 });
+      sizes = await renderPdfPages(file, folder, { dpi: pageDpi(level, await pdfLongestSideInches(file)), timeoutMs: 2 * 60_000 });
       await writeFile(path.join(folder, "sizes.json"), JSON.stringify(sizes));
     } finally {
       await rm(work, { recursive: true, force: true });

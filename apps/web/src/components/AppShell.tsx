@@ -17,6 +17,7 @@ export const SERVER_SETTINGS: (NavItem & { description: string })[] = [
   { id: "core.backups", label: "Backups", href: "/settings/backups", icon: "archive", description: "Database and photos: schedule, Back up now, downloads" },
   { id: "core.storage", label: "Storage", href: "/settings/storage", icon: "archive", description: "Space used, clean-up settings and history" },
   { id: "core.maps", label: "Maps", href: "/settings/maps", icon: "map", description: "Google address suggestions while typing an address" },
+  { id: "core.rendering", label: "Plans & PDFs", href: "/settings/plans-pdfs", icon: "layers", description: "How sharp plans, documents and quote PDFs are drawn" },
   { id: "core.accounts", label: "Accounts & devices", href: "/settings/accounts", icon: "users", description: "Everyone with an account here, their devices, and every business" },
 ];
 

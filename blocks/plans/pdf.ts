@@ -1,6 +1,6 @@
 // Turning plan PDFs (and images) into something a tablet can zoom: each
-// page is rendered once with poppler's pdftoppm at a resolution that
-// keeps fine print readable, then cut into deep-zoom tiles with sharp.
+// page is rendered once with poppler's pdftoppm at the sheet's level (or the
+// server's, Settings › Plans & PDFs), then cut into deep-zoom tiles with sharp.
 // Tiles live in <files>/.cache/plans/<versionId> and can always be made
 // again from the original, so backups skip them.
 
@@ -10,12 +10,7 @@ import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import sharp from "sharp";
-import { cacheRoot } from "@grid/db";
-
-/** Biggest render, in pixels: an A1 sheet at ~250 dpi, A0 at ~175 (2.5 mm text stays sharp). */
-const MAX_PIXELS = 48_000_000;
-const MAX_DPI = 250;
-const MIN_DPI = 100;
+import { cacheRoot, planDpi, type PlanLevel } from "@grid/db";
 
 function run(cmd: string, args: string[], timeoutMs: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -77,11 +72,8 @@ export async function titleBlockText(file: string, page: PdfPage): Promise<strin
   }
 }
 
-export function dpiFor(page: { widthPt: number; heightPt: number }) {
-  const squareInches = (page.widthPt / 72) * (page.heightPt / 72);
-  if (!squareInches) return 150;
-  return Math.max(MIN_DPI, Math.min(MAX_DPI, Math.floor(Math.sqrt(MAX_PIXELS / squareInches))));
-}
+/** The dpi for a page at a level (render-levels.ts in @grid/db: e.g. Medium is an A1 sheet at ~250 dpi, A0 at ~175). */
+export const dpiFor = (page: { widthPt: number; heightPt: number }, level: PlanLevel) => planDpi(level, page);
 
 export const tilesDir = (versionId: string) => cacheRoot("plans", versionId);
 
@@ -89,13 +81,13 @@ export const tilesDir = (versionId: string) => cacheRoot("plans", versionId);
  * Renders one page (or an image) to tiles + a thumbnail. Returns the
  * rendered size. Writes into a temporary folder, then swaps it in.
  */
-export async function renderToTiles(input: { file: string; mime: string; page: number; versionId: string; widthPt?: number | null; heightPt?: number | null }) {
+export async function renderToTiles(input: { file: string; mime: string; page: number; versionId: string; level: PlanLevel; widthPt?: number | null; heightPt?: number | null }) {
   const work = await mkdtemp(path.join(tmpdir(), "grid-plan-"));
   try {
     let source: string;
     let dpi: number | null = null;
     if (input.mime === "application/pdf") {
-      dpi = dpiFor({ widthPt: input.widthPt ?? 0, heightPt: input.heightPt ?? 0 });
+      dpi = dpiFor({ widthPt: input.widthPt ?? 0, heightPt: input.heightPt ?? 0 }, input.level);
       const prefix = path.join(work, "page");
       await run("pdftoppm", ["-f", String(input.page), "-l", String(input.page), "-r", String(dpi), "-png", "-singlefile", "-aa", "yes", "-aaVector", "yes", input.file, prefix], 10 * 60_000);
       source = `${prefix}.png`;

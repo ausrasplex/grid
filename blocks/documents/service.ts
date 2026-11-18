@@ -606,7 +606,12 @@ export async function unlink(ctx: RequestContext, linkId: string) {
 // Rendering (background job "documents.render")
 // ---------------------------------------------------------------------
 
-export async function renderVersion(versionId: string) {
+/**
+ * Gets a version ready for the viewer. `again` is a re-render of one
+ * that's already showing (Settings › Plans & PDFs › Re-render existing):
+ * it stays viewable throughout, and a failure keeps the old pictures.
+ */
+export async function renderVersion(versionId: string, again = false) {
   const version = await db.documentVersion.findUnique({ where: { id: versionId } });
   if (!version) return;
   const file = await db.storedFile.findUnique({ where: { id: version.fileId } });
@@ -629,8 +634,17 @@ export async function renderVersion(versionId: string) {
     await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, pages: sizes.length, pageSizes: sizes } });
   } catch (error) {
     console.error(`[documents] couldn't render version ${versionId}`, error);
+    if (again) return;
     await db.documentVersion.update({ where: { id: versionId }, data: { status: "FAILED", error: ((error as Error).message || "Couldn't read the file").slice(0, 300) } });
   }
+}
+
+/** Settings › Plans & PDFs › Re-render existing: every PDF version that's showing, drawn again at the current level. */
+export async function rerenderAll() {
+  const versions = await db.documentVersion.findMany({ where: { status: "READY", pages: { gt: 0 }, document: { deletedAt: null, purgedAt: null } }, select: { id: true, fileId: true } });
+  const pdfs = new Set((await db.storedFile.findMany({ where: { id: { in: versions.map((version) => version.fileId) }, mime: "application/pdf" }, select: { id: true } })).map((file) => file.id));
+  for (const version of versions) if (pdfs.has(version.fileId)) await app().jobs.send("documents.render", { versionId: version.id, again: true });
+  return { queued: versions.filter((version) => pdfs.has(version.fileId)).length };
 }
 
 export async function retryRender(ctx: RequestContext, versionId: string) {
