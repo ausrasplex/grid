@@ -1,6 +1,6 @@
 # Documents block + company connections: agreed design
 
-Status: **being built (phase 5b).** Part 1 (libraries, job documents, versions and the page viewer) is done: see "What 5b part 1 built" below. Company connections wait until sharing with subcontractors (later).
+Status: **being built (phase 5b).** Part 1 (libraries, job documents, versions and the page viewer) and part 2 (the spreadsheet viewer) are done: see "What 5b part 1 built" and "What 5b part 2 built" below. Company connections wait until sharing with subcontractors (later).
 Two parts:
 
 - **Company connections**: an addition to the `companies` block (or a small `connections` block).
@@ -22,6 +22,18 @@ The `documents` Block (optional, on for every trade and for sole traders; pages 
 - **Permissions:** `documents.view`, `.upload`, `.edit`, `.delete`, `.libraries.manage`. Foreman: view, upload, edit. Employee and Viewer: view. Owner: all. (`products.manage` and the notes permissions come with the product catalogue.)
 - **Data:** `DocumentLibrary`, `DocumentSettings` (`jobFolders`), `JobDocumentFolder`, `LibraryDocument` (library or job), `DocumentVersion` (`status`, `pages`, `pageSizes`; `sheets` stored for the spreadsheet viewer), `DocumentLink` (pinned to a job).
 - **Not yet:** find on page and search inside documents (part 3, text extraction), Word to PDF, the spreadsheet viewer and Sign-offs (parts 2b and 2c), offline, the product catalogue, company connections.
+
+## What 5b part 2 built (Nov 2026): the spreadsheet viewer
+
+- **Excel (.xlsx, .xls), OpenDocument (.ods) and CSV** open in Grid. A new version is read once in the background (the `documents.render` job now does spreadsheets too) with **SheetJS 0.20.3**, installed from `cdn.sheetjs.com` (the npm copy is old and has known security problems with crafted files). `blocks/documents/sheets.ts` (unit-tested) turns each sheet into a JSON file in `<files>/.cache/documents/<versionId>/sheet-<n>.json`: cell text as the file shows it (number and date formats, formulas at their last saved value), column widths, merged cells, solid fills, and hidden rows, columns and sheets left out (rows keep the file's row numbers). CSV values stay exactly as typed ("0012" stays "0012"). `DocumentVersion.sheets` keeps each sheet's name, size, header row and Grid's guess.
+- **Spreadsheets uploaded before the viewer** are prepared the first time someone opens them.
+- **The viewer** (`ui/SheetViewer.tsx`): sheet tabs along the bottom; the header row and the first column stay put while scrolling; rows above the header (titles) scroll away; only the rows on screen are drawn. Zoom with the buttons, two fingers or Ctrl + scroll (50–250%).
+- **Search** the whole file (every sheet): "12 found", Enter or the arrows go to each match (Shift + Enter goes back), switching sheets and clearing a filter that hides it. Matches are highlighted.
+- **Tap a column's header** to sort it (A to Z, Z to A; numbers sort as numbers, blanks last) or pick which values show, with counts and a Find box for long lists. "Showing 12 of 380 rows · Clear" undoes it. Only the view changes, never the file.
+- **Tap a row number** for the **row card**: that row as "Header: value" lines (empty cells left out), with Previous and Next.
+- **Header row:** Grid guesses it (the first row in the top 30 that's at least 60% as full as the fullest). People with `documents.edit` can change it per sheet for that version ("Header row: 3"), or put Grid's guess back. Saved on the version and written to the activity log.
+- `GET /api/documents/sheets/<versionId>/<n>` (cached by the phone for good, a version never changes) and `PATCH /api/documents/version/<id>/sheets/<n>` (`{ headerRow }`).
+- **Not yet:** bold and other font styles (the free SheetJS doesn't read them; fills do show), the `documents.sheet` slot (comes with Sign-offs, part 3, when there's a Block to draw into it), offline (phase 6), and cell text in search (part 4).
 
 ## Why it exists
 
@@ -277,8 +289,8 @@ Default grants: Employee view + notes.write (Private notes); Foreman view + uplo
 1. Company connections (small; useful on its own and for stage 2 invites). Moved to later, with sharing libraries with subcontractors.
 2. Libraries, upload, versions, viewing. **Done (5b part 1).**
 2a. Job documents: the job's Documents section, folders, versions, linking library documents. **Done (5b part 1).**
-2b. Spreadsheet viewer, with the `documents.sheet` slot. **5b part 2 (next).**
-2c. The `signoffs` Block (trial): sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs. **5b part 3.**
+2b. Spreadsheet viewer. **Done (5b part 2).** The `documents.sheet` slot comes with Sign-offs.
+2c. The `signoffs` Block (trial) and the viewer's `documents.sheet` slot: sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs. **5b part 3 (next).**
 3. Text extraction + search. **5b part 4, the end of phase 5b.**
 
 Later (split out of 5b, Nov 2026; not scheduled, see the roadmap's 10+ row):

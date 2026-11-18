@@ -6,7 +6,7 @@
 
 import "server-only";
 import { spawn } from "node:child_process";
-import { cp, mkdir, mkdtemp, readdir, rename, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import sharp from "sharp";
@@ -70,6 +70,23 @@ export async function renderPdfPages(file: string, versionId: string): Promise<[
     // Different disks (tmp vs the files share): copy instead.
     await rename(out, final).catch(() => cp(out, final, { recursive: true }));
     return sizes;
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+}
+
+/** "sheet-0.json" for the first sheet. */
+export const sheetFile = (index: number) => `sheet-${index}.json`;
+
+/** Writes each sheet's viewer JSON for a version (into a temporary folder, then swapped in). */
+export async function writeSheets(versionId: string, sheets: unknown[]) {
+  const work = await mkdtemp(path.join(tmpdir(), "grid-sheet-"));
+  try {
+    for (const [index, sheet] of sheets.entries()) await writeFile(path.join(work, sheetFile(index)), JSON.stringify(sheet));
+    const final = pagesDir(versionId);
+    await mkdir(path.dirname(final), { recursive: true });
+    await rm(final, { recursive: true, force: true });
+    await rename(work, final).catch(() => cp(work, final, { recursive: true }));
   } finally {
     await rm(work, { recursive: true, force: true });
   }

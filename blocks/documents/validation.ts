@@ -55,3 +55,6 @@ export const deleteNowSchema = z.object({ ids: z.array(uuid).min(1).max(500) }).
 export type AddDocumentsInput = z.infer<typeof addDocumentsSchema>;
 export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;
 export type LibraryInput = z.infer<typeof librarySchema>;
+
+/** A sheet's header row for one version: a shown row index (0 = the first row). */
+export const headerRowSchema = z.object({ headerRow: z.number().int().min(0) }).strict();

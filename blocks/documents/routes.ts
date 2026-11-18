@@ -1,11 +1,12 @@
 // HTTP routes, mounted at /api/documents.
-import type { Routes } from "@grid/core";
+import { notFound, type Routes } from "@grid/core";
 import * as svc from "./service";
 import {
   addDocumentsSchema,
   currentSchema,
   deleteNowSchema,
   folderSchema,
+  headerRowSchema,
   librarySchema,
   linkFolderSchema,
   linkSchema,
@@ -14,6 +15,13 @@ import {
   updateDocumentSchema,
   versionNoteSchema,
 } from "./validation";
+
+/** "0", "1"… from the address. */
+const sheetIndex = (value: string | undefined) => {
+  const index = Number(value);
+  if (!Number.isInteger(index) || index < 0) throw notFound("Sheet not found");
+  return index;
+};
 
 export const routes: Routes = {
   // Libraries and settings
@@ -47,6 +55,10 @@ export const routes: Routes = {
   "GET /version/:id": { permission: "documents.view", handler: (ctx, request) => svc.versionStatus(ctx, request.params.id!) },
   "PATCH /version/:id": { permission: "documents.edit", handler: (ctx, request) => svc.updateVersionNote(ctx, request.params.id!, versionNoteSchema.parse(request.body).note) },
   "DELETE /version/:id": { permission: "documents.edit", handler: (ctx, request) => svc.deleteVersion(ctx, request.params.id!) },
+  "PATCH /version/:id/sheets/:index": {
+    permission: "documents.edit",
+    handler: (ctx, request) => svc.setHeaderRow(ctx, request.params.id!, sheetIndex(request.params.index), headerRowSchema.parse(request.body).headerRow),
+  },
   "POST /version/:id/retry": { permission: "documents.upload", handler: (ctx, request) => svc.retryRender(ctx, request.params.id!) },
 
   // Pinning library documents to jobs
@@ -58,6 +70,7 @@ export const routes: Routes = {
   "GET /deleted": { permission: "documents.delete", handler: (ctx) => svc.listDeleted(ctx) },
   "POST /deleted/delete-now": { permission: "documents.delete", handler: (ctx, request) => svc.deleteNow(ctx, deleteNowSchema.parse(request.body).ids) },
 
-  // Rendered pages for the viewer
+  // Rendered pages and sheets for the viewer
+  "GET /sheets/:versionId/:index": { permission: "documents.view", handler: (ctx, request) => svc.sheetResponse(ctx, request.params.versionId!, sheetIndex(request.params.index)) },
   "GET /pages/:versionId/:name": { permission: "documents.view", handler: (ctx, request) => svc.pageResponse(ctx, request.params.versionId!, request.params.name!) },
 };

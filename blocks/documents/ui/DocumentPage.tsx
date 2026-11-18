@@ -9,6 +9,8 @@ import { AlertTriangle, ArrowLeft, Download, Loader2, MoreHorizontal, Upload } f
 import { ActionButton, Alert, Badge, Button, Field, FormActions, Label, List, ListRow, PageHeader, SelectField, Sheet, SheetContent, Stack, Switch, api, formatBytes, useAction } from "@grid/ui";
 import { KIND_LABEL, UPLOAD_ACCEPT, type DocumentKind } from "../kinds";
 import { PageViewer } from "./PageViewer";
+import { SheetViewer } from "./SheetViewer";
+import type { SheetSummary } from "../sheets";
 import { KindIcon, UploadList, useUploads } from "./shared";
 
 export interface VersionJson {
@@ -17,6 +19,8 @@ export interface VersionJson {
   error: string | null;
   pages: number;
   pageSizes: [number, number][];
+  /** Spreadsheets: each sheet's name, size and header row. */
+  sheets: SheetSummary[];
   fileId: string;
   fileName: string | null;
   kind: DocumentKind;
@@ -115,7 +119,7 @@ export function DocumentPage({
               <ArrowLeft className="size-3.5" /> {back.label}
             </a>
             {document.folder && <span>· {document.folder.name}</span>}
-            {version && <span>· {KIND_LABEL[version.kind]}{version.kind === "pdf" && version.pages ? ` · ${version.pages} page${version.pages === 1 ? "" : "s"}` : ""}</span>}
+            {version && <span>· {KIND_LABEL[version.kind]}{version.kind === "pdf" && version.pages ? ` · ${version.pages} page${version.pages === 1 ? "" : "s"}` : ""}{version.kind === "spreadsheet" && version.sheets.length > 1 ? ` · ${version.sheets.length} sheets` : ""}</span>}
           </span>
         }
         actions={
@@ -148,7 +152,7 @@ export function DocumentPage({
           </Alert>
         )}
         {document.description && <p className="text-sm whitespace-pre-line text-muted-foreground">{document.description}</p>}
-        {version ? <VersionView version={version} title={document.title} canDownload={canDownload} canRetry={permissions.upload} onRetried={reload} /> : <Alert variant="error">This document has no file.</Alert>}
+        {version ? <VersionView key={version.id} version={version} title={document.title} canDownload={canDownload} canRetry={permissions.upload} canEdit={permissions.edit} onRetried={reload} /> : <Alert variant="error">This document has no file.</Alert>}
       </Stack>
 
       <Sheet open={sheet === "menu"} onOpenChange={(open) => !open && setSheet(null)}>
@@ -206,21 +210,39 @@ function MenuButton({ onClick, destructive, children }: { onClick: () => void; d
   );
 }
 
-function VersionView({ version, title, canDownload, canRetry, onRetried }: { version: VersionJson; title: string; canDownload: boolean; canRetry: boolean; onRetried: () => Promise<void> }) {
+function VersionView({
+  version,
+  title,
+  canDownload,
+  canRetry,
+  canEdit,
+  onRetried,
+}: {
+  version: VersionJson;
+  title: string;
+  canDownload: boolean;
+  canRetry: boolean;
+  canEdit: boolean;
+  onRetried: () => Promise<void>;
+}) {
   const action = useAction();
-  if (version.kind === "pdf") {
+  if (version.kind === "pdf" || (version.kind === "spreadsheet" && (version.status !== "READY" || version.sheets.length))) {
+    const spreadsheet = version.kind === "spreadsheet";
     if (version.status === "PENDING")
       return (
         <div className="flex flex-col items-center gap-2 rounded-xl border bg-card px-4 py-12 text-center text-muted-foreground">
           <Loader2 className="size-6 animate-spin" />
-          Getting the pages ready. A long manual can take a minute.
+          {spreadsheet ? "Getting the spreadsheet ready. A big one can take a minute." : "Getting the pages ready. A long manual can take a minute."}
         </div>
       );
     if (version.status === "FAILED")
       return (
         <div className="flex flex-col items-center gap-3 rounded-xl border bg-card px-4 py-10 text-center">
           <AlertTriangle className="size-6 text-destructive" />
-          <p>Grid couldn&apos;t read this PDF{version.error ? `: ${version.error}` : "."}</p>
+          <p>
+            Grid couldn&apos;t read this {spreadsheet ? "spreadsheet" : "PDF"}
+            {version.error ? `: ${version.error}` : "."}
+          </p>
           <Alert variant="error">{action.error}</Alert>
           {canRetry && (
             <Button
@@ -238,10 +260,11 @@ function VersionView({ version, title, canDownload, canRetry, onRetried }: { ver
           )}
         </div>
       );
+    if (spreadsheet) return <SheetViewer versionId={version.id} summaries={version.sheets} canEdit={canEdit} />;
     return <PageViewer title={title} pages={version.pageSizes.map(([width, height], index) => ({ src: `/api/documents/pages/${version.id}/p${index + 1}.jpg`, width, height }))} />;
   }
   if (version.kind === "image") return <PageViewer title={title} pages={[{ src: `/api/files/${version.fileId}?v=display`, width: 0, height: 0 }]} />;
-  const later = version.kind === "spreadsheet" ? "The spreadsheet viewer is coming next." : version.kind === "word" ? "Opening Word files in Grid is coming." : null;
+  const later = version.kind === "word" ? "Opening Word files in Grid is coming." : null;
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border bg-card px-4 py-10 text-center">
       <KindIcon kind={version.kind} className="size-10 text-muted-foreground" />

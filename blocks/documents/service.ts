@@ -7,14 +7,15 @@
 
 import "server-only";
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { app, badRequest, can, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { attachFile, audit, db, purgeStoredFile, storedFilePath, type Prisma, type Tx } from "@grid/db";
 import { canSeeJob, getProject, myActiveJobs } from "@grid/block-projects";
 import { documentKind, titleFromFileName, type DocumentKind } from "./kinds";
-import { pagesDir, removePages, renderPdfPages } from "./render";
+import { pagesDir, removePages, renderPdfPages, sheetFile, writeSheets } from "./render";
+import { readWorkbook, summarise, type SheetSummary } from "./sheets";
 import type { AddDocumentsInput, LibraryInput, UpdateDocumentInput } from "./validation";
 
 const MOD = "documents";
@@ -300,9 +301,12 @@ async function myUploads(tx: Tx, ctx: RequestContext, fileIds: string[]) {
   return fileIds.map((id) => files.find((file) => file.id === id)!);
 }
 
-/** A new version starts PENDING when it's a PDF (pages to render), otherwise it's ready now. */
+/** PDFs (pages) and spreadsheets (sheets) are prepared for the viewer in the background. */
+const needsRender = (mime: string) => ["pdf", "spreadsheet"].includes(documentKind(mime));
+
+/** A new version starts PENDING when it needs preparing for the viewer, otherwise it's ready now. */
 const versionStart = (mime: string) =>
-  documentKind(mime) === "pdf" ? { status: "PENDING" as const, pages: 0 } : { status: "READY" as const, pages: documentKind(mime) === "image" ? 1 : 0 };
+  needsRender(mime) ? { status: "PENDING" as const, pages: 0 } : { status: "READY" as const, pages: documentKind(mime) === "image" ? 1 : 0 };
 
 /**
  * Files uploaded to a library or a job become documents, titled from their
@@ -355,7 +359,7 @@ export async function addDocuments(ctx: RequestContext, input: AddDocumentsInput
         });
         const version = await tx.documentVersion.create({ data: { documentId: document.id, fileId: file.id, uploadedById: ctx.userId, ...versionStart(file.mime) } });
         await tx.libraryDocument.update({ where: { id: document.id }, data: { currentVersionId: version.id } });
-        if (documentKind(file.mime) === "pdf") toRender.push(version.id);
+        if (needsRender(file.mime)) toRender.push(version.id);
         added.push({ id: document.id, title: document.title });
         await audit(tx, {
           blockId: MOD,
@@ -385,7 +389,7 @@ export async function addVersion(ctx: RequestContext, documentId: string, input:
     const version = await tx.documentVersion.create({ data: { documentId, fileId: file!.id, note: input.note, uploadedById: ctx.userId, ...versionStart(file!.mime) } });
     await tx.libraryDocument.update({ where: { id: documentId }, data: { currentVersionId: version.id } });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "LibraryDocument", entityId: documentId, action: "new_version", diff: { title: document.title, fileName: file!.originalName } });
-    return { versionId: version.id, render: documentKind(file!.mime) === "pdf" };
+    return { versionId: version.id, render: needsRender(file!.mime) };
   });
   if (result.render) await app().jobs.send("documents.render", { versionId: result.versionId });
   await app().events.emit("documents.versioned", { documentId }, { emittedBy: MOD, companyId, actorId: ctx.userId });
@@ -400,6 +404,13 @@ export async function getDocument(ctx: RequestContext, documentId: string) {
   const document = await ownDocument(db, ctx, documentId);
   const versions = await db.documentVersion.findMany({ where: { documentId }, orderBy: { createdAt: "desc" } });
   const files = await filesOf(versions.map((version) => version.fileId));
+  // Spreadsheets uploaded before the spreadsheet viewer: prepare them now.
+  for (const version of versions) {
+    if (version.status !== "READY" || version.sheets != null || documentKind(files.get(version.fileId)?.mime ?? "") !== "spreadsheet") continue;
+    await db.documentVersion.update({ where: { id: version.id }, data: { status: "PENDING" } });
+    version.status = "PENDING";
+    await app().jobs.send("documents.render", { versionId: version.id });
+  }
   const names = new Map((await db.user.findMany({ where: { id: { in: versions.map((version) => version.uploadedById) } }, select: { id: true, name: true } })).map((user) => [user.id, user.name]));
   const library = document.libraryId ? await db.documentLibrary.findUnique({ where: { id: document.libraryId }, select: { id: true, name: true } }) : null;
   const job = document.projectId ? await getProject(ctx, document.projectId) : null;
@@ -435,6 +446,7 @@ export async function getDocument(ctx: RequestContext, documentId: string) {
         error: version.error,
         pages: version.pages,
         pageSizes: (version.pageSizes ?? []) as [number, number][],
+        sheets: (version.sheets ?? []) as unknown as SheetSummary[],
         fileId: version.fileId,
         fileName: file?.originalName ?? null,
         kind: documentKind(file?.mime ?? ""),
@@ -603,6 +615,16 @@ export async function renderVersion(versionId: string) {
     return;
   }
   try {
+    if (documentKind(file.mime) === "spreadsheet") {
+      const sheets = readWorkbook(await readFile(storedFilePath(file)), { csv: file.mime === "text/csv" });
+      if (!sheets.length) throw new Error("The spreadsheet has no sheets Grid can show");
+      await writeSheets(versionId, sheets);
+      // Keep header rows already chosen (a re-render after Try again).
+      const before = new Map(((version.sheets ?? []) as unknown as SheetSummary[]).map((sheet) => [sheet.name, sheet.headerRow]));
+      const summary = summarise(sheets).map((sheet) => ({ ...sheet, headerRow: Math.min(before.get(sheet.name) ?? sheet.headerRow, Math.max(0, sheet.rows - 1)) }));
+      await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, sheets: summary as unknown as Prisma.InputJsonValue } });
+      return;
+    }
     const sizes = await renderPdfPages(storedFilePath(file), versionId);
     await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, pages: sizes.length, pageSizes: sizes } });
   } catch (error) {
@@ -625,7 +647,39 @@ export async function versionStatus(ctx: RequestContext, versionId: string) {
   const version = await db.documentVersion.findUnique({ where: { id: versionId } });
   if (!version) throw notFound("Version not found");
   await ownDocument(db, ctx, version.documentId);
-  return { id: version.id, status: version.status, error: version.error, pages: version.pages, pageSizes: version.pageSizes as [number, number][] };
+  return { id: version.id, status: version.status, error: version.error, pages: version.pages, pageSizes: version.pageSizes as [number, number][], sheets: (version.sheets ?? []) as unknown as SheetSummary[] };
+}
+
+/** Changes which row is a sheet's header for this version (shown row index, 0 = first). */
+export async function setHeaderRow(ctx: RequestContext, versionId: string, sheetIndex: number, headerRow: number) {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    const version = await tx.documentVersion.findUnique({ where: { id: versionId } });
+    if (!version) throw notFound("Version not found");
+    const document = await ownDocument(tx, ctx, version.documentId);
+    const sheets = [...((version.sheets ?? []) as unknown as SheetSummary[])];
+    const sheet = sheets[sheetIndex];
+    if (!sheet) throw notFound("Sheet not found");
+    if (headerRow >= Math.max(1, sheet.rows)) throw badRequest(`That sheet has ${sheet.rows} rows`);
+    sheets[sheetIndex] = { ...sheet, headerRow };
+    await tx.documentVersion.update({ where: { id: versionId }, data: { sheets: sheets as unknown as Prisma.InputJsonValue } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "LibraryDocument", entityId: document.id, action: "header_row_changed", diff: { title: document.title, sheet: sheet.name, from: sheet.headerRow, to: headerRow } });
+    return { sheets };
+  });
+}
+
+/** One sheet's viewer JSON. A version never changes, so phones keep it. */
+export async function sheetResponse(ctx: RequestContext, versionId: string, index: number) {
+  if (!(await canSeeVersion(ctx, versionId))) throw notFound();
+  const full = path.join(pagesDir(versionId), sheetFile(index));
+  try {
+    const stats = await stat(/*turbopackIgnore: true*/ full);
+    return new Response(Readable.toWeb(createReadStream(/*turbopackIgnore: true*/ full)) as ReadableStream, {
+      headers: { "content-type": "application/json", "content-length": String(stats.size), "cache-control": "private, max-age=31536000, immutable" },
+    });
+  } catch {
+    throw notFound("Sheet not found");
+  }
 }
 
 // ---------------------------------------------------------------------
