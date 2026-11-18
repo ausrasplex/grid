@@ -27,6 +27,7 @@ export default defineBlock({
     return { purgeDeleted: (await import("./service")).purgeDeleted, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
   },
   levelUsage: async () => (await import("./service")).levelUsage,
+  jobStorage: async () => (await import("./storage")).jobStorage,
   jobs: async () => ({
     "plans.render": {
       handler: async (data) => (await import("./service")).renderVersion(String(data.versionId), data.again === true),
@@ -38,6 +39,12 @@ export default defineBlock({
     "plans.rerender": {
       handler: async () => void (await (await import("./service")).rerenderAll()),
       expireInSeconds: 10 * 60,
+      retryLimit: 0,
+    },
+    // Tile sizes for sheets drawn before Grid recorded them (the job Storage section).
+    "plans.measure": {
+      handler: async () => void (await (await import("./storage")).measure()),
+      schedule: "30 3 * * *",
       retryLimit: 0,
     },
   }),

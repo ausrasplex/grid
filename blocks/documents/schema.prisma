@@ -98,6 +98,9 @@ model DocumentVersion {
   pageSizes    Json                  @default("[]")
   /// Spreadsheets (later): sheet names, row counts, chosen header rows.
   sheets       Json?
+  /// Bytes the page pictures or sheet data take in the cache (null: made before sizes
+  /// were recorded, or nothing to make; "documents.measure" fills it in overnight).
+  cacheBytes   Int?
   note         String?
   uploadedById String
   createdAt    DateTime              @default(now())

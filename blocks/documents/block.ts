@@ -32,6 +32,7 @@ export default defineBlock({
     const purge = await import("./purge");
     return { purgeDeleted: purge.purgeDeleted, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
   },
+  jobStorage: async () => (await import("./storage")).jobStorage,
   jobs: async () => ({
     "documents.render": {
       handler: async (data) => (await import("./service")).renderVersion(String(data.versionId), data.again === true),
@@ -42,6 +43,12 @@ export default defineBlock({
     "documents.rerender": {
       handler: async () => void (await (await import("./service")).rerenderAll()),
       expireInSeconds: 10 * 60,
+      retryLimit: 0,
+    },
+    // Sizes for page pictures made before Grid recorded them (the job Storage section).
+    "documents.measure": {
+      handler: async () => void (await (await import("./storage")).measure()),
+      schedule: "35 3 * * *",
       retryLimit: 0,
     },
   }),

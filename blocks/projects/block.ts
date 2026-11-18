@@ -21,6 +21,8 @@ export default defineBlock({
     VIEWER: ["projects.view"],
   },
   menus: [
+    // Every job in one searchable table, with what each holds (phase 2e).
+    { id: "projects.table", slot: "sidebar.main", label: "Jobs", icon: "job", href: "/jobs", permission: "projects.view", order: 15 },
     { id: "projects.search", slot: "header.actions", label: "Search", icon: "search", href: "/jobs/search", permission: "projects.view", order: 5 },
   ],
   routes: async () => (await import("./routes")).routes,

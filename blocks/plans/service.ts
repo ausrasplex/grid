@@ -9,7 +9,7 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { app, badRequest, conflict, notFound, requireCompany, type CleanupItem, type LevelUsage, type RequestContext } from "@grid/core";
-import { attachFile, audit, db, getRenderingSettings, isPlanLevel, purgeStoredFile, storedBytes, storedFilePath, type PlanLevel, type Prisma, type Tx } from "@grid/db";
+import { attachFile, audit, db, folderBytes, getRenderingSettings, isPlanLevel, purgeStoredFile, storedBytes, storedFilePath, type PlanLevel, type Prisma, type Tx } from "@grid/db";
 import { canSeeJob } from "@grid/block-projects";
 import { disciplineName, disciplineOf, guessSheet } from "./parse";
 import { pdfPages, removeTiles, renderToTiles, tilesDir, titleBlockText } from "./pdf";
@@ -299,7 +299,7 @@ export async function renderVersion(versionId: string, again = false) {
     const rendered = await renderToTiles({ file: full, mime: file.mime, page: planVersion.page, versionId: planVersion.id, level, widthPt: size?.widthPt, heightPt: size?.heightPt });
     await db.planVersion.update({
       where: { id: planVersion.id },
-      data: { status: "READY", error: null, widthPx: rendered.widthPx, heightPx: rendered.heightPx, dpi: rendered.dpi, pageWidthPt: size?.widthPt ?? null, pageHeightPt: size?.heightPt ?? null },
+      data: { status: "READY", error: null, widthPx: rendered.widthPx, heightPx: rendered.heightPx, dpi: rendered.dpi, pageWidthPt: size?.widthPt ?? null, pageHeightPt: size?.heightPt ?? null, cacheBytes: await folderBytes(tilesDir(planVersion.id)) },
     });
   } catch (error) {
     console.error(`[plans] couldn't render version ${planVersion.id}`, error);

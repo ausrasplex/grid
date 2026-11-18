@@ -1,10 +1,13 @@
 // HTTP routes, mounted at /api/projects.
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
+import * as storage from "./storage";
 import { createProjectSchema, statusSchema, updateProjectSchema } from "./validation";
 
 export const routes: Routes = {
   "GET /search": { permission: "projects.view", handler: (ctx, request) => svc.search(ctx, request.query.get("q") ?? "") },
+  // The Jobs table (/jobs) and a job's Storage section (docs/stage-2-projects.md "Job storage").
+  "GET /table": { permission: "projects.view", handler: (ctx) => storage.jobsTable(ctx) },
   "GET /mine": { permission: "projects.view", handler: (ctx) => svc.myActiveJobs(ctx) },
   "GET /address-check": {
     permission: "projects.create",
@@ -25,5 +28,6 @@ export const routes: Routes = {
     permission: "projects.complete",
     handler: (ctx, request) => svc.setProjectStatus(ctx, request.params.projectId!, statusSchema.parse(request.body).status),
   },
+  "GET /:projectId/storage": { permission: "projects.complete", handler: (ctx, request) => storage.jobStorage(ctx, request.params.projectId!) },
   "GET /:projectId/code": { permission: "projects.view", handler: (ctx, request) => svc.projectRouteCode(ctx, request.params.projectId!) },
 };

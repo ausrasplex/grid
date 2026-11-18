@@ -193,6 +193,13 @@ export interface BlockDefinition {
    */
   levelUsage?: () => Promise<(levelId: string) => Promise<LevelUsage[]>>;
   /**
+   * What this block keeps on disk for jobs (photos, plan sheets, documents),
+   * for the job's Storage section and the Jobs table. Asked even when the
+   * business has the block off: its files are still there. Lazy.
+   * See docs/stage-2-projects.md "Job storage".
+   */
+  jobStorage?: () => Promise<(companyId: string, projectIds: string[]) => Promise<JobStorageLine[]>>;
+  /**
    * Background work this block does, keyed by queue name, which must start
    * with the block id ("plans.render"). Lazy. Queue with app().jobs.send().
    */
@@ -204,6 +211,29 @@ export interface LevelUsage {
   count: number;
   one: string;
   many: string;
+}
+
+/**
+ * One kind of thing a block keeps for one job: "38 plan sheets, 220 MB,
+ * plus 2.1 GB of tiles". Lines with nothing in them can be left out.
+ */
+export interface JobStorageLine {
+  projectId: string;
+  /** Unique across blocks, e.g. "plans.sheets". */
+  key: string;
+  /** "Plans", for the Storage section and the Jobs table column. */
+  label: string;
+  count: number;
+  one: string;
+  many: string;
+  /** What people uploaded: can't be made again. */
+  originalBytes: number;
+  /** What Grid made from them (thumbnails, tiles, page pictures): can be made again. */
+  copyBytes: number;
+  /** Still on disk in Recently deleted (originals and copies). */
+  deletedBytes: number;
+  /** Copies whose size isn't known yet (made before sizes were recorded). */
+  unmeasured: number;
 }
 
 export interface BlockJob {

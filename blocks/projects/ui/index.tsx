@@ -7,6 +7,7 @@
 //   /jobs/<job>/settings                         job details and Covers
 //   /jobs/new[/<site>]                           start a job
 //   /jobs/search                                 Jump to
+//   /jobs                                        every job in one table (phase 2e)
 
 import { redirect } from "next/navigation";
 import { can, notFound, type RequestContext } from "@grid/core";
@@ -18,6 +19,9 @@ import { activeJobCounts, getProject, jobsAt, jobsForClient, recordArea, resumeO
 import type { PlaceStartPanelProps } from "../index";
 import { CopyLink, FinishJob } from "./JobActions";
 import { JobRows } from "./JobRows";
+import { JobStorage } from "./JobStorage";
+import { JobsTable } from "./JobsTable";
+import { jobStorage, jobsTable } from "../storage";
 import { JobSettings } from "./JobSettings";
 import { JumpTo } from "./JumpTo";
 import { LocationBar, type LocBuilding } from "./LocationBar";
@@ -264,6 +268,7 @@ async function JobPage({
   const allHref = area?.levelId ? `${siteHref(site.id, area.buildingId, area.levelId)}/all` : area && site.buildings.length > 1 ? siteHref(site.id, area.buildingId) : siteHref(site.id);
   const canEdit = job.isHost && can(ctx, "projects.edit");
   const canFinish = job.isHost && can(ctx, "projects.complete");
+  const storage = can(ctx, "projects.complete") ? await jobStorage(ctx, job.id) : null;
   const finishLeavesSiteEmpty = job.status === "ACTIVE" && here.site.activeJobs <= 1;
   const plain = isHouse(site);
   const currentArea = area ? areas.find((entry) => same(entry, area)) : undefined;
@@ -354,6 +359,8 @@ async function JobPage({
 
         <SiteNotes siteId={site.id} initial={site.notes} canEdit={can(ctx, "sites.notes.edit")} />
 
+        {storage && <JobStorage storage={storage} />}
+
         {canFinish && <FinishJob jobId={job.id} status={job.status} siteName={site.name} lastActiveHere={finishLeavesSiteEmpty} />}
       </Stack>
       </div>
@@ -388,7 +395,18 @@ const clientAccess = (ctx: RequestContext) => ({ canPick: can(ctx, "clients.view
 
 export const pages: BlockPages = {
   "": async ({ ctx, params: [jobId, sub, buildingId, levelId], panels }) => {
-    if (!jobId) redirect("/sites");
+    if (!jobId) {
+      if (!can(ctx, "projects.view")) return <Alert variant="error">You don't have permission to see jobs.</Alert>;
+      const table = await jobsTable(ctx);
+      return (
+        <JobsTable
+          rows={table.rows.map((row) => ({ ...row, startedAt: row.startedAt.toISOString() }))}
+          columns={table.columns}
+          showStorage={table.showStorage}
+          canCreate={can(ctx, "projects.create")}
+        />
+      );
+    }
     if (sub === "settings") {
       const job = await getProject(ctx, jobId);
       const client = job.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;

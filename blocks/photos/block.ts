@@ -24,5 +24,6 @@ export default defineBlock({
     return { purgeDeleted: (await import("./service")).purgeDeleted, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
   },
   levelUsage: async () => (await import("./service")).levelUsage,
+  jobStorage: async () => (await import("./storage")).jobStorage,
   emits: ["photos.added"],
 });

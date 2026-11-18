@@ -57,6 +57,9 @@ model PlanVersion {
   pageWidthPt  Float?
   pageHeightPt Float?
   note         String?
+  /// Bytes the tiles and thumbnail take in the cache (null: drawn before sizes were
+  /// recorded; "plans.measure" fills it in overnight). docs/stage-2-projects.md "Job storage".
+  cacheBytes   Int?
   uploadedById String
   createdAt    DateTime          @default(now())
 

@@ -41,6 +41,26 @@ export function cacheRoot(...parts: string[]): string {
   return full;
 }
 
+/**
+ * Bytes in a folder and everything under it (0 when it isn't there). Used
+ * to record how much a render added to the cache (plan tiles, page pictures).
+ */
+export async function folderBytes(folder: string): Promise<number> {
+  let total = 0;
+  let entries;
+  try {
+    entries = await readdir(/*turbopackIgnore: true*/ folder, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const entry of entries) {
+    const full = path.join(folder, entry.name);
+    if (entry.isDirectory()) total += await folderBytes(full);
+    else if (entry.isFile()) total += (await stat(/*turbopackIgnore: true*/ full).catch(() => ({ size: 0 }))).size;
+  }
+  return total;
+}
+
 /** The file on disk, for tools that need a path (pdfinfo, pdftoppm). */
 export function storedFilePath(file: { key: string }): string {
   return resolveKey(file.key);

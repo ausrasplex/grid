@@ -198,6 +198,47 @@ When a company's request reaches the host, the host chooses where it sits:
 - **Jump to:** `/jobs/search`, the header search (a box with Ctrl K from tablet up). Matches job numbers (exact first, "1042" finds "J-1042"), job names, clients, sites and addresses.
 - Not yet: the camera scanner (Scan is still a placeholder page), plan sheets and quotes in search (they come with those Blocks), and "Outside current areas" (needs work items).
 
+### Job storage, the Jobs table and archiving (decided Nov 2026, phase 2e)
+
+Why: on a home server the disk is finite. The owner needs to see what each job uses and win space back from finished jobs **without losing anything**.
+
+**Build order:**
+1. Storage per job and the Jobs table.
+2. Archive job.
+3. Export job as a ZIP (the handover pack).
+4. Later, only if space really runs short: Import, and moving archived originals to a second disk.
+
+**1. Storage per job**
+- Every Block that keeps files for a job reports them through a manifest hook, `jobStorage` (lazy, like `levelUsage`). It takes a business and a list of job ids, and returns one line per kind of thing: label, count, **originals** (bytes), **viewing copies** (bytes), **in Recently deleted** (bytes), and how many copies aren't measured yet. Core doesn't know about photos or plans; new Blocks (Sign-offs, Assets) add their own line.
+- Every Block in the build is asked, even one the business has switched off: its files are still on disk.
+- **Originals** are what people uploaded and can't be made again. **Viewing copies** are what Grid makes from them and can make again: photo thumbnails and full-screen copies, plan tiles, document page pictures and spreadsheet data. They're kept apart because copies are often bigger than the originals (a plan set at High is many times its PDF).
+  - Photos: photo files and their thumbnails and full-screen copies.
+  - Plans: sheets, revisions, the uploaded PDFs and images (a PDF shared by several sheets is counted once), and tiles.
+  - Documents: the job's own documents and their versions, and page pictures and spreadsheet data. Library documents pinned to a job aren't counted: they belong to the library.
+- **Measuring copies:** plan tiles and document pages live in the cache folder, so their size isn't in the database. Each render now records its size (`cacheBytes` on `PlanVersion` and `DocumentVersion`). Renders from before this have none: a nightly job in each Block (`plans.measure`, `documents.measure`, 3:30 am) measures those once. Until then the card says "not measured yet".
+- **Where it shows:** a **Storage** section on the job page (side column), for people with `projects.complete` (they finish, reopen and archive jobs). It shows each line, the total and the copies.
+
+**The Jobs table** (`/jobs`, menu **Jobs** under More)
+- Every job of the business, one row each: job number, name, client, address, status (Active, Finished, Archived), started, and the counts from the Blocks (photos, plan sheets, documents). For people with `projects.complete` it also shows the size.
+- Search (job number, name, client, address), status tabs (Active · Finished · Archived · All), and sort by any column ("Biggest first" is one tap). On a phone each row is a card; the table is for tablet and desktop.
+- Sizes are worked out when the page loads (sums in the database, no disk reads). If that's ever slow with thousands of jobs, keep a nightly per-job total instead.
+- Quoting and Not won jobs (phase 4c) show only under All, with their badge.
+
+**2. Archive job** (`projects.complete`)
+- Only a **finished** job can be archived. It stays `COMPLETED` with `archivedAt` set; the screens call it **Archived**.
+- **Archiving keeps:** every original, every markup, pin, scale and sign-off (they're data, not pictures, so they land in the same place when redrawn), and the small thumbnails (photo thumbnails and plan sheet thumbnails, a few MB a job) so the photo grid and sheet list still show straight away.
+- **Archiving deletes:** the big viewing copies (plan tiles, document page pictures and spreadsheet data). Photo full-screen copies are kept: they're small next to the originals, so dropping them would win little.
+- **Opening an archived job is a quick look, not a restore.** The status stays Archived, with a banner: "Archived · Restore to work on it". It's read-only, like a finished job. Viewing copies are drawn **only for what you open, as you open it**: one sheet, one document. There's a "Getting this sheet ready…" wait of a few seconds at Medium, and up to a minute or more at Extreme.
+- **Temporary copies:** each copy drawn for an archived job records when it was last opened. The nightly clean-up deletes those not opened for **1 day**; the day restarts each time it's opened. The time is a setting in **Settings › Storage**: 1, 3 or 7 days, default 1.
+- **Restore** (`projects.complete`): clears `archivedAt`. The job goes back to Finished and everything is redrawn in the background, kept for good. Reopening an archived job restores it first.
+- Written to the activity log: archived, restored.
+
+**3. Export job as a ZIP** (the handover pack)
+- Photos in area folders, plans by sheet and revision, the job's documents in their folders, and a PDF summary (job details, counts, the photo report). Made in the background; a link to download it, kept for a week in the cache.
+- It's a copy for the client, the builder or a shelf. It isn't a way to take a job out of Grid: the job stays.
+
+**4. Later, not now:** Import (rebuilding every Block's records from a ZIP, across Grid versions) and "export then remove". They're a lot of work, and the ZIP would become the only copy, outside the backups. If archiving isn't enough, the next step is a setting that keeps archived jobs' originals on a second, cheaper disk or share, still inside Grid.
+
 ### Quoting jobs (decided Nov 2026, built with phase 4c)
 
 A quote that needs plans (for a take-off) before the work is won gets a job to hold them.

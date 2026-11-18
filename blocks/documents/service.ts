@@ -11,7 +11,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { app, badRequest, can, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
-import { attachFile, audit, db, purgeStoredFile, storedFilePath, type Prisma, type Tx } from "@grid/db";
+import { attachFile, audit, db, folderBytes, purgeStoredFile, storedFilePath, type Prisma, type Tx } from "@grid/db";
 import { canSeeJob, getProject, myActiveJobs } from "@grid/block-projects";
 import { documentKind, titleFromFileName, type DocumentKind } from "./kinds";
 import { pagesDir, removePages, renderPdfPages, sheetFile, writeSheets } from "./render";
@@ -627,11 +627,11 @@ export async function renderVersion(versionId: string, again = false) {
       // Keep header rows already chosen (a re-render after Try again).
       const before = new Map(((version.sheets ?? []) as unknown as SheetSummary[]).map((sheet) => [sheet.name, sheet.headerRow]));
       const summary = summarise(sheets).map((sheet) => ({ ...sheet, headerRow: Math.min(before.get(sheet.name) ?? sheet.headerRow, Math.max(0, sheet.rows - 1)) }));
-      await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, sheets: summary as unknown as Prisma.InputJsonValue } });
+      await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, sheets: summary as unknown as Prisma.InputJsonValue, cacheBytes: await folderBytes(pagesDir(versionId)) } });
       return;
     }
     const sizes = await renderPdfPages(storedFilePath(file), versionId);
-    await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, pages: sizes.length, pageSizes: sizes } });
+    await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, pages: sizes.length, pageSizes: sizes, cacheBytes: await folderBytes(pagesDir(versionId)) } });
   } catch (error) {
     console.error(`[documents] couldn't render version ${versionId}`, error);
     if (again) return;
