@@ -1,6 +1,6 @@
-// Swiping a line on the quote screen: what each direction does is set per
-// business in Settings › Tax & currency ("Swiping a line"). No imports, so
-// the settings form, the server check and the quote screen share it.
+// Swiping a line on the quote screen: what each direction does is set by
+// each person in Settings › You › Quote screen. No imports, so the settings
+// form, the server check and the quote screen share it.
 
 export const SWIPE_ACTIONS = ["OFF", "DELETE", "DUPLICATE", "OPTIONAL", "SECTION", "QTY_UP"] as const;
 export type SwipeAction = (typeof SWIPE_ACTIONS)[number];

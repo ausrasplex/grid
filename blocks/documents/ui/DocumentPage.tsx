@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Download, Loader2, MoreHorizontal, Upload } from "lucide-react";
 import { ActionButton, Alert, Badge, Button, Field, FormActions, Label, List, ListRow, PageHeader, SelectField, Sheet, SheetContent, Stack, Switch, api, formatBytes, useAction } from "@grid/ui";
 import { KIND_LABEL, UPLOAD_ACCEPT, type DocumentKind } from "../kinds";
-import { PageViewer } from "./PageViewer";
+import { PageViewer } from "@grid/ui";
 import { SheetViewer } from "./SheetViewer";
 import type { SheetSummary } from "../sheets";
 import { KindIcon, UploadList, useUploads } from "./shared";

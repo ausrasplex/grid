@@ -13,6 +13,7 @@ import {
   taxSettingsSchema,
   updateQuoteSchema,
   uploadQuoteSchema,
+  userSettingsSchema,
 } from "./validation";
 
 const listQuery = z.object({ tab: z.enum(["open", "draft", "sent", "won", "all"]).optional(), q: z.string().max(200).optional() });
@@ -27,6 +28,9 @@ const queryParams = (request: { query: URLSearchParams }) => Object.fromEntries(
 export const routes: Routes = {
   // Tax & currency
   "GET /settings": { permission: "quotes.view", handler: (ctx) => svc.getTaxSettings(ctx) },
+  // Settings › You › Quote screen (each person's own)
+  "GET /me/settings": { permission: "quotes.view", handler: (ctx) => svc.userSettings(ctx) },
+  "PUT /me/settings": { permission: "quotes.view", handler: (ctx, request) => svc.updateUserSettings(ctx, userSettingsSchema.parse(request.body)) },
   "PUT /settings": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.updateTaxSettings(ctx, taxSettingsSchema.parse(request.body)) },
   "POST /settings/codes": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.saveTaxCode(ctx, null, taxCodeSchema.parse(request.body)) },
   "PUT /settings/codes/:id": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.saveTaxCode(ctx, request.params.id!, taxCodeSchema.parse(request.body)) },
@@ -60,6 +64,12 @@ export const routes: Routes = {
     permission: "quotes.view",
     handler: (ctx, request) => svc.quotePdf(ctx, request.params.id!, { revisionId: request.query.get("rev"), download: request.query.get("download") === "1", signed: request.query.get("signed") === "1" }),
   },
+  // The PDF inside Grid: its pages as pictures (?rev=<revision> or ?signed=1, like /pdf).
+  "GET /:id/pdf/pages": {
+    permission: "quotes.view",
+    handler: (ctx, request) => svc.quotePdfPages(ctx, request.params.id!, { revisionId: request.query.get("rev"), signed: request.query.get("signed") === "1" }),
+  },
+  "GET /:id/pdf/pages/:key/:name": { permission: "quotes.view", handler: (ctx, request) => svc.quotePdfPageResponse(ctx, request.params.id!, request.params.key!, request.params.name!) },
   "POST /:id/send": { permission: "quotes.send", handler: (ctx, request) => svc.sendQuote(ctx, request.params.id!, sendSchema.parse(request.body)) },
   "POST /:id/reopen": { permission: "quotes.create", handler: (ctx, request) => svc.reopenQuote(ctx, request.params.id!) },
   "POST /:id/accept": { permission: "quotes.send", handler: (ctx, request) => svc.acceptQuote(ctx, request.params.id!, acceptSchema.parse(request.body ?? {})) },

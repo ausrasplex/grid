@@ -5,8 +5,14 @@
 // quote changes later. "Edit" on a sent quote reopens it as a draft; the
 // next send is the next revision.
 
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { Readable } from "node:stream";
 import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
-import { attachFile, audit, db, readStoredFile, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
+import { attachFile, audit, cacheRoot, db, readStoredFile, renderPdfPages, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
 import { createProject, getProject } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import { clientIdsNamed, clientsById, requireClient, type ClientRow } from "@grid/block-clients";
@@ -24,6 +30,7 @@ import type {
   TaxCodeInput,
   TaxSettingsInput,
   UpdateQuoteInput,
+  UserSettingsInput,
 } from "./validation";
 
 const MOD = "quotes";
@@ -74,6 +81,26 @@ export async function taxSettings(companyId: string, tx: Tx = db) {
 }
 
 export type TaxSettingsView = Awaited<ReturnType<typeof taxSettings>>;
+
+// ---------------------------------------------------------------------
+// Settings › You › Quote screen: each person's own, in each business
+// ---------------------------------------------------------------------
+
+/** What swiping a quote line does for this person (the defaults until they change it). */
+export async function userSettings(ctx: RequestContext) {
+  const companyId = requireCompany(ctx);
+  const row = await db.quoteUserSettings.findUnique({ where: { companyId_userId: { companyId, userId: ctx.userId } } });
+  return { swipeLeft: row?.swipeLeft ?? "DELETE", swipeRight: row?.swipeRight ?? "DUPLICATE" };
+}
+
+export async function updateUserSettings(ctx: RequestContext, input: UserSettingsInput) {
+  const companyId = requireCompany(ctx);
+  await db.$transaction(async (tx) => {
+    await tx.quoteUserSettings.upsert({ where: { companyId_userId: { companyId, userId: ctx.userId } }, create: { companyId, userId: ctx.userId, ...input }, update: input });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "QuoteUserSettings", entityId: ctx.userId, action: "updated", diff: input as Prisma.InputJsonValue });
+  });
+  return userSettings(ctx);
+}
 
 export async function getTaxSettings(ctx: RequestContext) {
   return taxSettings(requireCompany(ctx));
@@ -483,7 +510,7 @@ export async function getQuote(ctx: RequestContext, id: string) {
     totals: { ...totals, costCents: showCost ? totals.costCents : 0, margin: showCost ? totals.margin : null },
     revisions: quote.revisions.map((revision) => ({ id: revision.id, label: revision.label, sentAt: revision.sentAt, sentTo: revision.sentTo, hasPdf: !!revision.pdfFileId, sentBy: names.get(revision.sentById) ?? "Someone" })),
     events: quote.events.map((event) => ({ type: event.type, at: event.at, by: event.byUserId ? (names.get(event.byUserId) ?? "Someone") : null, note: event.note })),
-    settings: { currency: settings.currency, locale: settings.locale, taxName: settings.taxName, rounding: settings.rounding, defaultTaxCodeId: settings.defaultTaxCodeId, codes: settings.codes, swipeLeft: settings.swipeLeft, swipeRight: settings.swipeRight },
+    settings: { currency: settings.currency, locale: settings.locale, taxName: settings.taxName, rounding: settings.rounding, defaultTaxCodeId: settings.defaultTaxCodeId, codes: settings.codes, ...(await userSettings(ctx)) },
     canSeeCosts: showCost,
     /** Made outside Grid: its PDF and the total written on it. */
     uploaded: quote.uploadedFileId ? { fileId: quote.uploadedFileId, totalCents: quote.uploadedTotal != null ? cents(quote.uploadedTotal)! : null } : null,
@@ -628,23 +655,96 @@ const pdfResponse = (pdf: Buffer, filename: string, download: boolean) =>
     },
   });
 
-/** The PDF: a sent revision's stored copy, or a draft preview marked DRAFT. */
-export async function quotePdf(ctx: RequestContext, id: string, options: { revisionId?: string | null; download?: boolean; signed?: boolean } = {}) {
+/** Which PDF of a quote: the signed copy, a sent revision, or (neither) the latest. */
+export interface QuotePdfOptions {
+  revisionId?: string | null;
+  signed?: boolean;
+}
+
+/**
+ * The PDF bytes: the signed copy, a sent revision's stored copy, an
+ * uploaded quote's PDF, or a draft preview marked DRAFT.
+ */
+async function quotePdfFile(ctx: RequestContext, id: string, options: QuotePdfOptions) {
   const companyId = requireCompany(ctx);
   const quote = await ownQuote(db, companyId, id);
   if (options.signed) {
     const request = quote.signRequestId ? await db.signRequest.findUnique({ where: { id: quote.signRequestId } }) : null;
     if (!request?.signedPdfFileId) throw notFound("This quote wasn't signed online");
     const file = await db.storedFile.findUniqueOrThrow({ where: { id: request.signedPdfFileId } });
-    return pdfResponse(await readStoredFile(file), `${quote.number} signed.pdf`, !!options.download);
+    return { pdf: await readStoredFile(file), filename: `${quote.number} signed.pdf`, label: "Signed copy", quote };
+  }
+  if (quote.uploadedFileId && !options.revisionId) {
+    const file = await db.storedFile.findUniqueOrThrow({ where: { id: quote.uploadedFileId } });
+    return { pdf: await readStoredFile(file), filename: file.originalName ?? `${quote.number}.pdf`, label: "Uploaded PDF", quote };
   }
   const revision = options.revisionId ? quote.revisions.find((revision) => revision.id === options.revisionId) : quote.status !== "DRAFT" ? quote.revisions.at(-1) : undefined;
+  if (options.revisionId && !revision) throw notFound("That revision isn't on this quote");
   if (revision?.pdfFileId) {
     const file = await db.storedFile.findUniqueOrThrow({ where: { id: revision.pdfFileId } });
-    return pdfResponse(await readStoredFile(file), `${quote.number} Rev ${revision.label}.pdf`, !!options.download);
+    return { pdf: await readStoredFile(file), filename: `${quote.number} Rev ${revision.label}.pdf`, label: `Rev ${revision.label}`, quote };
   }
   const snapshot = await buildSnapshot(companyId, id, ctx.userId, null);
-  return pdfResponse(await renderQuotePdf(companyId, snapshot, true), `${quote.number} draft.pdf`, !!options.download);
+  return { pdf: await renderQuotePdf(companyId, snapshot, true), filename: `${quote.number} draft.pdf`, label: "Draft preview", quote };
+}
+
+/** The PDF file itself (Download). */
+export async function quotePdf(ctx: RequestContext, id: string, options: QuotePdfOptions & { download?: boolean } = {}) {
+  const { pdf, filename } = await quotePdfFile(ctx, id, options);
+  return pdfResponse(pdf, filename, !!options.download);
+}
+
+// ---------------------------------------------------------------------
+// The PDF inside Grid: its pages as pictures, so it opens on its own page
+// in the app instead of the phone's PDF app or a browser tab. Kept in
+// <files>/.cache/quotes/pdf/<quoteId>/<key> (key = the PDF's fingerprint,
+// so a changed draft gets new pictures and an unchanged one reuses them).
+// ---------------------------------------------------------------------
+
+/** Long side of a page picture, in pixels: sharp enough to zoom in on a phone. */
+const PDF_PAGE_EDGE = 1800;
+/** How many renders of one quote to keep (older drafts are cleared). */
+const PDF_RENDERS_KEPT = 4;
+const pdfFolder = (quoteId: string, key?: string) => (key ? cacheRoot("quotes", "pdf", quoteId, key) : cacheRoot("quotes", "pdf", quoteId));
+
+export async function quotePdfPages(ctx: RequestContext, id: string, options: QuotePdfOptions = {}) {
+  const { pdf, filename, label, quote } = await quotePdfFile(ctx, id, options);
+  const key = createHash("sha256").update(pdf).digest("hex").slice(0, 24);
+  const folder = pdfFolder(id, key);
+  let sizes = (await readFile(path.join(folder, "sizes.json"), "utf8").then((text) => JSON.parse(text) as [number, number][]).catch(() => null)) ?? null;
+  if (!sizes) {
+    const work = await mkdtemp(path.join(tmpdir(), "grid-quote-pdf-"));
+    try {
+      const file = path.join(work, "quote.pdf");
+      await writeFile(file, pdf);
+      sizes = await renderPdfPages(file, folder, { edge: PDF_PAGE_EDGE, timeoutMs: 2 * 60_000 });
+      await writeFile(path.join(folder, "sizes.json"), JSON.stringify(sizes));
+    } finally {
+      await rm(work, { recursive: true, force: true });
+    }
+    // Keep the newest few renders of this quote; drafts change as they're edited.
+    const others = await readdir(pdfFolder(id), { withFileTypes: true }).catch(() => []);
+    const dated = await Promise.all(
+      others.filter((entry) => entry.isDirectory() && entry.name !== key).map(async (entry) => ({ name: entry.name, at: (await stat(pdfFolder(id, entry.name)).catch(() => null))?.mtimeMs ?? 0 })),
+    );
+    for (const old of dated.sort((first, second) => second.at - first.at).slice(PDF_RENDERS_KEPT - 1)) await rm(pdfFolder(id, old.name), { recursive: true, force: true });
+  }
+  return { key, pages: sizes, filename, label, number: quote.number, title: quote.title };
+}
+
+/** One page picture ("p2.jpg"). A key's pictures never change, so phones keep them. */
+export async function quotePdfPageResponse(ctx: RequestContext, id: string, key: string, name: string) {
+  if (!/^[0-9a-f]{24}$/.test(key) || !/^p\d{1,4}\.jpg$/.test(name)) throw notFound();
+  await ownQuote(db, requireCompany(ctx), id);
+  const full = path.join(pdfFolder(id, key), name);
+  try {
+    const stats = await stat(/*turbopackIgnore: true*/ full);
+    return new Response(Readable.toWeb(createReadStream(/*turbopackIgnore: true*/ full)) as ReadableStream, {
+      headers: { "content-type": "image/jpeg", "content-length": String(stats.size), "cache-control": "private, max-age=31536000, immutable" },
+    });
+  } catch {
+    throw notFound();
+  }
 }
 
 /** End of the quote's last valid day: links work until then. */

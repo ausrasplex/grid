@@ -2,6 +2,8 @@
 //   /quotes                 list
 //   /quotes/new[/<job>]     start a quote (optionally for an existing job)
 //   /quotes/<id>            the quote: editor while draft, outcome once sent
+//   /quotes/<id>/pdf[/rev/<revision> | /signed]  its PDF, inside Grid
+//   /quotes/me              Settings › You › Quote screen (your own swipes)
 //   /quotes/price-book      labour and materials
 //   /quotes/clients         → /clients (one list for jobs and quotes)
 //   /quotes/settings        tax & currency
@@ -17,11 +19,13 @@ import { getSite } from "@grid/block-sites";
 import type { PlaceSite } from "@grid/block-sites/components";
 import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
 import { formatMoney } from "../money";
-import { getQuote, getTaxSettings, listBrands, listPriceItems, listQuotes, quoteForJob } from "../service";
+import { getQuote, getTaxSettings, listBrands, listPriceItems, listQuotes, quoteForJob, userSettings } from "../service";
 import { CustomerQuote, type CustomerViewJson } from "./CustomerQuote";
 import { NewQuote } from "./NewQuote";
 import { PriceBook, type BrandRow, type PriceItemRow } from "./PriceBook";
 import { QuoteEditor, type QuoteJson } from "./QuoteEditor";
+import { QuotePdf } from "./QuotePdf";
+import { QuoteScreenSettings, type QuoteScreenSettingsJson } from "./QuoteScreenSettings";
 import { QuotesList, type QuoteRowJson } from "./QuotesList";
 import { StatusBadge } from "./StatusBadge";
 import { TaxSettingsForm, type TaxSettingsJson } from "./TaxSettingsForm";
@@ -32,7 +36,9 @@ import { UploadedQuote, type UploadedQuoteJson } from "./UploadedQuote";
 const json = <T,>(value: unknown): T => JSON.parse(JSON.stringify(value)) as T;
 
 export const pages: BlockPages = {
-  "": async ({ ctx, params: [id] }) => {
+  "": async ({ ctx, params: [id, sub, ...rest] }) => {
+    // The PDF inside Grid: /quotes/<id>/pdf, …/pdf/rev/<revision>, …/pdf/signed.
+    if (id && sub === "pdf") return <QuotePdf quoteId={id} which={{ revisionId: rest[0] === "rev" ? (rest[1] ?? null) : null, signed: rest[0] === "signed" }} />;
     if (id) {
       const [quote, emailReady] = await Promise.all([getQuote(ctx, id), app().mail.configured()]);
       // Made outside Grid: the PDF and its answer, no editor.
@@ -42,6 +48,9 @@ export const pages: BlockPages = {
     const [rows, settings] = await Promise.all([listQuotes(ctx), getTaxSettings(ctx)]);
     return <QuotesList initial={json<QuoteRowJson[]>(rows)} currency={settings.currency} locale={settings.locale} canCreate={can(ctx, "quotes.create")} />;
   },
+
+  // Settings › You › Quote screen.
+  me: async ({ ctx }) => <QuoteScreenSettings initial={json<QuoteScreenSettingsJson>(await userSettings(ctx))} />,
 
   // /quotes/new, /quotes/new/<job>, or /quotes/new/at/<site>/<building>[/<level>] (from an empty building or floor).
   new: async ({ ctx, params }) => {

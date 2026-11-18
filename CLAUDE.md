@@ -91,7 +91,7 @@ prisma/        base, core and auth schemas; migrations
 - Next: the rest of **Phase 5b** (Documents): Sign-offs (part 3, adds the `documents.sheet` slot), search inside documents (part 4) (`docs/documents-block.md` build order). Then **Phase 4c** (trade icons, take-offs, Quoting jobs) and **Phase 5c** (Assets, `docs/assets-block.md`). OCR, product scanning and the product catalogue are later.
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.
-- PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.
+- PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. To show a PDF inside the app (never a new tab: it leaves the installed app), turn it into page pictures with `renderPdfPages()` from `@grid/db` (into `cacheRoot()`) and show them with `PageViewer` from `@grid/ui`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.
 - Throw errors with `badRequest`/`forbidden`/`notFound`/`conflict` and check them with `isHttpError()`, never `instanceof` (Blocks can get their own copy of the core module).
 - The screens say "job"; the code says "project". Keep it that way.
 - The screens say "client", never "customer" (one shared Clients list for jobs and quotes, core `clients` Block).

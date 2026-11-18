@@ -22,6 +22,8 @@ export default defineBlock({
     { id: "quotes.list", slot: "sidebar.main", label: "Quotes", icon: "dollar", href: "/quotes", permission: "quotes.view", prominence: "main", order: 30 },
     { id: "quotes.pricebook", slot: "settings.company", label: "Price book", icon: "clipboard", href: "/quotes/price-book", permission: "quotes.view", order: 50 },
     { id: "quotes.tax", slot: "settings.company", label: "Tax & currency", icon: "dollar", href: "/quotes/settings", permission: "quotes.settings.manage", order: 52 },
+    // Each person's own (Settings › You); shown while the Quotes Block is on.
+    { id: "quotes.me", slot: "settings.user", label: "Quote screen", icon: "dollar", href: "/quotes/me", permission: "quotes.view", order: 30 },
   ],
   routes: async () => (await import("./routes")).routes,
   // Recently deleted running out (none here), and deleting a whole business.

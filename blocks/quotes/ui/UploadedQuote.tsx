@@ -30,9 +30,7 @@ export function UploadedQuote({ quote, canAnswer }: { quote: UploadedQuoteJson; 
       <PageHeader title={quote.title} meta={quote.number} actions={<StatusBadge status={quote.status} />} />
       <Stack>
         <a
-          href={`/api/files/${quote.uploaded.fileId}`}
-          target="_blank"
-          rel="noreferrer"
+          href={`/quotes/${quote.id}/pdf`}
           className="flex min-h-touch-lg items-center gap-3 rounded-xl bg-card px-4 py-3 hover:bg-muted sm:px-5"
         >
           <FileText className="size-6 shrink-0 text-primary" />

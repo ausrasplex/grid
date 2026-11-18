@@ -25,6 +25,7 @@ const THINGS: Record<string, string> = {
   PriceBrand: "price book brand",
   TaxCode: "tax code",
   SignRequest: "signing link",
+  QuoteUserSettings: "quote screen setting",
 };
 
 /** Actions that read as "<did> a <thing>". Anything else reads "<Thing>: <action words>". */

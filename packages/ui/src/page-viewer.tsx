@@ -1,12 +1,14 @@
 "use client";
 
-// The document viewer: pages one under another, on paper. Zoom with the
+// A PDF viewer (Documents, quote PDFs): pages one under another, on paper. Zoom with the
 // buttons, Ctrl + scroll wheel or two fingers; jump to a page; see every
 // page small and tap one to go there. Pages load as they come into view.
 
 import { useEffect, useRef, useState } from "react";
 import { LayoutGrid, Minus, Plus } from "lucide-react";
-import { Button, Sheet, SheetContent, cn } from "@grid/ui";
+import { Button } from "./components/button";
+import { Sheet, SheetContent } from "./components/sheet";
+import { cn } from "./lib/utils";
 
 export interface ViewerPage {
   src: string;

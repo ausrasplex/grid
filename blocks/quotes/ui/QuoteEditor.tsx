@@ -329,24 +329,17 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
         actions={
           <Button variant="outline" asChild>
             <a
-              href={`/api/quotes/${quote.id}/pdf`}
-              target="_blank"
-              rel="noopener"
+              href={`/quotes/${quote.id}/pdf`}
               onClick={async (event) => {
                 if (!draft) return;
-                // The preview is drawn from what's saved, so save what's on screen first.
-                // The tab opens straight away (browsers block one opened after waiting) and
-                // gets the PDF once the save is done; a failed save shows why instead.
+                // The preview is drawn from what's saved, so save what's on screen
+                // first; a failed save shows why and stays here.
                 event.preventDefault();
-                const tab = window.open("", "_blank");
-                if (tab) tab.opener = null;
                 try {
                   if (saving.current || json !== lastSaved.current) await flush();
-                  const url = `/api/quotes/${quote.id}/pdf?at=${Date.now()}`;
-                  if (tab) tab.location.href = url;
-                  else window.location.href = url;
+                  window.location.href = `/quotes/${quote.id}/pdf`;
                 } catch {
-                  tab?.close();
+                  // The error is shown at the top of the quote.
                 }
               }}
             >
@@ -1232,7 +1225,7 @@ function Outcome({ quote, permissions, onAnswer, reload }: { quote: QuoteJson; p
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {signedOnline && (
                 <Button asChild>
-                  <a href={`/api/quotes/${quote.id}/pdf?signed=1`} target="_blank" rel="noopener">
+                  <a href={`/quotes/${quote.id}/pdf/signed`}>
                     <FileText /> Signed PDF
                   </a>
                 </Button>
@@ -1353,7 +1346,7 @@ function SentDetails({ quote }: { quote: QuoteJson }) {
               </span>
               {revision.hasPdf && (
                 <Button variant="outline" size="sm" asChild>
-                  <a href={`/api/quotes/${quote.id}/pdf?rev=${revision.id}`} target="_blank" rel="noopener">
+                  <a href={`/quotes/${quote.id}/pdf/rev/${revision.id}`}>
                     PDF
                   </a>
                 </Button>

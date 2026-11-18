@@ -29,9 +29,6 @@ export const taxSettingsSchema = z
     onlineAccept: z.boolean(),
     signDrawn: z.boolean(),
     signTyped: z.boolean(),
-    /** Swiping a line on the quote screen. */
-    swipeLeft: z.enum(SWIPE_ACTIONS).default("DELETE"),
-    swipeRight: z.enum(SWIPE_ACTIONS).default("DUPLICATE"),
   })
   .strict()
   .refine((value) => !value.onlineAccept || value.signDrawn || value.signTyped, "Allow drawing or typing a signature (or both)");
@@ -181,3 +178,12 @@ export const publicSignSchema = z
   .strict();
 export const publicCodeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code") }).strict();
 export const publicDeclineSchema = z.object({ reason: z.string().trim().max(2000).optional() }).strict();
+
+/** Settings › You › Quote screen: what swiping a quote line does, for one person. */
+export const userSettingsSchema = z
+  .object({
+    swipeLeft: z.enum(SWIPE_ACTIONS),
+    swipeRight: z.enum(SWIPE_ACTIONS),
+  })
+  .strict();
+export type UserSettingsInput = z.infer<typeof userSettingsSchema>;
