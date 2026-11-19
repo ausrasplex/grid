@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { INKS, MARKUP_KINDS } from "./geometry";
 import { ICON_OUTLINES, isCustomKey, isIconKey } from "./icons";
+import { SVG_MAX_LENGTH } from "./svg";
 
 /** A built-in icon, or one of the business's own (checked against the database when placed). */
 const anyIconKey = (key: string) => isIconKey(key) || isCustomKey(key);
@@ -81,9 +82,15 @@ export const customIconSchema = z
     name: z.string().trim().min(1, "Give it a name").max(60),
     words: z.array(z.string().max(40)).max(20).default([]),
     outline: z.enum(ICON_OUTLINES as [string, ...string[]]),
-    label: z.string().trim().min(1, "Up to 3 letters or numbers").max(3, "Up to 3 letters or numbers"),
+    label: z.string().trim().max(3, "Up to 3 letters or numbers").default(""),
+    /** An SVG file's text: made safe on the server, never kept as sent. */
+    svg: z.string().max(SVG_MAX_LENGTH, "That SVG is too big for an icon (over 200 KB)").nullable().optional(),
+    tint: z.boolean().default(false),
+    /** A built-in icon's key: this replaces its look. */
+    replacesKey: z.string().max(80).refine(isIconKey, "That built-in icon isn't there").nullable().optional(),
   })
-  .strict();
+  .strict()
+  .refine((icon) => !!icon.svg || icon.label.length > 0, { path: ["label"], message: "Up to 3 letters or numbers, or upload an SVG" });
 export type CustomIconInput = z.infer<typeof customIconSchema>;
 
 export type CreateMarkupInput = z.infer<typeof createMarkupSchema>;

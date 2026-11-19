@@ -1,23 +1,52 @@
 // A business's own icons (phase 4c part 3): Settings › Custom icons, and in
-// the plan viewer's icon library beside the built-in ones.
+// the plan viewer's icon library beside the built-in ones. An icon is built
+// from a shape and letters, or is an uploaded SVG (made safe by svg.ts here,
+// on the server, whatever the browser sent). A row with `replacesKey` gives a
+// built-in icon the business's own look instead.
 
 import "server-only";
-import { badRequest, notFound, requireCompany, type RequestContext } from "@grid/core";
+import { badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db } from "@grid/db";
-import { TRADES, isCustomKey, type CustomIconRow } from "./icons";
+import { TRADES, iconByKey, isCustomKey, tradeOf, type CustomIconRow } from "./icons";
+import { SvgError, sanitiseSvg } from "./svg";
 import type { CustomIconInput } from "./validation";
 
 const MOD = "markups";
 
-const rowOf = (icon: { id: string; trade: string; name: string; words: string[]; outline: string; label: string; deletedAt: Date | null }): CustomIconRow => ({
+const rowOf = (icon: {
+  id: string;
+  trade: string;
+  name: string;
+  words: string[];
+  outline: string;
+  label: string;
+  svg: string | null;
+  tint: boolean;
+  replacesKey: string | null;
+  deletedAt: Date | null;
+}): CustomIconRow => ({
   id: icon.id,
   trade: icon.trade,
   name: icon.name,
   words: icon.words,
   outline: icon.outline,
   label: icon.label,
+  svg: icon.svg,
+  tint: icon.tint,
+  replacesKey: icon.replacesKey,
   deleted: !!icon.deletedAt,
 });
+
+/** The upload made safe, or a plain-words 400. */
+function safeSvg(svg: string | null | undefined): string | null {
+  if (!svg) return null;
+  try {
+    return sanitiseSvg(svg);
+  } catch (failure) {
+    if (failure instanceof SvgError) throw badRequest(failure.message);
+    throw failure;
+  }
+}
 
 /** Every custom icon of the business, deleted ones too (placed ones still draw). */
 export async function customIcons(ctx: RequestContext): Promise<CustomIconRow[]> {
@@ -33,24 +62,42 @@ const checkTrade = (trade: string) => {
 
 export async function saveCustomIcon(ctx: RequestContext, id: string | null, input: CustomIconInput) {
   const companyId = requireCompany(ctx);
-  checkTrade(input.trade);
-  const data = { trade: input.trade, name: input.name, words: tidyWords(input.words), outline: input.outline, label: input.label };
+  // Replacing a built-in: it stays in its own trade.
+  const replacesKey = input.replacesKey ?? null;
+  const trade = replacesKey ? tradeOf(replacesKey)!.id : input.trade;
+  checkTrade(trade);
+  const svg = safeSvg(input.svg);
+  const data = {
+    trade,
+    name: input.name,
+    words: replacesKey ? [] : tidyWords(input.words),
+    outline: input.outline,
+    label: svg ? "" : input.label,
+    svg,
+    tint: !!svg && input.tint,
+  };
   const saved = await db.$transaction(async (tx) => {
     if (id) {
       const before = await tx.customIcon.findFirst({ where: { id, companyId, deletedAt: null } });
       if (!before) throw notFound("That icon isn't there any more");
+      if ((before.replacesKey ?? null) !== replacesKey) throw badRequest("That icon can't be moved to another built-in icon");
       const icon = await tx.customIcon.update({ where: { id }, data });
       await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "CustomIcon", entityId: id, action: "updated", diff: { before: { ...rowOf(before) }, after: data } });
       return icon;
     }
-    const icon = await tx.customIcon.create({ data: { ...data, companyId, createdById: ctx.userId } });
+    if (replacesKey && (await tx.customIcon.count({ where: { companyId, replacesKey, deletedAt: null } })))
+      throw conflict(`${iconByKey(replacesKey)!.name} already has your own look. Change that one instead.`);
+    const icon = await tx.customIcon.create({ data: { ...data, replacesKey, companyId, createdById: ctx.userId } });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "CustomIcon", entityId: icon.id, action: "added", diff: data });
     return icon;
   });
   return rowOf(saved);
 }
 
-/** Out of the library; icons already placed keep drawing and counting. */
+/**
+ * Out of the library; icons already placed keep drawing and counting. For a
+ * replacement, this puts the built-in look back.
+ */
 export async function deleteCustomIcon(ctx: RequestContext, id: string) {
   const companyId = requireCompany(ctx);
   await db.$transaction(async (tx) => {

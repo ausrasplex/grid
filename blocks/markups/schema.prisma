@@ -130,6 +130,15 @@ model CustomIcon {
   label       String
   /// A picture instead of the outline and label: later.
   fileId      String?
+  /// An uploaded SVG instead of the outline and label, already made safe
+  /// (svg.ts rebuilds it from an allowlist). Shown only as a picture.
+  svg         String?
+  /// Draw the SVG in the trade's colour instead of its own colours.
+  tint        Boolean   @default(false)
+  /// Set: this replaces a built-in icon's look ("electrical.gpo-double") for
+  /// the business. Placed ones keep the built-in key, so counts, numbers and
+  /// prices carry on. Deleting it puts the built-in look back.
+  replacesKey String?
   createdById String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

@@ -30,8 +30,8 @@ test("custom icons join the library and look up like built-in ones", async () =>
   const { iconLookup, customKey, isCustomKey } = await import("../icons.ts");
   const id = "0d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22";
   const lookup = iconLookup([
-    { id, trade: "electrical", name: "Bollard light", words: ["garden"], outline: "circle", label: "BL", deleted: false },
-    { id: "1d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22", trade: "custom", name: "Gone", words: [], outline: "square", label: "G", deleted: true },
+    { id, trade: "electrical", name: "Bollard light", words: ["garden"], outline: "circle", label: "BL", svg: null, tint: false, replacesKey: null, deleted: false },
+    { id: "1d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22", trade: "custom", name: "Gone", words: [], outline: "square", label: "G", svg: null, tint: false, replacesKey: null, deleted: true },
   ]);
   assert.ok(isCustomKey(customKey(id)));
   assert.equal(lookup.icon(customKey(id))?.name, "Bollard light");
@@ -41,4 +41,26 @@ test("custom icons join the library and look up like built-in ones", async () =>
   // Deleted ones leave the library but still draw where placed.
   assert.equal(lookup.search("gone").length, 0);
   assert.equal(lookup.icon("custom.1d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22")?.name, "Gone");
+});
+
+test("a built-in icon can be given the business's own look", async () => {
+  const { iconLookup } = await import("../icons.ts");
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>';
+  const lookup = iconLookup([
+    { id: "2d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22", trade: "electrical", name: "Double GPO (ours)", words: [], outline: "circle", label: "", svg, tint: true, replacesKey: "electrical.gpo-double", deleted: false },
+    { id: "3d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22", trade: "electrical", name: "Put back", words: [], outline: "square", label: "X", svg: null, tint: false, replacesKey: "electrical.gpo-single", deleted: true },
+  ]);
+  const replaced = lookup.icon("electrical.gpo-double")!;
+  assert.equal(replaced.key, "electrical.gpo-double");
+  assert.equal(replaced.name, "Double GPO (ours)");
+  assert.equal(replaced.svg, svg);
+  assert.equal(replaced.tint, true);
+  assert.equal(lookup.trade("electrical.gpo-double")?.id, "electrical");
+  // The library shows the new look in the built-in's place, once.
+  const electrical = lookup.search("").find((group) => group.trade.id === "electrical")!;
+  assert.equal(electrical.icons.filter((entry) => entry.key === "electrical.gpo-double").length, 1);
+  assert.equal(electrical.icons.find((entry) => entry.key === "electrical.gpo-double")!.svg, svg);
+  // A removed replacement: the built-in look is back.
+  assert.equal(lookup.icon("electrical.gpo-single")?.svg, undefined);
+  assert.equal(lookup.icon("electrical.gpo-single")?.name, "Single GPO");
 });

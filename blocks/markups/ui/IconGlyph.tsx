@@ -1,7 +1,9 @@
 // One trade icon, drawn from its description in icons.ts (24 × 24 box).
 // Used on the plan (inside the overlay's SVG) and in the library.
 
+import { useMemo } from "react";
 import type { TradeIcon } from "../icons";
+import { svgDataUrl, tintSvg } from "../svg";
 
 const OUTLINES: Record<TradeIcon["outline"], string | null> = {
   circle: "M12 3a9 9 0 1 0 0.001 0z",
@@ -14,6 +16,7 @@ const OUTLINES: Record<TradeIcon["outline"], string | null> = {
 
 /** The symbol in a 24 × 24 box, in `colour`, with a white backing so it reads on a busy drawing. */
 export function IconShape({ icon, colour, backing = true }: { icon: TradeIcon; colour: string; backing?: boolean }) {
+  if (icon.svg) return <SvgIcon svg={icon.svg} tint={!!icon.tint} colour={colour} backing={backing} />;
   const outline = OUTLINES[icon.outline];
   const label = icon.label ?? "";
   const fontSize = label.length >= 3 ? 6.5 : label.length === 2 ? 8 : 10;
@@ -28,6 +31,21 @@ export function IconShape({ icon, colour, backing = true }: { icon: TradeIcon; c
           {label}
         </text>
       )}
+    </g>
+  );
+}
+
+/**
+ * An uploaded SVG icon. Only ever drawn as a picture (a data: URL in
+ * `<image>`), which browsers never run scripts in, on top of svg.ts making
+ * it safe when it was saved.
+ */
+function SvgIcon({ svg, tint, colour, backing }: { svg: string; tint: boolean; colour: string; backing: boolean }) {
+  const href = useMemo(() => svgDataUrl(tint ? tintSvg(svg, colour) : svg), [svg, tint, colour]);
+  return (
+    <g>
+      {backing && <rect x={1} y={1} width={22} height={22} rx={3} fill="white" fillOpacity={0.8} />}
+      <image href={href} x={1.5} y={1.5} width={21} height={21} preserveAspectRatio="xMidYMid meet" />
     </g>
   );
 }

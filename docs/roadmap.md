@@ -198,8 +198,13 @@ Built after 5b (Documents) and before 5c (Assets). Trade symbols placed on plans
   - The links are the same on every job. Job documents only show on jobs you can see.
   - `IconDocumentLink` belongs to Documents, which only stores the key. Markups just links to the page, so neither Block depends on the other.
   - `GET` / `POST /api/documents/icon/<key>`, `DELETE /api/documents/icon/<key>/<documentId>`.
+- **SVG icons and your own look for built-in icons (decided and built Nov 2026, after testing):**
+  - A custom icon can be an **uploaded SVG** instead of a shape and letters (`CustomIcon.svg`), with **Use the trade's colour** (`tint`) to draw it in one colour like the rest, or its own colours.
+  - **Made safe on the server** (`blocks/markups/svg.ts`, unit-tested): the file is read tag by tag and rebuilt from an allowlist of drawing elements (paths, shapes, groups, text, gradients, clip paths, masks) and drawing attributes. Scripts, event handlers, links, `<use>`, embedded pictures, `<style>`, `foreignObject`, animation, editor extras and references outside the icon are dropped; DOCTYPEs, entities and CDATA are refused; colours in `style` become attributes. Up to 200 KB. The browser runs the same check for the preview, but the server never keeps what was sent.
+  - It's **only ever drawn as a picture** (a data: URL in SVG `<image>`), which browsers never run scripts in or let load anything: a second guard.
+  - **Every built-in icon, listed by trade** in Settings › Custom icons, can be given the business's own look, from the same creator or an SVG (`CustomIcon.replacesKey`, one per built-in icon). It keeps its key, trade and place in the library, so icons already on plans change look and keep their counts, numbers, price book items and manual links. **Put back the built-in** deletes the replacement.
 - **Not yet:**
-  - uploaded pictures as icons;
+  - uploaded pictures (PNG, JPG) as icons;
   - manuals linked to a single placed icon (only to the type);
   - the links shown from the document's side.
 

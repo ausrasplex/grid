@@ -20,6 +20,10 @@ export interface TradeIcon {
   fill?: string;
   /** A short label in the middle (two or three letters). */
   label?: string;
+  /** An uploaded SVG (made safe) drawn instead of the parts above. */
+  svg?: string;
+  /** Draw the SVG in the trade's colour. */
+  tint?: boolean;
 }
 
 export interface Trade {
@@ -226,6 +230,11 @@ export interface CustomIconRow {
   words: string[];
   outline: string;
   label: string;
+  /** An uploaded SVG, already made safe. */
+  svg: string | null;
+  tint: boolean;
+  /** Replaces this built-in icon's look for the business. */
+  replacesKey: string | null;
   /** Removed from the library; ones already placed still draw. */
   deleted: boolean;
 }
@@ -234,17 +243,33 @@ export const customKey = (id: string) => `custom.${id}`;
 export const isCustomKey = (key: string) => /^custom\.[0-9a-f-]{36}$/.test(key);
 
 export function customIcon(row: CustomIconRow): TradeIcon {
-  return { key: customKey(row.id), name: row.name, words: row.words, outline: (ICON_OUTLINES as string[]).includes(row.outline) ? (row.outline as IconOutline) : "circle", label: row.label };
+  const look: TradeIcon = { key: customKey(row.id), name: row.name, words: row.words, outline: (ICON_OUTLINES as string[]).includes(row.outline) ? (row.outline as IconOutline) : "circle", label: row.label };
+  return row.svg ? { ...look, outline: "none", label: undefined, svg: row.svg, tint: row.tint } : look;
+}
+
+/** A built-in icon with the business's replacement look (its key, words and trade stay). */
+export function replacedIcon(builtIn: TradeIcon, row: CustomIconRow): TradeIcon {
+  const look = customIcon(row);
+  return { ...builtIn, name: row.name || builtIn.name, outline: look.outline, label: look.label, svg: look.svg, tint: look.tint, path: undefined, fill: undefined };
 }
 
 /** Looks up built-in and this business's custom icons together. */
 export function iconLookup(customs: CustomIconRow[]) {
-  const byKey = new Map(customs.map((row) => [customKey(row.id), row]));
+  const own = customs.filter((row) => !row.replacesKey);
+  const byKey = new Map(own.map((row) => [customKey(row.id), row]));
+  // Built-in icons the business has given its own look.
+  const replaced = new Map(customs.filter((row) => row.replacesKey && !row.deleted).map((row) => [row.replacesKey!, row]));
+  const builtIn = (entry: TradeIcon) => {
+    const row = replaced.get(entry.key);
+    return row ? replacedIcon(entry, row) : entry;
+  };
   const tradeById = new Map(TRADES.map((trade) => [trade.id, trade]));
   return {
     icon: (key: string): TradeIcon | null => {
       const row = byKey.get(key);
-      return row ? customIcon(row) : iconByKey(key);
+      if (row) return customIcon(row);
+      const entry = iconByKey(key);
+      return entry ? builtIn(entry) : null;
     },
     trade: (key: string): Trade | null => {
       const row = byKey.get(key);
@@ -253,14 +278,17 @@ export function iconLookup(customs: CustomIconRow[]) {
     },
     label: (key: string, number: number | null, versionName?: string | null, numbered = true) => {
       const row = byKey.get(key);
-      const name = row?.name ?? iconByKey(key)?.name ?? "Icon";
+      const name = row?.name ?? replaced.get(key)?.name ?? iconByKey(key)?.name ?? "Icon";
       if (!numbered || number === null) return name;
       return `${name} ${number}${versionName ? ` (${versionName})` : ""}`;
     },
     /** Library groups: custom icons join their trade's group (or Custom, first), then searched like the rest. */
     search: (query: string): { trade: Trade; icons: TradeIcon[] }[] => {
-      const live = customs.filter((row) => !row.deleted);
-      const groups = [{ ...CUSTOM_TRADE, icons: live.filter((row) => !tradeById.has(row.trade)).map(customIcon) }, ...TRADES.map((trade) => ({ ...trade, icons: [...live.filter((row) => row.trade === trade.id).map(customIcon), ...trade.icons] }))];
+      const live = own.filter((row) => !row.deleted);
+      const groups = [
+        { ...CUSTOM_TRADE, icons: live.filter((row) => !tradeById.has(row.trade)).map(customIcon) },
+        ...TRADES.map((trade) => ({ ...trade, icons: [...live.filter((row) => row.trade === trade.id).map(customIcon), ...trade.icons.map(builtIn)] })),
+      ];
       const words = query.toLowerCase().split(/\s+/).filter(Boolean);
       return groups
         .map((trade) => ({
