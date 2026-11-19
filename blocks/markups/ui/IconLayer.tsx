@@ -238,7 +238,8 @@ export function IconLayer({
     setPicked({ iconKey, number: numbers.length >= 2 ? 1 : null });
     setLibrary(false);
     setPlacedNow([]);
-    if (canPlace) setTool("markups.icon");
+    // Taps place; dragging still moves the plan to the next spot.
+    if (canPlace) setTool("markups.icon", { tapsOnly: true });
   };
 
   const addNumber = async (iconKey: string, name: string | null) => {

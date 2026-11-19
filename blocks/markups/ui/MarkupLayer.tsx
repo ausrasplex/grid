@@ -100,6 +100,8 @@ const TOOLS: { id: Exclude<ToolId, "scale">; kind: MarkupKind; label: string; ic
 const FREEHAND: ToolId[] = ["pen", "highlight"];
 const DRAG_SHAPES: ToolId[] = ["arrow", "line", "rect", "ellipse", "cloud"];
 const TAP_POINTS: ToolId[] = ["length", "area", "scale"];
+/** Tools that only use taps: dragging still moves the plan while they're picked. */
+const tapsOnly = (tool: ToolId | string) => ({ tapsOnly: tool === "text" || TAP_POINTS.includes(tool as ToolId) });
 /** Measurements whose points can be dragged, while drawing and after. */
 const MOVABLE_POINTS: MarkupKind[] = ["LENGTH", "AREA"];
 /** How close (screen pixels) a press must be to a point to grab it. */
@@ -174,7 +176,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       setDialog({ type: "scale", then: next });
       return;
     }
-    setTool(next && next !== tool ? `markups.${next}` : null);
+    setTool(next && next !== tool ? `markups.${next}` : null, next ? tapsOnly(next) : undefined);
   };
 
   const failed = (error: unknown) => setError(error instanceof Error ? error.message : String(error));
@@ -604,13 +606,13 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
               onPickPoints={() => {
                 setDialog(null);
                 setStroke(null);
-                setTool("markups.scale");
+                setTool("markups.scale", tapsOnly("scale"));
               }}
               onSaved={async (then) => {
                 const fresh = await api<{ scales: ScaleJson[] }>(`/markups/sheet/${sheetId}`);
                 setScales(fresh.scales);
                 setDialog(null);
-                if (then) setTool(`markups.${then}`);
+                if (then) setTool(`markups.${then}`, tapsOnly(then));
               }}
               then={dialog.then}
             />

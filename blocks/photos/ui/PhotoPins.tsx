@@ -241,7 +241,7 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
       <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(event) => (target.current && void addPhotos(event.target.files, target.current.at, target.current.note), (event.target.value = ""))} />
       <input ref={library} type="file" accept="image/*" multiple className="hidden" onChange={(event) => (target.current && void addPhotos(event.target.files, target.current.at, target.current.note), (event.target.value = ""))} />
 
-      {canAdd && <PlanToolButton label="Photo" icon={<Camera />} order={20} active={tool === TOOL} onClick={() => setTool(tool === TOOL ? null : TOOL)} />}
+      {canAdd && <PlanToolButton label="Photo" icon={<Camera />} order={20} active={tool === TOOL} onClick={() => setTool(tool === TOOL ? null : TOOL, { tapsOnly: true })} />}
 
       <Sheet open={!!open} onOpenChange={(isOpen) => !isOpen && setOpenKey(null)}>
         <SheetContent title={open ? `${open.photos.length + open.waiting.length} photo${open.photos.length + open.waiting.length === 1 ? "" : "s"} here` : "Photos"} description={`On ${sheet.number}`}>

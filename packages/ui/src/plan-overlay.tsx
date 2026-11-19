@@ -49,7 +49,8 @@ export interface PlanView {
  * A finger, pen or mouse on the sheet. "press" and "click" are always sent
  * (a tap can pick a markup or a pin; a press can grab a handle). "drag",
  * "release", "double" and "cancel" are sent while a tool is picked, or
- * after a listener claimed the press.
+ * after a listener claimed the press. A tool picked with `tapsOnly` gets
+ * taps ("click", "double") but a one-finger drag still moves the plan.
  */
 export interface PlanPointer {
   kind: "press" | "drag" | "release" | "click" | "double" | "cancel";
@@ -76,7 +77,12 @@ export interface PlanOverlayValue {
   view: PlanView;
   /** The tool in use, "<block>.<tool>" (e.g. "markups.pen"), or null to pan and zoom. */
   tool: string | null;
-  setTool: (tool: string | null) => void;
+  /**
+   * Pick a tool (or null to put it down). `tapsOnly`: the tool only uses
+   * taps (placing an icon, a pin, measuring point to point), so dragging
+   * still moves the plan while it's picked.
+   */
+  setTool: (tool: string | null, options?: { tapsOnly?: boolean }) => void;
   /** "Hide markups": every layer hides its drawing while this is on. */
   hidden: boolean;
   onPointer: (listener: (pointer: PlanPointer) => void) => () => void;

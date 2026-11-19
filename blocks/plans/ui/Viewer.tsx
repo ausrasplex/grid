@@ -112,8 +112,11 @@ export function Viewer({
   const [view, setView] = useState<PlanView>({ x: 0, y: 0, scale: 1, width: 0, height: 0 });
   const [tool, setToolState] = useState<string | null>(null);
   const toolRef = useRef<string | null>(null);
-  const setTool = useCallback((next: string | null) => {
+  // A tap-only tool (icons, pins, point-to-point measuring) leaves dragging to pan the plan.
+  const tapsOnlyRef = useRef(false);
+  const setTool = useCallback((next: string | null, options?: { tapsOnly?: boolean }) => {
     toolRef.current = next;
+    tapsOnlyRef.current = !!next && !!options?.tapsOnly;
     setToolState(next);
   }, []);
   const [hidden, setHidden] = useState(false);
@@ -188,7 +191,8 @@ export function Viewer({
       for (const name of ["open", "update-viewport", "resize"] as const) zoomViewer.addHandler(name, schedule);
 
       // Taps and strokes go to the tool in use. While one's picked, a
-      // one-finger drag draws instead of panning; two fingers still zoom.
+      // one-finger drag draws instead of panning (unless the tool only uses
+      // taps); two fingers still zoom.
       // With no tool, a press can still be claimed (a corner handle), and
       // then that drag moves the handle instead of the plan.
       type CanvasEvent = { position: OpenSeadragonType.Point; preventDefaultAction?: boolean; quick?: boolean };
@@ -198,7 +202,7 @@ export function Viewer({
         const point = zoomViewer.viewport.pointFromPixel(event.position, true);
         for (const listener of listeners.current) listener({ kind, point: [point.x, point.y], screen: [event.position.x, event.position.y], ...extra });
       };
-      const active = () => !!toolRef.current || claimed;
+      const active = () => (!!toolRef.current && !tapsOnlyRef.current) || claimed;
       const whileActive = (kind: PlanPointer["kind"], stopDefault: boolean) => (event: unknown) => {
         if (!active()) return;
         if (stopDefault) (event as CanvasEvent).preventDefaultAction = true;
