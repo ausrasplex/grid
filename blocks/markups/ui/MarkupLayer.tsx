@@ -9,7 +9,7 @@
 // soon as they're drawn; Undo takes the last thing back.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Check, Circle, Cloud, DraftingCompass, Highlighter, MoveUpRight, Pencil, Ruler, Slash, Square, SquareDashed, Trash2, Type, Undo2, X } from "lucide-react";
+import { Check, Circle, Cloud, DraftingCompass, Highlighter, Magnet, MoveUpRight, Pencil, Ruler, Slash, Square, SquareDashed, Trash2, Type, Undo2, X } from "lucide-react";
 import {
   Alert,
   Button,
@@ -55,6 +55,7 @@ import {
   type Ink,
   type MarkupKind,
   type Point,
+  snapAngle,
 } from "../geometry";
 
 export interface MarkupJson {
@@ -102,6 +103,8 @@ const DRAG_SHAPES: ToolId[] = ["arrow", "line", "rect", "ellipse", "cloud"];
 const TAP_POINTS: ToolId[] = ["length", "area", "scale"];
 /** Tools that only use taps: dragging still moves the plan while they're picked. */
 const tapsOnly = (tool: ToolId | string) => ({ tapsOnly: tool === "text" || TAP_POINTS.includes(tool as ToolId) });
+/** Tools that snap to 45° with Shift held (or Snap on): straight runs and neat lines. */
+const SNAPS: ToolId[] = ["line", "arrow", "length", "area", "scale"];
 /** Measurements whose points can be dragged, while drawing and after. */
 const MOVABLE_POINTS: MarkupKind[] = ["LENGTH", "AREA"];
 /** How close (screen pixels) a press must be to a point to grab it. */
@@ -272,8 +275,24 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
 
   // The pointer handler reads the latest state through a ref, so it isn't
   // re-subscribed on every frame of a zoom.
-  const latest = useRef({ tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable });
-  latest.current = { tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable };
+  // Snap to 45°: hold Shift (keyboard), or turn Snap on (phones and tablets have no Shift).
+  const [snapOn, setSnapOn] = useState(false);
+  const shiftHeld = useRef(false);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => void (shiftHeld.current = event.shiftKey);
+    const onBlur = () => void (shiftHeld.current = false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
+  const latest = useRef({ tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable, snapOn });
+  latest.current = { tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable, snapOn };
   /** The point being dragged: in the measurement being drawn ("draft") or a saved one. */
   const grabbed = useRef<{ id: string; index: number; points: Point[]; before: Point[] } | null>(null);
 
@@ -292,9 +311,12 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
 
   const onPointer = useCallback(
     (pointer: PlanPointer) => {
-      const { tool, otherTool, visible, view, hidden, canDraw, movable } = latest.current;
+      const { tool, otherTool, visible, view, hidden, canDraw, movable, snapOn } = latest.current;
       const draft = stroke.current;
       const point = pointer.point;
+      const snapping = (snapOn || shiftHeld.current) && !!tool && SNAPS.includes(tool);
+      /** Where this point goes from `from`: snapped to 45° when snapping. */
+      const snapFrom = (from: Point | undefined) => (snapping && from ? snapAngle(from, point) : point);
       // Another Block's tool (a photo pin) has the taps.
       if (otherTool) return;
 
@@ -371,7 +393,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       }
       if (DRAG_SHAPES.includes(tool)) {
         if (pointer.kind === "press") setStroke({ tool, points: [point, point] });
-        else if (pointer.kind === "drag" && draft?.tool === tool) setStroke({ tool, points: [draft.points[0]!, point] });
+        else if (pointer.kind === "drag" && draft?.tool === tool) setStroke({ tool, points: [draft.points[0]!, snapFrom(draft.points[0])] });
         else if (pointer.kind === "release" && draft?.tool === tool) {
           setStroke(null);
           const [start, end] = draft.points as [Point, Point];
@@ -385,7 +407,8 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       }
       if (TAP_POINTS.includes(tool)) {
         if (pointer.kind === "click") {
-          const points = [...(draft?.tool === tool ? draft.points : []), point];
+          const before = draft?.tool === tool ? draft.points : [];
+          const points = [...before, snapFrom(before[before.length - 1])];
           if (tool === "scale" && points.length === 2) {
             setStroke(null);
             setTool(null);
@@ -478,7 +501,20 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
             ) : (
               <span className="text-white/70">Draw with one finger. Two fingers move the plan.</span>
             )}
+            {SNAPS.includes(tool) && <span className="hidden text-xs text-white/50 lg:block">Hold Shift to snap to 45°.</span>}
           </p>
+          {SNAPS.includes(tool) && (
+            <button
+              type="button"
+              aria-pressed={snapOn}
+              aria-label="Snap to 45°"
+              title="Snap to 45° (or hold Shift)"
+              onClick={() => setSnapOn((current) => !current)}
+              className={`flex h-11 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-semibold ${snapOn ? "bg-primary text-primary-foreground" : "hover:bg-white/10"}`}
+            >
+              <Magnet className="size-4" /> 45°
+            </button>
+          )}
           {(tool === "length" || tool === "area") && (
             <>
               <button

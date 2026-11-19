@@ -52,6 +52,24 @@ export interface MarkupShape {
 
 export const distance = (first: Point, second: Point) => Math.hypot(second[0] - first[0], second[1] - first[1]);
 
+/**
+ * `to` moved onto the nearest 45° line from `from` (flat, upright or
+ * diagonal): holding Shift, or Snap on, while drawing a line, arrow or
+ * measurement. Sheet units are the same across and down, so the angles are true.
+ * It stays where the finger is along that line (the nearest point on it).
+ */
+export function snapAngle(from: Point, to: Point, step = Math.PI / 4): Point {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  if (!dx && !dy) return to;
+  const angle = Math.round(Math.atan2(dy, dx) / step) * step;
+  const along = dx * Math.cos(angle) + dy * Math.sin(angle);
+  // Exactly flat or upright: no tiny drift from floating point.
+  const x = from[0] + along * Math.cos(angle);
+  const y = from[1] + along * Math.sin(angle);
+  return [Math.abs(x - from[0]) < 1e-12 ? from[0] : x, Math.abs(y - from[1]) < 1e-12 ? from[1] : y];
+}
+
 export function polylineLength(points: Point[]): number {
   let total = 0;
   for (let index = 1; index < points.length; index++) total += distance(points[index - 1]!, points[index]!);

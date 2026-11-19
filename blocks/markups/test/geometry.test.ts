@@ -131,3 +131,13 @@ test("the scale carries over from an earlier revision", () => {
   assert.equal(scaleFor("c", versions, scales)?.carriedFrom?.revision, "B");
   assert.equal(scaleFor("a", versions, scales), null);
 });
+
+test("snapping to 45°: flat, upright and diagonal", async () => {
+  const { snapAngle } = await import("../geometry.ts");
+  assert.deepEqual(snapAngle([0, 0], [1, 0.1]), [1, 0]);
+  assert.deepEqual(snapAngle([0, 0], [0.1, -1]), [0, -1]);
+  const [x, y] = snapAngle([0, 0], [1, 0.9]);
+  assert.ok(Math.abs(x - 0.95) < 1e-9 && Math.abs(y - 0.95) < 1e-9);
+  assert.deepEqual(snapAngle([2, 2], [1, 2.2]), [1, 2]);
+  assert.deepEqual(snapAngle([1, 1], [1, 1]), [1, 1]);
+});
