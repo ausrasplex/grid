@@ -258,7 +258,7 @@ Why: on a home server the disk is finite. The owner needs to see what each job u
   - Markups on an archived job's plans aren't blocked yet. They're tiny and kept anyway.
 - **Redraw plans/documents** (Settings › Plans & PDFs) skips dropped copies, so it doesn't undo archiving.
 
-**3. Export job as a ZIP** (the handover pack)
+**3. Export job as a ZIP** (the handover pack). **Moved to later (Nov 2026):** the owner decided archiving and the storage clean-up cover the storage worries; Export stays a maybe for a future handover feature.
 - Photos in area folders, plans by sheet and revision, the job's documents in their folders, and a PDF summary (job details, counts, the photo report). Made in the background; a link to download it, kept for a week in the cache.
 - It's a copy for the client, the builder or a shelf. It isn't a way to take a job out of Grid: the job stays.
 
