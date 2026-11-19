@@ -10,7 +10,17 @@ export interface QuoteSnapshot {
   title: string;
   date: string;
   validUntil: string;
-  client: { name: string; contactName: string | null; email: string | null; phone: string | null; address: string | null; abn: string | null } | null;
+  client: {
+    name: string;
+    contactName: string | null;
+    /** A person at a business: their role and the business (missing on quotes sent before businesses). */
+    role?: string | null;
+    businessName?: string | null;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+    abn: string | null;
+  } | null;
   siteAddress: string | null;
   clientView: "ITEMISED" | "SECTIONS" | "LUMP";
   intro: string | null;

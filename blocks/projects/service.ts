@@ -165,7 +165,7 @@ export async function createProject(ctx: RequestContext, input: CreateProjectInp
         hostCompanyId: companyId,
         name: input.name,
         clientId: client?.id ?? null,
-        clientName: client?.name ?? null,
+        clientName: client?.label ?? null,
         description: input.description || null,
         status: quoting ? "QUOTING" : "ACTIVE",
         listing: site.kind === "MANAGED" ? "LISTED" : "UNLISTED",
@@ -427,11 +427,15 @@ export async function jobsAt(ctx: RequestContext, location: { siteId: string; bu
   return { site, active, earlier, counts };
 }
 
-/** A client's jobs for their page: active ones (newest first) and the last few finished. */
-export async function jobsForClient(ctx: RequestContext, clientId: string, earlierLimit = 5) {
+/**
+ * A client's jobs for their page: active ones (newest first) and the last few
+ * finished. Several ids: everyone at a business, on the business's page.
+ */
+export async function jobsForClient(ctx: RequestContext, clientIds: string[], earlierLimit = 5) {
   const companyId = requireCompany(ctx);
+  if (!clientIds.length) return { active: [], earlier: [], earlierCount: 0 };
   const rows = await db.project.findMany({
-    where: { clientId, deletedAt: null, companies: { some: { companyId, status: VISIBLE } } },
+    where: { clientId: { in: clientIds }, deletedAt: null, companies: { some: { companyId, status: VISIBLE } } },
     select: summarySelect(companyId),
     orderBy: { startedAt: "desc" },
     take: 300,
@@ -571,7 +575,7 @@ export async function updateProject(ctx: RequestContext, projectId: string, inpu
       where: { id: projectId },
       data: {
         name: input.name,
-        ...(client === undefined ? {} : { clientId: client?.id ?? null, clientName: client?.name ?? null }),
+        ...(client === undefined ? {} : { clientId: client?.id ?? null, clientName: client?.label ?? null }),
         description: input.description === undefined ? undefined : input.description || null,
         listing: input.listing,
       },

@@ -5,6 +5,7 @@ const THINGS: Record<string, string> = {
   Project: "job",
   ProjectCover: "job's areas",
   Company: "business",
+  ClientBusiness: "client business",
   Membership: "member",
   PhotoComment: "photo note",
   JobPhoto: "photo",

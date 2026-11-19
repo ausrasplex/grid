@@ -107,7 +107,10 @@ export function QuoteDocument({
             <>
               <div style={{ fontWeight: 700 }}>{snapshot.client.name}</div>
               <div className="text small">
-                {[snapshot.client.contactName && snapshot.client.contactName !== snapshot.client.name ? `Attn: ${snapshot.client.contactName}` : null, snapshot.client.address, snapshot.client.email, snapshot.client.phone, snapshot.client.abn ? `${tax.registrationLabel} ${snapshot.client.abn}` : null]
+                {[
+                  [snapshot.client.role, snapshot.client.businessName].filter(Boolean).join(", ") || null,
+                  snapshot.client.contactName && snapshot.client.contactName !== snapshot.client.name ? `Attn: ${snapshot.client.contactName}` : null,
+                  snapshot.client.address, snapshot.client.email, snapshot.client.phone, snapshot.client.abn ? `${tax.registrationLabel} ${snapshot.client.abn}` : null]
                   .filter(Boolean)
                   .join("\n")}
               </div>

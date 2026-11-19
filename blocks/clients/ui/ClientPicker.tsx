@@ -1,20 +1,44 @@
 "use client";
 
 // Pick a client, or add one on the spot (name is enough to start). Used when
-// starting a job, in a job's details and on quotes.
+// starting a job, in a job's details and on quotes. A client can be a person
+// at a business (Sam Lee, Project Manager at Honeywell).
 import { useEffect, useState } from "react";
+import { Building2 } from "lucide-react";
 import { AddressField, Alert, Button, Field, FormActions, Label, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
+
+export interface BusinessJson {
+  id: string;
+  name: string;
+  abn: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+}
+
+export interface BusinessRowJson extends BusinessJson {
+  notes: string | null;
+  peopleCount: number;
+}
 
 export interface ClientJson {
   id: string;
   name: string;
   contactName: string | null;
+  businessId: string | null;
+  role: string | null;
   email: string | null;
   phone: string | null;
   address: string | null;
   abn: string | null;
   notes: string | null;
+  business: BusinessJson | null;
+  /** "Sam Lee, Honeywell", or just the name. */
+  label: string;
 }
+
+/** "Project Manager, Honeywell". */
+export const roleAt = (client: Pick<ClientJson, "role"> & { business?: { name: string } | null }) => [client.role, client.business?.name].filter(Boolean).join(", ") || null;
 
 export function ClientPicker({
   value,
@@ -22,7 +46,7 @@ export function ClientPicker({
   canAdd = true,
   hint,
 }: {
-  value: Pick<ClientJson, "id" | "name"> & Partial<ClientJson> | null;
+  value: (Pick<ClientJson, "id" | "name"> & Partial<ClientJson>) | null;
   onChange: (client: ClientJson | null) => void;
   /** Has clients.add: offer "+ New client". */
   canAdd?: boolean;
@@ -43,6 +67,8 @@ export function ClientPicker({
     return () => clearTimeout(timer);
   }, [open, query]);
 
+  const valueRole = value ? roleAt({ role: value.role ?? null, business: value.business }) : null;
+
   return (
     <div className="flex flex-col gap-2 lg:max-w-2xl">
       <Label>Client</Label>
@@ -56,7 +82,7 @@ export function ClientPicker({
           {value ? (
             <span className="min-w-0">
               <span className="block truncate font-medium">{value.name}</span>
-              {(value.email || value.phone) && <span className="block truncate text-sm text-muted-foreground">{[value.email, value.phone].filter(Boolean).join(" · ")}</span>}
+              {(valueRole || value.email || value.phone) && <span className="block truncate text-sm text-muted-foreground">{[valueRole, value.email, value.phone].filter(Boolean).join(" · ")}</span>}
             </span>
           ) : (
             <span className="text-muted-foreground">Choose or add a client</span>
@@ -67,15 +93,15 @@ export function ClientPicker({
           {adding ? (
             <ClientForm
               initial={{ name: query }}
-              onSaved={(event) => {
-                onChange(event);
+              onSaved={(client) => {
+                onChange(client);
                 setOpen(false);
               }}
               onCancel={() => setAdding(false)}
             />
           ) : (
             <div className="flex flex-col gap-3 px-2">
-              <SearchInput label="Search clients" placeholder="Name, email or address" value={query} onChange={(event) => setQuery(event.target.value)} autoFocus />
+              <SearchInput label="Search clients" placeholder="Name, business, email or address" value={query} onChange={(event) => setQuery(event.target.value)} autoFocus />
               {canAdd && (
                 <Button variant="outline" onClick={() => setAdding(true)}>
                   + New client{query ? `: ${query}` : ""}
@@ -93,7 +119,7 @@ export function ClientPicker({
                       }}
                     >
                       <span className="font-medium">{row.name}</span>
-                      <span className="truncate text-sm text-muted-foreground">{[row.contactName, row.email, row.address].filter(Boolean).join(" · ") || "No details yet"}</span>
+                      <span className="truncate text-sm text-muted-foreground">{[roleAt(row), row.contactName, row.email, row.address].filter(Boolean).join(" · ") || "No details yet"}</span>
                     </button>
                   </li>
                 ))}
@@ -127,12 +153,14 @@ export function ClientForm({
   const [form, setForm] = useState({
     name: initial.name ?? "",
     contactName: initial.contactName ?? "",
+    role: initial.role ?? "",
     email: initial.email ?? "",
     phone: initial.phone ?? "",
     address: initial.address ?? "",
     abn: initial.abn ?? "",
     notes: initial.notes ?? "",
   });
+  const [business, setBusiness] = useState<BusinessJson | null>(initial.business ?? null);
   const action = useAction();
   const set = (field: keyof typeof form) => (event: { target: { value: string } }) => setForm({ ...form, [field]: event.target.value });
   return (
@@ -143,18 +171,25 @@ export function ClientForm({
         // The sheet renders in a portal, but React still bubbles submit to
         // a form the picker sits in (New quote). Keep it here.
         event.stopPropagation();
+        // A person at a business: the business holds the ABN, and they're the contact themselves.
+        const body = { ...form, businessId: business?.id ?? null, ...(business ? { contactName: "", abn: initial.abn ?? "" } : { role: "" }) };
         const client = await action.run(() =>
-          initial.id ? api<ClientJson>(`/clients/${initial.id}`, { method: "PUT", body: form }) : api<ClientJson>("/clients", { body: form }),
+          initial.id ? api<ClientJson>(`/clients/${initial.id}`, { method: "PUT", body }) : api<ClientJson>("/clients", { body }),
         );
         if (client) onSaved(client);
       }}
     >
-      <Field label="Name" hint="A person or a business" value={form.name} onChange={set("name")} required autoFocus />
-      <Field label="Contact person" value={form.contactName} onChange={set("contactName")} />
-      <Field label="Email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} />
-      <Field label="Phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} />
-      <AddressField label="Address" value={form.address} onChange={set("address")} />
-      <Field label="ABN" hint="For business clients" value={form.abn} onChange={set("abn")} />
+      <Field label="Name" hint={business ? "Their name" : "A person or a business"} value={form.name} onChange={set("name")} required autoFocus />
+      <BusinessField value={business} onChange={setBusiness} />
+      {business ? (
+        <Field label="Role" placeholder="e.g. Project Manager, Service Technician" value={form.role} onChange={set("role")} />
+      ) : (
+        <Field label="Contact person" value={form.contactName} onChange={set("contactName")} />
+      )}
+      <Field label="Email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} hint={business?.email ? `Leave empty to use ${business.name}'s (${business.email})` : undefined} />
+      <Field label="Phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} hint={business?.phone ? `Leave empty to use ${business.name}'s (${business.phone})` : undefined} />
+      <AddressField label="Address" value={form.address} onChange={set("address")} hint={business?.address ? `Leave empty to use ${business.name}'s` : undefined} />
+      {!business && <Field label="ABN" hint="For business clients" value={form.abn} onChange={set("abn")} />}
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Notes
         <textarea rows={3} value={form.notes} onChange={set("notes")} placeholder="e.g. Gate code 4512, dog in the yard" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
@@ -173,6 +208,126 @@ export function ClientForm({
         )}
         <Button type="submit" disabled={action.busy}>
           {action.busy ? "Saving…" : "Save client"}
+        </Button>
+      </FormActions>
+    </form>
+  );
+}
+
+/**
+ * The business a client works for: pick one, add one by typing its name, or
+ * none. Opens in place (the form is usually already in a sheet).
+ */
+function BusinessField({ value, onChange }: { value: BusinessJson | null; onChange: (business: BusinessJson | null) => void }) {
+  const [choosing, setChoosing] = useState(false);
+  const [query, setQuery] = useState("");
+  const [rows, setRows] = useState<BusinessRowJson[]>([]);
+  const action = useAction();
+  useEffect(() => {
+    if (!choosing) return;
+    const timer = setTimeout(() => {
+      api<BusinessRowJson[]>(`/clients/businesses?q=${encodeURIComponent(query)}`)
+        .then(setRows)
+        .catch(() => setRows([]));
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [choosing, query]);
+  const typed = query.trim();
+  const exact = rows.some((row) => row.name.toLowerCase() === typed.toLowerCase());
+  const pick = (business: BusinessJson | null) => {
+    onChange(business);
+    setChoosing(false);
+    setQuery("");
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium">Business</span>
+      {!choosing ? (
+        <button type="button" onClick={() => setChoosing(true)} className="flex min-h-touch w-full items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-left">
+          <span className="flex min-w-0 items-center gap-2">
+            <Building2 className="size-4 shrink-0 text-muted-foreground" />
+            {value ? <span className="truncate font-medium">{value.name}</span> : <span className="text-muted-foreground">None (a homeowner, or the business itself)</span>}
+          </span>
+          <span className="text-sm font-semibold text-primary">{value ? "Change" : "Choose"}</span>
+        </button>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-lg border p-2">
+          <SearchInput label="Search businesses" placeholder="e.g. Honeywell" value={query} onChange={(event) => setQuery(event.target.value)} autoFocus />
+          <ul className="flex flex-col divide-y">
+            {rows.slice(0, 6).map((row) => (
+              <li key={row.id}>
+                <button type="button" onClick={() => pick(row)} className="flex min-h-touch w-full flex-col justify-center px-2 py-1.5 text-left hover:bg-muted">
+                  <span className="font-medium">{row.name}</span>
+                  <span className="text-sm text-muted-foreground">{row.peopleCount === 1 ? "1 person" : `${row.peopleCount} people`}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {typed && !exact && (
+            <Button type="button" variant="outline" disabled={action.busy} onClick={() => void action.run(async () => pick(await api<BusinessRowJson>("/clients/businesses", { body: { name: typed } })))}>
+              + New business: {typed}
+            </Button>
+          )}
+          <Alert variant="error">{action.error}</Alert>
+          <div className="flex gap-2">
+            {value && (
+              <Button type="button" variant="ghost" onClick={() => pick(null)}>
+                No business
+              </Button>
+            )}
+            <Button type="button" variant="ghost" onClick={() => setChoosing(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Add or edit a business. */
+export function BusinessForm({ initial, onSaved, onDelete }: { initial: Partial<BusinessRowJson>; onSaved: (business: BusinessRowJson) => void; onDelete?: () => void }) {
+  const [form, setForm] = useState({
+    name: initial.name ?? "",
+    abn: initial.abn ?? "",
+    email: initial.email ?? "",
+    phone: initial.phone ?? "",
+    address: initial.address ?? "",
+    notes: initial.notes ?? "",
+  });
+  const action = useAction();
+  const set = (field: keyof typeof form) => (event: { target: { value: string } }) => setForm({ ...form, [field]: event.target.value });
+  return (
+    <form
+      className="flex flex-col gap-3 px-2"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const business = await action.run(() =>
+          initial.id ? api<BusinessRowJson>(`/clients/businesses/${initial.id}`, { method: "PUT", body: form }) : api<BusinessRowJson>("/clients/businesses", { body: form }),
+        );
+        if (business) onSaved(business);
+      }}
+    >
+      <Field label="Business name" placeholder="e.g. Honeywell" value={form.name} onChange={set("name")} required autoFocus />
+      <Field label="ABN" value={form.abn} onChange={set("abn")} hint="Goes on quotes to anyone here" />
+      <Field label="Main email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} hint="Used when a person here has none of their own" />
+      <Field label="Main phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} />
+      <AddressField label="Office address" value={form.address} onChange={set("address")} />
+      <label className="flex flex-col gap-1.5 text-sm font-medium">
+        Notes
+        <textarea rows={3} value={form.notes} onChange={set("notes")} placeholder="e.g. Purchase order needed before work starts" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
+      </label>
+      <Alert variant="error">{action.error}</Alert>
+      <FormActions>
+        {onDelete && (
+          <Button type="button" variant="ghost" className="text-destructive" onClick={onDelete}>
+            Remove business
+          </Button>
+        )}
+        <Button type="submit" disabled={action.busy}>
+          {action.busy ? "Saving…" : "Save business"}
         </Button>
       </FormActions>
     </form>

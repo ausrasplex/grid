@@ -2,11 +2,22 @@
 /// for the whole business: jobs (Project.clientId) and quotes (Quote.clientId)
 /// both point here. Removing a client keeps it for the jobs and quotes that
 /// already name it.
+///
+/// A client can be a person at a business (`businessId`): Sam Lee, Project
+/// Manager at Honeywell. Quotes and jobs still go to the person; the business
+/// holds the ABN and the office address and phone, used when the person has
+/// none of their own.
 model Client {
   id          String    @id @default(uuid())
   companyId   String
   name        String
+  /// Older clients: the person to ask for. People at a business don't use it.
   contactName String?
+  /// The business they work for, if any.
+  businessId  String?
+  business    ClientBusiness? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  /// Their role there: "Project Manager", "Service Technician".
+  role        String?
   email       String?
   phone       String?
   address     String?
@@ -16,6 +27,26 @@ model Client {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
+
+  @@index([companyId, name])
+  @@index([businessId])
+}
+
+/// A business some of your clients work for (Honeywell). Holds what's the
+/// same for all of them: ABN, office address, main phone and email.
+model ClientBusiness {
+  id        String    @id @default(uuid())
+  companyId String
+  name      String
+  abn       String?
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  people    Client[]
 
   @@index([companyId, name])
 }

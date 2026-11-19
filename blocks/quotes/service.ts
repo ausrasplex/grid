@@ -15,7 +15,7 @@ import { app, badRequest, conflict, notFound, requireCompany, type RequestContex
 import { attachFile, audit, cacheRoot, db, getRenderingSettings, pageDpi, pdfLongestSideInches, readStoredFile, renderPdfPages, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
 import { createProject, createQuotingJob, getProject } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
-import { clientIdsNamed, clientsById, requireClient, type ClientRow } from "@grid/block-clients";
+import { clientIdsNamed, clientsById, quoteDetails, requireClient, type ClientRow } from "@grid/block-clients";
 import { createSignRequest, latestSignRequest, maskEmail, revokeSignRequests } from "@grid/block-signatures";
 import { calculate, formatMoney, type LineInput, type Settings as MathSettings, type TaxRate } from "./money";
 import { totalsFor, type QuoteSnapshot } from "./snapshot";
@@ -374,7 +374,7 @@ async function acceptedTotals(quotes: { status: string; currentRevisionId: strin
   return new Map(revisions.map((revision) => [revision.id, totalsFor(revision.snapshot as unknown as QuoteSnapshot, chosen.get(revision.id) ?? []).totalCents]));
 }
 
-export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | "draft" | "sent" | "won" | "all"; q?: string; clientId?: string } = {}) {
+export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | "draft" | "sent" | "won" | "all"; q?: string; clientIds?: string[] } = {}) {
   const companyId = requireCompany(ctx);
   const tab = options.tab ?? "open";
   const status: Prisma.QuoteWhereInput["status"] =
@@ -386,7 +386,7 @@ export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | 
       companyId,
       deletedAt: null,
       ...(status ? { status } : {}),
-      ...(options.clientId ? { clientId: options.clientId } : {}),
+      ...(options.clientIds ? { clientId: { in: options.clientIds } } : {}),
       AND: words.map((word, index) => ({
         OR: [
           { number: { contains: word, mode: "insensitive" as const } },
@@ -409,7 +409,7 @@ export async function listQuotes(ctx: RequestContext, options: { tab?: "open" | 
       id: row.id,
       number: row.number,
       title: row.title,
-      clientName: clients.get(row.clientId ?? "")?.name ?? null,
+      clientName: clients.get(row.clientId ?? "")?.label ?? null,
       siteAddress: row.siteAddress,
       status: row.status,
       totalCents: row.uploadedTotal != null ? cents(row.uploadedTotal)! : (agreed.get(row.currentRevisionId ?? "") ?? totals.totalCents),
@@ -596,7 +596,8 @@ async function buildSnapshot(companyId: string, quoteId: string, userId: string,
     title: quote.title,
     date: day(new Date()),
     validUntil: day(quote.validUntil),
-    client: quote.client ? { name: quote.client.name, contactName: quote.client.contactName, email: quote.client.email, phone: quote.client.phone, address: quote.client.address, abn: quote.client.abn } : null,
+    // A person at a business: their own details, the business's filling the gaps, and its ABN.
+    client: quote.client ? quoteDetails(quote.client) : null,
     siteAddress: quote.siteAddress,
     clientView: quote.clientView,
     intro: quote.intro,

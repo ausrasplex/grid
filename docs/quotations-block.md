@@ -52,6 +52,14 @@ Suggested placement: after stage 4 (markups), so take-offs work; quick quotes do
 - Removing a client takes them off the list only: jobs and quotes that name them keep their details.
 - A quote goes to a **client**: a company already on the app (e.g. a builder) or an external contact (homeowner, property manager, strata).
 - Client record: name, contacts, billing/site addresses, ABN (business clients), default terms, quote history, win rate.
+- **Clients and businesses (decided and built Nov 2026).** A client can be a **person at a business**: Sam Lee, Project Manager at Honeywell, and Alex Ng, Service Technician at Honeywell, each get their own quotes.
+  - `ClientBusiness` (core `clients` Block) holds what's the same for everyone there: name, ABN, main email and phone, office address, notes. `Client` gains `businessId` and `role`. Clients with no business (homeowners, older clients) work as before.
+  - **Quotes and jobs still go to the person.** Lists and a job's copy of the client name show "Sam Lee, Honeywell" (`ClientRow.label`); searching jobs or quotes by "Honeywell" finds everyone's.
+  - **On the quote PDF:** the person's name, then "Project Manager, Honeywell", then their own email, phone and address, the business's filling any gaps. The ABN is the business's when it has one (`quoteDetails()` in `blocks/clients/people.ts`, unit-tested). The snapshot keeps `role` and `businessName`; quotes sent before have neither.
+  - **Existing clients stay as they are.** Change a client and pick a Business (or type a new one's name) to move them under it.
+  - **Pages:** Settings › Clients lists businesses (with how many people) above the clients, with an Everyone / Businesses switch, **Add business** and **Add client**. A business's page (`/clients/business/<id>`) has its details, its people (**Add a person**), and everyone's jobs and quotes. The `client.page` panels get `clientIds` (one person, or everyone at the business, removed people included).
+  - **Removing a business** is only allowed once nobody is left at it, so no job loses who it's for. Renaming one updates its people's jobs (`clients.renamed` for each).
+  - Later: placeholders `{client_role}` and `{client_business_name}` when templates get placeholders.
 - Clients on the app receive quotes in-app; external clients receive a secure link + PDF.
 
 ## 2. Price book

@@ -161,9 +161,9 @@ export const panels: BlockPanels = {
   },
   // On a client's page: quotes waiting on them (drafts and sent).
   "client.page": async (props) => {
-    const { ctx, clientId } = props as typeof props & ClientPagePanelProps;
+    const { ctx, clientIds } = props as typeof props & ClientPagePanelProps;
     if (!can(ctx, "quotes.view")) return null;
-    const [rows, settings] = await Promise.all([listQuotes(ctx, { tab: "open", clientId }), getTaxSettings(ctx)]);
+    const [rows, settings] = await Promise.all([listQuotes(ctx, { tab: "open", clientIds }), getTaxSettings(ctx)]);
     if (!rows.length) return null;
     const money = (cents: number) => formatMoney(cents, settings.currency, settings.locale);
     const waiting = rows.reduce((total, row) => total + row.totalCents, 0);

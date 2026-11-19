@@ -12,4 +12,5 @@ export async function companyUsage(companyId: string): Promise<LevelUsage[]> {
 
 export async function purgeCompany(companyId: string): Promise<void> {
   await db.client.deleteMany({ where: { companyId } });
+  await db.clientBusiness.deleteMany({ where: { companyId } });
 }

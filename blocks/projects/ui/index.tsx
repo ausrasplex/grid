@@ -466,9 +466,9 @@ export const panels: BlockPanels = {
   },
   // On a client's page: their active jobs, and the last few finished.
   "client.page": async (props) => {
-    const { ctx, clientId, clientName } = props as typeof props & ClientPagePanelProps;
+    const { ctx, clientIds, clientName } = props as typeof props & ClientPagePanelProps;
     if (!can(ctx, "projects.view")) return null;
-    const { active, earlier, earlierCount } = await jobsForClient(ctx, clientId);
+    const { active, earlier, earlierCount } = await jobsForClient(ctx, clientIds);
     if (!active.length && !earlier.length) return null;
     return (
       <>
