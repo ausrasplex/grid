@@ -20,7 +20,7 @@ Status: **agreed.** Build for a **sole trader first** and expand to teams, then 
 | **5b. Documents** (part 1 done: libraries, job documents, viewer) (`documents`, `signoffs`) | Own manual library; job documents (fit-off sheets, points lists) with a built-in spreadsheet viewer (part 2); row sign-offs as a trial Block (part 3); search inside documents (part 4) | Manuals on hand, fit-off and points lists readable on the phone and signed off as you go, finding the right page by searching | Sharing libraries with subcontractors; OCR, product scanning and the product catalogue (later) |
 | **5c. Assets** (after 4c) (`assets`) | Tools and gear with QR tags, check out and in, faults and Do-not-use, inspections and test & tag due dates, vehicles with servicing by km and date | Test-and-tag reminders, knowing who has the gear, van servicing on time | Fleet-wide assets, public lost-and-found QR |
 | **6. Offline sync, notifications, email** | Full offline, push, own SMTP | Works in plant rooms and basements | Team notifications and approvals |
-| **7. Teams** | Members screen, invites, roles in use (including the built-in **Apprentice** role with a year, see below), My work across people, onboarding inductions | — | Foremen, apprentices, per-project roles |
+| **7. Teams** | Members screen, invites, roles in use (including the built-in **Apprentice** role with a year, see below), My work across people, onboarding inductions; **check in / out and Who's where** (`attendance`), **leave requests and the leave calendar** (`leave`), see "Phase 7: check-in, Who's where and leave" | — | Foremen, apprentices, per-project roles; timesheets built on check-ins |
 | **8. Multi-company projects** (stage 2b proper) | Contract chain, company invites, site/project QR access, placement, managed sites, project listing | — | Builders hosting jobs, subcontractors under them |
 | **9. Inductions & credentials** | Site/company/project/area inductions, the rest of the wallet (inductions in it, sharing, requirements), compliance, employment details | — | Builder inductions, chain inductions, induction builder later |
 | **10+.** | RFIs, revision requests, variations, SWMS & forms, reports, hosted site & federation; Documents later parts: OCR for scanned documents, product barcode scanning, the product catalogue, product notes, installed products on plans (`documents-block.md` build order 5–9) | | |
@@ -149,6 +149,63 @@ The first part of the credentials wallet (`inductions-credentials.md` §2), move
 - **Removed for good:** the nightly storage clean-up runs every Block's `purgeCompany` hook (dependent Blocks first), removes the business's files (not people's Wallet photos, which belong to the person), route codes and activity log, then its roles and memberships. The `Company` row stays with only its name and `purgedAt`, and the log gets one "removed for good" entry. In dry-run mode the history lists it and nothing goes.
 - **Shared work:** a job another business is on is handed to that business, not deleted; a site another business uses is handed over too.
 - **People:** members only lose that business. Accounts, Wallets and other businesses aren't touched. Someone left with no business goes to setup.
+
+## Phase 7: check-in, Who's where and leave (planned, decided Nov 2026)
+
+Both are **team features**: hidden while solo (`teamOnly`), appearing when the first worker joins. Two optional Blocks, so a business that doesn't want them leaves them off in the Store.
+
+### Check in / out (`attendance` Block, depends on `projects`)
+
+- **Why it's new:** Grid only remembers the last site, building and level each person *opened* (`UserSiteLocation`, behind Home's "On site now"). That changes whenever a page is opened, so it isn't a check-in and isn't used for this.
+- **How people check in:**
+  - Tap **Check in** on the job page, at the area they're in; or
+  - scan the site QR (`navigation.md` §7a), then pick the job if there's more than one.
+  - No location tracking. Grid is an installed web app and can't follow a phone in the background, and the owner chose not to record location at the tap either.
+- **Checking out:**
+  - Tap **Check out** (job page, or the centre button's Actions menu).
+  - **Checking in to another job checks you out of the last one**, so a person is only ever in one place.
+  - **Automatic end of day:** anyone still checked in at the business's **end-of-day time** (Settings › Attendance, default 6:00 pm, server time zone) is checked out then. It's marked "auto" so the Owner can see who forgot.
+- **Centre button:** while checked in, a team member's button is **Actions** (`navigation.md` §5a). Check-in by tap counts the same as by QR.
+- **Data:**
+  - `CheckIn` holds companyId, userId, projectId, siteId, building and level, `inAt`, `outAt`, how they checked in (`TAP` | `QR`) and how they left (`TAP` | `SWITCH` | `AUTO` | `CORRECTED`). One open row per person. Rows are kept as the attendance history, and timesheets later build on them.
+  - The Owner (or someone with `attendance.manage`) can correct a time. It's written to the activity log with before and after.
+- **Permissions:** `attendance.checkin` (everyone but Viewer), `attendance.view` (Who's where; Owner, and Foreman by default), `attendance.manage` (corrections, settings; Owner).
+
+### Who's where
+
+- **Home card** for people with `attendance.view`, for example "On site now: 4 of 6", followed by each name and job. Tap through to the page.
+- **Team › Who's where** page, grouped by site and job:
+  - each person, the building and level, and "since 7:12 am";
+  - then **Not checked in** and **On leave today** (from the `leave` Block through a panel slot, when it's on).
+- Live enough: it refreshes when opened and every minute while open. No push.
+- Each person's own history is behind their name: check-ins for the last 30 days, with auto check-outs flagged.
+
+### Leave (`leave` Block, depends on `companies`)
+
+- **The form** (`leave.request`, everyone but Viewer):
+  - **Type:** Annual, Personal/carer's, Compassionate, Long service, Parental, Community service, Unpaid, RDO, Other. Types are a list in code; businesses can't edit them yet.
+  - **Dates:** from and to, with part days (morning, afternoon, or hours) on the first and last day.
+  - **Note**, which is private to the person and approvers.
+- **Dates only, no balances.** Grid doesn't work out accruals. Balances stay in payroll (Xero, MYOB).
+- **Approval:** a request is **Pending** until the Owner, or someone with `leave.approve` (Foreman if the Owner allows it), approves or declines it with an optional reason. The person is notified either way.
+  - The person can cancel their own pending request.
+  - Approved leave can be cancelled by an approver, or by the person until it starts.
+  - Written to the activity log.
+- **Leave calendar** (`leave.calendar`, Owner and approvers):
+  - a month view, with each person's leave as a bar in a colour per type; pending leave is striped;
+  - a list view on a phone;
+  - a filter by person or type.
+  - Public holidays come later, by state.
+- **Sharing with staff** is one business setting the Owner sets for everyone (Settings › Leave). Individuals can't opt out.
+  - **Not shared** (default): staff see only their own leave.
+  - **Shared, booked only:** staff see which days are taken ("2 people away"), with no names or types.
+  - **Shared with names:** staff see who's away and when. The type and note stay private either way: they see "Away", not "Personal leave".
+  - Pending requests are never shown to other staff, only approved leave.
+
+### Build order
+
+1. `attendance`: check in/out, auto check-out, the Actions centre button for checked-in members, Who's where with the Home card.
+2. `leave`: the form, approvals and notifications, the calendar, sharing, and "On leave today" in Who's where.
 
 ## Phase 7: apprentices (planned, decided Nov 2026)
 

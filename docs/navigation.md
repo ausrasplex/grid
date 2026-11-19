@@ -104,7 +104,7 @@ The raised yellow button (phone bar centre, tablet rail, desktop top bar) is a s
 - **The scanner never disappears.** A solo trader still scans asset tags and product barcodes from the scan button in every search bar (§7a).
 - **Blocks fill the Actions menu** through a new menu slot, `shell.quick`, ordered by `order` and filtered by permission like any other slot. Scan is always first, then Photo.
 - **Photo needs the Photos block** (built in 2b-lite). Until it's on, a sole trader's button stays as Scan. *Provisional: this fallback may change later.*
-- **Built so far:** Scan and Take a photo (`AppShell.tsx` `centreButton()`). The Actions menu comes with site check-in (phases 7–8).
+- **Built so far:** Scan and Take a photo (`AppShell.tsx` `centreButton()`). The Actions menu comes with check-in (phase 7, `attendance` Block): checking in by tapping **Check in** on a job counts the same as scanning the site QR (decided Nov 2026, `roadmap.md` "Phase 7: check-in, Who's where and leave").
 - **Checking out** (leaving the site, or the check-in expiring at the end of the day) turns the button back into Scan.
 - The button's label under it changes too (Photo / Scan / Actions), so it's never a mystery icon.
 
