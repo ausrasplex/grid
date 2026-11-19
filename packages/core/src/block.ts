@@ -200,10 +200,37 @@ export interface BlockDefinition {
    */
   jobStorage?: () => Promise<(companyId: string, projectIds: string[]) => Promise<JobStorageLine[]>>;
   /**
+   * Draws this block's part of a plan sheet for a shared plan link or a
+   * plan PDF (markups and icons): SVG elements in sheet units (x 0 → 1
+   * across, y 0 → height/width down), only what's on the chosen layers,
+   * never anything marked "Just me". Asked only when the business has the
+   * block on. Lazy. docs/plans-block.md "Sharing plans".
+   */
+  planDrawing?: () => Promise<(input: PlanDrawingInput) => Promise<string>>;
+  /**
    * Background work this block does, keyed by queue name, which must start
    * with the block id ("plans.render"). Lazy. Queue with app().jobs.send().
    */
   jobs?: () => Promise<Record<string, BlockJob>>;
+}
+
+/** What to draw on a plan sheet for a share link or a plan PDF (planDrawing). */
+export interface PlanDrawingInput {
+  companyId: string;
+  projectId: string;
+  sheetId: string;
+  /** The revision shown. */
+  versionId: string;
+  /** Every revision of the sheet (things drawn on older ones carry over). */
+  versions: { id: string; revision: string; createdAt: Date }[];
+  /** Sheet layers to draw (PlanLayer ids), and whether Default is one of them. */
+  layerIds: string[];
+  withDefault: boolean;
+  /**
+   * Someone signed in asked (the viewer's Download PDF): draw only what
+   * they may see (the block's own view permission). Absent for a share link.
+   */
+  viewer?: RequestContext;
 }
 
 /** "12 photos", "1 plan sheet in Recently deleted": a count with its words. */

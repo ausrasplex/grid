@@ -57,6 +57,7 @@ import {
   type Point,
   snapAngle,
 } from "../geometry";
+import { MarkupShape, ink } from "./shapes";
 
 export interface MarkupJson {
   id: string;
@@ -123,7 +124,6 @@ const sizeGroup = (kind: MarkupKind) => (kind === "HIGHLIGHT" ? "highlight" : ki
 
 type UndoStep = { type: "add"; id: string } | { type: "delete"; markup: MarkupJson } | { type: "update"; id: string; before: Partial<MarkupJson> };
 
-const ink = (color: string) => INKS[color as Ink] ?? INKS.red;
 const day = (date: string) => new Date(date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
 export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: string; initial: { markups: MarkupJson[]; scales: ScaleJson[] }; canAdd: boolean; solo: boolean }) {
@@ -662,67 +662,6 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       </Sheet>
     </>
   );
-}
-
-// ---------------------------------------------------------------------
-// One markup, in sheet units
-// ---------------------------------------------------------------------
-
-type Drawable = Pick<MarkupJson, "id" | "kind" | "points" | "color" | "size" | "text">;
-
-function MarkupShape({ markup, draft }: { markup: Drawable; draft?: boolean }) {
-  const colour = ink(markup.color);
-  const width = markup.size;
-  const line = { fill: "none", stroke: colour, strokeWidth: width, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  const [first, second] = markup.points as [Point, Point];
-  switch (markup.kind) {
-    case "PEN":
-      return <path d={polylinePath(markup.points)} {...line} />;
-    case "HIGHLIGHT":
-      // Plain see-through ink. No "multiply" blend: blending SVG over the plan's
-      // WebGL canvas makes tablets re-blend every frame, and it flickers.
-      return <path d={polylinePath(markup.points)} {...line} strokeOpacity={0.4} />;
-    case "LINE":
-      return <path d={polylinePath([first, second ?? first])} {...line} />;
-    case "ARROW": {
-      const end = second ?? first;
-      const [left, right] = arrowHead(first, end, Math.max(width * 5, distance(first, end) * 0.06));
-      return <path d={`${polylinePath([first, end])}${polylinePath([left, end, right])}`} {...line} />;
-    }
-    case "RECT": {
-      const [left, top, right, bottom] = box(first, second ?? first);
-      return <rect x={left} y={top} width={right - left} height={bottom - top} {...line} />;
-    }
-    case "ELLIPSE": {
-      const [left, top, right, bottom] = box(first, second ?? first);
-      return <ellipse cx={(left + right) / 2} cy={(top + bottom) / 2} rx={(right - left) / 2} ry={(bottom - top) / 2} {...line} />;
-    }
-    case "CLOUD":
-      return <path d={cloudPath(first, second ?? first, Math.max(width * 8, 1e-6))} {...line} />;
-    case "TEXT": {
-      const [x, y] = first;
-      return (
-        <text x={x} y={y} fontSize={markup.size} fill={colour} stroke="white" strokeWidth={markup.size * 0.18} paintOrder="stroke" fontWeight={600} fontFamily="system-ui, sans-serif" dominantBaseline="hanging">
-          {(markup.text ?? "").split("\n").map((row, index) => (
-            <tspan key={index} x={x} dy={index ? markup.size * 1.25 : 0}>
-              {row || " "}
-            </tspan>
-          ))}
-        </text>
-      );
-    }
-    case "LENGTH":
-      return (
-        <g>
-          <path d={polylinePath(markup.points)} {...line} strokeDasharray={draft ? undefined : `${width * 4} ${width * 2}`} />
-          {markup.points.map((point, index) => (
-            <circle key={index} cx={point[0]} cy={point[1]} r={width * 1.6} fill={colour} />
-          ))}
-        </g>
-      );
-    case "AREA":
-      return <path d={polylinePath(markup.points, markup.points.length > 2)} {...line} fill={colour} fillOpacity={0.15} />;
-  }
 }
 
 /** A dashed outline round the selected markup, the same width at any zoom. */

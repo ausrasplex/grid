@@ -5,19 +5,23 @@ export default defineBlock({
   name: "Plans",
   version: "1.0.0",
   description: "Upload a job's drawings (PDFs straight from Procore, Aconex or email), keep every revision, and zoom right in on the tablet.",
-  dependsOn: ["projects"],
+  // Templates: Chromium draws the layers for plan PDFs.
+  dependsOn: ["projects", "templates"],
   permissions: [
     { key: "plans.view", label: "See plans" },
     { key: "plans.upload", label: "Upload plans and new revisions" },
     { key: "plans.manage", label: "Rename, re-order and delete sheets and revisions", description: "And rename or delete anyone's layers" },
     { key: "plans.layers", label: "Add layers to plan sheets", description: "And rename or delete your own" },
+    { key: "plans.share", label: "Share plans by link", description: "Make and turn off private links to a job's sheets for people without Grid" },
   ],
   grants: {
-    FOREMAN: ["plans.view", "plans.upload", "plans.manage", "plans.layers"],
+    FOREMAN: ["plans.view", "plans.upload", "plans.manage", "plans.layers", "plans.share"],
     EMPLOYEE: ["plans.view", "plans.layers"],
     VIEWER: ["plans.view"],
   },
   routes: async () => (await import("./routes")).routes,
+  // A shared plan link (/s/<token>): its sheets, tiles, drawing and PDF.
+  publicRoutes: async () => (await import("./public")).publicRoutes,
   routeTargets: {
     PlanSheet: (id) => `/plans/sheet/${id}`,
   },

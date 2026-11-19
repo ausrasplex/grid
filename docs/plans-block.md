@@ -35,7 +35,7 @@ The discipline comes from the number's letters (E Electrical, M Mechanical, H Hy
 
 ## Permissions
 
-`plans.view` (everyone), `plans.upload` (Owner, Foreman), `plans.manage` (rename, delete, current revision: Owner, Foreman).
+`plans.view` (everyone), `plans.upload` (Owner, Foreman), `plans.manage` (rename, delete, current revision: Owner, Foreman). `plans.layers` (add layers: Owner, Foreman, Employee). `plans.share` (share links: Owner, Foreman).
 
 ## What 4b built
 
@@ -87,7 +87,26 @@ Electricians keep Power, Data and Lighting apart; plumbers draw Water and Draina
 - **Who:** `plans.layers` (Owner, Foreman and Employee by default: the people who can draw) adds layers and renames or deletes their own; `plans.manage` changes anyone's. Adding layers is offered on the current revision only.
 - **Deleting a layer** deletes nothing on it: Plans emits `plans.layerDeleted`, and Markups and Photos move what was on it back to Default. Until then, a layer that's gone counts as Default anyway.
 - **How Blocks use it:** the plan overlay (`@grid/ui`) gives `activeLayerId`, `layerShown(layerId)` and `layers`. A Block saves `activeLayerId` on what it adds and draws only what `layerShown` allows. Markups checks that a layer belongs to the sheet (`checkLayer` from `@grid/block-plans`); Photos doesn't depend on Plans, so it just keeps the id.
-- Later: layers shared across a job's sheets, a layer's own colour, and printing or exporting chosen layers.
+- Later: layers shared across a job's sheets and a layer's own colour. (Downloading chosen layers as a PDF is done: "Plan PDFs" below.)
+
+## Plan PDFs (decided and built Nov 2026)
+
+- **Download PDF** in the viewer (the download button in the header) gives the revision you're looking at, with the layers you tick drawn on. It starts with the layers you have showing; untick them all for the clean drawing. Anyone who can see plans can download; the markups only go on if they can see markups.
+- **Built from the original upload, never the zoom tiles.** The sheet's page is copied straight out of the uploaded PDF, so the drawing stays sharp at any zoom and its text can still be searched. An image plan becomes a page the image's size (150 dpi).
+- **The layers are a see-through page laid over it.** Each Block with something to draw adds a `planDrawing` hook (core `PlanDrawingInput`): Markups draws its markups, measurements (with the revision's scale) and icons, using the same pieces as the live viewer (`blocks/markups/ui/shapes.tsx`). Chromium (the quote PDF renderer, `renderPdf` with `page`) turns that into a PDF page the size of the sheet as seen; it's laid over the drawing, turned to undo the page's own rotation (`blocks/plans/placement.ts`, tested). The whole media box shows, as the tiles do.
+- Never included: "Just me" markups (not even your own) and photo pins.
+- Plans now depends on Templates (core) for Chromium.
+
+## Sharing plans (decided and built Nov 2026)
+
+A private link to some of a job's sheets, for someone without Grid (a builder's site office, a client, a supplier): `/s/<token>`.
+
+- **Made on the job's Plans page** (Share links, below the sheets) by anyone with `plans.share` (Owners and Foremen by default). Each link has: who it's for, the **chosen sheets** (all ticked to start), the **layers** whose markups and icons go with it (picked by name across the chosen sheets: Default, Power, Data…; none for the clean drawing), **how long it works** (7, 30 or 90 days, or no end) and whether it **can download a PDF** (on by default).
+- **Always the current revision.** A new revision of a shared sheet shows on the link without a new link. The page says the revision and its date.
+- **What they see:** the business and job name, the sheets (thumbnails), and a zoomable viewer like Grid's, with the chosen layers drawn on and nothing to change. Download PDF per sheet and "Download all as PDF" (the same builder as above), if allowed. Never "Just me" markups or photo pins. Layers added to a sheet later aren't on an existing link.
+- **Managing:** each link shows its sheets, layers, end date, when it was last opened and how many times; **Copy** and **Turn off**. Turning off is for good (make a new one to share again); it stops working at once, and tiles already loaded stop within a minute. Turned-off and run-out links stay listed (folded away) for 90 days.
+- **It stops working** when it runs out or is turned off, while the job is archived (its tiles are dropped), when the job or the business is deleted, or when the business turns Plans off. A sheet deleted from the job drops off the link. Anything wrong shows the same "This link isn't working" page.
+- **Data:** `PlanShare` (the token stored hashed to find it and encrypted to show the link again, like invite links; sheet ids, layer ids and `withDefault`, `allowDownload`, `expiresAt`, `revokedAt`, `lastOpenedAt`, `openCount`). Public API at `/api/public/plans/s/<token>/…` checks the token on every request and only reaches the link's sheets at their current revision. Making and turning off a link go in the activity log. Removed with the job or the business.
 
 ## Not yet
 

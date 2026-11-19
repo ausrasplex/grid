@@ -26,6 +26,8 @@ export default defineBlock({
     const purge = await import("./purge");
     return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany, purgeProject: purge.purgeProject };
   },
+  // A shared plan link or a plan PDF: markups and icons on the chosen layers.
+  planDrawing: async () => (await import("./drawing")).planDrawing,
   emits: ["markups.added"],
   on: {
     // A sheet layer was deleted: its markups and icons go back on Default.

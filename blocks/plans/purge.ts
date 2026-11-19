@@ -14,6 +14,7 @@ export async function companyUsage(companyId: string): Promise<LevelUsage[]> {
 export async function purgeCompany(companyId: string): Promise<void> {
   const sheets = await db.planSheet.findMany({ where: { companyId }, select: { versions: { select: { id: true } } } });
   for (const sheet of sheets) for (const version of sheet.versions) await removeTiles(version.id);
+  await db.planShare.deleteMany({ where: { companyId } });
   // Revisions go with each sheet (cascade).
   await db.planSheet.deleteMany({ where: { companyId } });
 }
@@ -25,6 +26,7 @@ export async function purgeProject(projectId: string): Promise<string[]> {
   const sheetIds = sheets.map((sheet) => sheet.id);
   await db.$transaction(async (tx) => {
     await tx.planLayer.deleteMany({ where: { sheetId: { in: sheetIds } } });
+    await tx.planShare.deleteMany({ where: { projectId } });
     // Revisions go with each sheet (cascade).
     await tx.planSheet.deleteMany({ where: { projectId } });
   });

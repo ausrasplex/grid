@@ -37,6 +37,12 @@ async function getBrowser(): Promise<Browser> {
 export interface PdfOptions {
   /** Small grey text in each page's footer, left side (page numbers go on the right). */
   footer?: string;
+  /**
+   * One page this size (inches), with no margins, header or footer and a
+   * see-through background: for drawing over another PDF's page (plan
+   * markups, docs/plans-block.md "Sharing plans"). Replaces A4 and the footer.
+   */
+  page?: { widthIn: number; heightIn: number };
 }
 
 export async function renderPdf(html: string, options: PdfOptions = {}): Promise<Buffer> {
@@ -49,7 +55,16 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
     page.on("request", (event) => (event.url().startsWith("data:") ? event.continue() : event.abort()));
     await page.setContent(html, { waitUntil: "load" });
     const escapeHtml = (text: string) => text.replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]!);
-    const pdf = await page.pdf({
+    const pdf = options.page
+      ? await page.pdf({
+          width: `${options.page.widthIn}in`,
+          height: `${options.page.heightIn}in`,
+          printBackground: true,
+          omitBackground: true,
+          margin: { top: 0, bottom: 0, left: 0, right: 0 },
+          pageRanges: "1",
+        })
+      : await page.pdf({
       format: "A4",
       printBackground: true,
       margin: { top: "16mm", bottom: "18mm", left: "14mm", right: "14mm" },

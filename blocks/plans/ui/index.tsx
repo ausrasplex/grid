@@ -5,12 +5,13 @@
 //   panel "job.area"                    "Plans · 24 sheets", and the sheets for the level you're on
 
 import { FileStack } from "lucide-react";
-import { can } from "@grid/core";
-import type { BlockPages, BlockPanels, PlanViewerPanelProps } from "@grid/ui";
+import { can, isHttpError } from "@grid/core";
+import type { BlockPages, BlockPanels, PlanViewerPanelProps, PublicPages } from "@grid/ui";
 import { getProject, type JobAreaPanelProps } from "@grid/block-projects";
 import { sheetLayers } from "../layers";
 import { getSheet, listSheets, sheetsForArea } from "../service";
 import { PlansList, type SheetRowJson } from "./PlansList";
+import { SharedPlans, type SharedPlansJson } from "./SharedPlans";
 import { Viewer, type SheetJson } from "./Viewer";
 
 const json = <T,>(value: unknown): T => JSON.parse(JSON.stringify(value)) as T;
@@ -19,7 +20,7 @@ export const pages: BlockPages = {
   job: async ({ ctx, params: [projectId] }) => {
     const job = await getProject(ctx, projectId ?? "");
     const rows = await listSheets(ctx, job.id);
-    return <PlansList projectId={job.id} jobName={job.name} initial={json<SheetRowJson[]>(rows)} canUpload={can(ctx, "plans.upload")} />;
+    return <PlansList projectId={job.id} jobName={job.name} initial={json<SheetRowJson[]>(rows)} canUpload={can(ctx, "plans.upload")} canShare={can(ctx, "plans.share")} />;
   },
   sheet: async ({ ctx, params: [sheetId, versionId], panels }) => {
     const sheet = await getSheet(ctx, sheetId ?? "");
@@ -46,6 +47,24 @@ export const pages: BlockPages = {
         layers={await sheetLayers(ctx, sheet.id)}
       />
     );
+  },
+};
+
+/** A shared plan link, /s/<token> (docs/plans-block.md "Sharing plans"). */
+export const publicPages: PublicPages = {
+  s: async ({ params: [token] }) => {
+    const { openSharedPlans } = await import("../share");
+    try {
+      return <SharedPlans view={json<SharedPlansJson>(await openSharedPlans(token ?? ""))} />;
+    } catch (error) {
+      if (!isHttpError(error) || error.status !== 404) throw error;
+      return (
+        <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-2 px-4 py-10">
+          <h1 className="text-xl font-bold">This link isn&apos;t working</h1>
+          <p className="text-muted-foreground">It may have been turned off or run out, or the job has finished. Ask whoever sent it for a new link.</p>
+        </main>
+      );
+    }
   },
 };
 

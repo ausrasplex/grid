@@ -28,6 +28,7 @@ const config: NextConfig = {
   async rewrites() {
     return [
       { source: "/q/:token", destination: "/p/quotes/q/:token" },
+      { source: "/s/:token", destination: "/p/plans/s/:token" },
       { source: "/verify", destination: "/p/signatures/verify" },
       { source: "/verify/:code", destination: "/p/signatures/verify/:code" },
       // A site's pages (site, building, level) are drawn by the jobs Block
@@ -57,6 +58,7 @@ const config: NextConfig = {
     ];
     return [
       { source: "/q/:path*", headers: privateHeaders },
+      { source: "/s/:path*", headers: privateHeaders },
       { source: "/p/:path*", headers: privateHeaders },
       { source: "/verify/:path*", headers: privateHeaders },
       { source: "/api/public/:path*", headers: privateHeaders },

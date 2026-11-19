@@ -456,6 +456,11 @@ const TYPES: Record<string, string> = { ".dzi": "application/xml", ".jpeg": "ima
 /** A tile, the .dzi description or the thumbnail. Immutable: a version never changes. */
 export async function tileResponse(ctx: RequestContext, versionId: string, relativePath: string) {
   if (!(await canSeeVersion(ctx, versionId))) throw notFound();
+  return serveTile(versionId, relativePath, "private, max-age=31536000, immutable");
+}
+
+/** A tile file, once access has been checked (signed in, or a share link: share.ts). */
+export async function serveTile(versionId: string, relativePath: string, cacheControl: string) {
   if (!/^(plan\.dzi|thumb\.jpg|plan_files\/\d{1,2}\/\d{1,4}_\d{1,4}\.jpeg)$/.test(relativePath)) throw notFound();
   const base = tilesDir(versionId);
   const full = path.join(base, relativePath);
@@ -465,7 +470,7 @@ export async function tileResponse(ctx: RequestContext, versionId: string, relat
       headers: {
         "content-type": TYPES[path.extname(full)] ?? "application/octet-stream",
         "content-length": String(stats.size),
-        "cache-control": "private, max-age=31536000, immutable",
+        "cache-control": cacheControl,
       },
     });
   } catch {

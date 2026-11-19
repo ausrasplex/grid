@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LEVEL_NAMES, PLAN_LEVELS, PLAN_LEVEL_DISK, PLAN_LEVEL_SIZES, type PlanLevel } from "@grid/db/render-levels";
 import type OpenSeadragonType from "openseadragon";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Info, Layers, Loader2, Maximize, Minus, Plus, RotateCw } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeOff, FileDown, Info, Layers, Loader2, Maximize, Minus, Plus, RotateCw } from "lucide-react";
 import {
   Alert,
   Badge,
@@ -110,7 +110,7 @@ export function Viewer({
   const box = useRef<HTMLDivElement>(null);
   const viewer = useRef<OpenSeadragonType.Viewer | null>(null);
   const [loading, setLoading] = useState(true);
-  const [panel, setPanel] = useState<"info" | "revs" | "set" | "layers" | null>(null);
+  const [panel, setPanel] = useState<"info" | "revs" | "set" | "layers" | "pdf" | null>(null);
   const layerState = useSheetLayers(initial.id, initialLayers);
   const activeLayerName = layerState.layers.find((layer) => layer.id === layerState.active)?.name ?? "Default";
 
@@ -344,6 +344,11 @@ export function Viewer({
         >
           <ChevronRight className="size-5" />
         </a>
+        {version && (
+          <button type="button" onClick={() => setPanel("pdf")} className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-white/10" aria-label="Download PDF">
+            <FileDown className="size-5" />
+          </button>
+        )}
         <button type="button" onClick={() => setPanel("info")} className="flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-white/10" aria-label="Sheet details">
           <Info className="size-5" />
         </button>
@@ -456,11 +461,71 @@ export function Viewer({
         </SheetContent>
       </Sheet>
 
+      <Sheet open={panel === "pdf"} onOpenChange={(open) => !open && setPanel(null)}>
+        <SheetContent title="Download PDF" description={`${sheet.number}${version?.revision ? ` Rev ${version.revision}` : ""}: the original drawing with the layers you tick drawn on.`}>
+          {version && panel === "pdf" && <PdfDownload sheetId={sheet.id} versionId={version.id} layers={layerState.layers} shown={layerState.layerShown} withMarkups={showOverlays} />}
+        </SheetContent>
+      </Sheet>
+
       <Sheet open={panel === "info"} onOpenChange={(open) => !open && setPanel(null)}>
         <SheetContent title="Sheet details">
           <SheetDetails sheet={sheet} areas={areas} canManage={permissions.manage} version={version ?? null} onSaved={async () => (await reload(), setPanel(null))} />
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+/**
+ * Download PDF (docs/plans-block.md "Plan PDFs"): the revision being
+ * viewed, built from the original upload, with the ticked layers' markups
+ * and icons drawn on. Starts with the layers you have showing.
+ */
+function PdfDownload({ sheetId, versionId, layers, shown, withMarkups }: { sheetId: string; versionId: string; layers: { id: string; name: string }[]; shown: (layerId: string | null) => boolean; withMarkups: boolean }) {
+  const [withDefault, setWithDefault] = useState(() => shown(null));
+  const [ticked, setTicked] = useState(() => new Set(layers.filter((layer) => shown(layer.id)).map((layer) => layer.id)));
+  const [started, setStarted] = useState(false);
+  const query = new URLSearchParams({ version: versionId, layers: [...ticked].join(","), default: withMarkups && withDefault ? "1" : "0" });
+  if (!withMarkups) query.set("layers", "");
+  const tick = "mt-0.5 size-5 shrink-0 accent-primary";
+  return (
+    <div className="flex flex-col gap-3">
+      {withMarkups && (
+        <fieldset className="flex flex-col gap-1">
+          <legend className="mb-1 text-sm font-medium">Markups and icons on these layers</legend>
+          <label className="flex min-h-touch items-start gap-3 text-sm">
+            <input type="checkbox" className={tick} checked={withDefault} onChange={() => setWithDefault(!withDefault)} />
+            <span>Default</span>
+          </label>
+          {layers.map((layer) => (
+            <label key={layer.id} className="flex min-h-touch items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className={tick}
+                checked={ticked.has(layer.id)}
+                onChange={() =>
+                  setTicked((current) => {
+                    const next = new Set(current);
+                    if (next.has(layer.id)) next.delete(layer.id);
+                    else next.add(layer.id);
+                    return next;
+                  })
+                }
+              />
+              <span>{layer.name}</span>
+            </label>
+          ))}
+          <p className="text-xs text-muted-foreground">Untick them all for the clean drawing. &quot;Just me&quot; markups and photo pins aren&apos;t included.</p>
+        </fieldset>
+      )}
+      {started && <p className="text-sm text-muted-foreground">Making the PDF. A big sheet with lots of markups can take a few seconds.</p>}
+      <FormActions>
+        <Button asChild size="lg">
+          <a href={`/api/plans/sheet/${sheetId}/pdf?${query}`} download onClick={() => setStarted(true)}>
+            <Download /> Download PDF
+          </a>
+        </Button>
+      </FormActions>
     </div>
   );
 }

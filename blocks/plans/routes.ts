@@ -1,13 +1,22 @@
 // HTTP routes, mounted at /api/plans.
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
-import { currentSchema, importSchema, layerSchema, previewSchema, qualitySchema, updateSheetSchema, updateVersionSchema } from "./validation";
+import { currentSchema, importSchema, layerSchema, pdfQuery, previewSchema, qualitySchema, shareSchema, updateSheetSchema, updateVersionSchema } from "./validation";
 
 export const routes: Routes = {
   "GET /job/:projectId": { permission: "plans.view", handler: (ctx, request) => svc.listSheets(ctx, request.params.projectId!) },
   "GET /job/:projectId/deleted": { permission: "plans.manage", handler: (ctx, request) => svc.deletedSheets(ctx, request.params.projectId!) },
   "POST /job/:projectId/preview": { permission: "plans.upload", handler: (ctx, request) => svc.previewImport(ctx, request.params.projectId!, previewSchema.parse(request.body).fileIds) },
   "POST /job/:projectId/import": { permission: "plans.upload", handler: (ctx, request) => svc.commitImport(ctx, request.params.projectId!, importSchema.parse(request.body).rows) },
+
+  // Share links (docs/plans-block.md "Sharing plans").
+  "GET /job/:projectId/shares": { permission: "plans.share", handler: async (ctx, request) => (await import("./share")).listShares(ctx, request.params.projectId!) },
+  "POST /job/:projectId/shares": { permission: "plans.share", handler: async (ctx, request) => (await import("./share")).createShare(ctx, request.params.projectId!, shareSchema.parse(request.body)) },
+  "DELETE /shares/:id": { permission: "plans.share", handler: async (ctx, request) => (await import("./share")).revokeShare(ctx, request.params.id!) },
+  // Every layer on the job's sheets (for picking layers to share).
+  "GET /job/:projectId/layers": { permission: "plans.view", handler: async (ctx, request) => (await import("./share")).jobLayers(ctx, request.params.projectId!) },
+  // Download PDF: the original page with the chosen layers drawn on.
+  "GET /sheet/:id/pdf": { permission: "plans.view", handler: async (ctx, request) => (await import("./share")).downloadSheetPdf(ctx, request.params.id!, pdfQuery(request.query)) },
 
   "GET /sheet/:id": { permission: "plans.view", handler: (ctx, request) => svc.getSheet(ctx, request.params.id!) },
   // Layers on a sheet (Power, Data…); Default has no row.

@@ -34,8 +34,9 @@ import {
 } from "@grid/ui";
 import { CUSTOM_TRADE, TRADES, iconLookup, type CustomIconRow, type IconLookup, type Trade, type TradeIcon } from "../icons";
 import { distance, showsOn, type Point } from "../geometry";
-import { IconGlyph, IconShape } from "./IconGlyph";
+import { IconGlyph } from "./IconGlyph";
 import { LayerPick } from "./MarkupLayer";
+import { PlacedIcon } from "./shapes";
 
 export interface PlacedIconJson {
   id: string;
@@ -270,18 +271,8 @@ export function IconLayer({
         const icon = lookup.icon(entry.iconKey);
         const trade = lookup.trade(entry.iconKey);
         if (!icon || !trade) return null;
-        const [x, y] = entry.points[0]!;
         const numbered = numbersOf(entry.iconKey).length >= 2;
-        return (
-          <g key={entry.id} transform={`translate(${x - entry.size / 2} ${y - entry.size / 2}) scale(${entry.size / 24})`}>
-            <IconShape icon={icon} colour={trade.colour} />
-            {numbered && (
-              <text x={23} y={2} fontSize={9} fontWeight={800} fontFamily="system-ui, sans-serif" fill={trade.colour} stroke="white" strokeWidth={2.5} paintOrder="stroke">
-                {entry.iconNumber ?? 1}
-              </text>
-            )}
-          </g>
-        );
+        return <PlacedIcon key={entry.id} point={entry.points[0]!} size={entry.size} icon={icon} trade={trade} number={numbered ? (entry.iconNumber ?? 1) : null} />;
       }),
     [visible, numbersOf, lookup],
   );

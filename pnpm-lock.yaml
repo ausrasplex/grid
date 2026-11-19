@@ -305,6 +305,9 @@ importers:
       '@grid/block-projects':
         specifier: workspace:*
         version: link:../projects
+      '@grid/block-templates':
+        specifier: workspace:*
+        version: link:../templates
       '@grid/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -320,6 +323,9 @@ importers:
       openseadragon:
         specifier: 6.1.1
         version: 6.1.1
+      pdf-lib:
+        specifier: ^1.17
+        version: 1.17.1
       react:
         specifier: ^19
         version: 19.3.1

@@ -47,6 +47,7 @@ export const blockPages: Record<string, () => Promise<BlockPages>> = {
 export const blockPublicPages: Record<string, () => Promise<PublicPages>> = {
   signatures: async () => (await import("@grid/block-signatures/ui")).publicPages,
   quotes: async () => (await import("@grid/block-quotes/ui")).publicPages,
+  plans: async () => (await import("@grid/block-plans/ui")).publicPages,
 };
 
 /** Lazy panel loaders (pieces a block shows on other blocks' pages), keyed by block id. */

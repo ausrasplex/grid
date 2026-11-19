@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Loader2, Upload } from "lucide-react";
 import { ActionButton, Alert, Badge, Button, EmptyState, NativeSelect, PageHeader, SearchInput, Sheet, SheetContent, Stack, api, cn } from "@grid/ui";
 import { disciplineName } from "../parse";
+import { PlanShares } from "./Shares";
 
 export interface SheetRowJson {
   id: string;
@@ -65,11 +66,14 @@ export function PlansList({
   jobName,
   initial,
   canUpload,
+  canShare = false,
 }: {
   projectId: string;
   jobName: string;
   initial: SheetRowJson[];
   canUpload: boolean;
+  /** plans.share: make and turn off share links. */
+  canShare?: boolean;
 }) {
   const [rows, setRows] = useState(initial);
   const [discipline, setDiscipline] = useState<string>("ALL");
@@ -238,6 +242,8 @@ export function PlansList({
             ))}
           </ul>
         )}
+
+        {canShare && rows.length > 0 && <PlanShares projectId={projectId} sheets={rows.map((row) => ({ id: row.id, number: row.number, title: row.title }))} />}
       </Stack>
 
       {review && (

@@ -42,5 +42,27 @@ export type UpdateSheetInput = z.infer<typeof updateSheetSchema>;
 /** One sheet's own sharpness, or null for the server's Plans level. */
 export const qualitySchema = z.object({ quality: z.enum(PLAN_LEVELS).nullable() }).strict();
 
+/** A share link (docs/plans-block.md "Sharing plans"). */
+export const shareSchema = z
+  .object({
+    name: z.string().trim().min(1, "Say who it's for").max(80),
+    sheetIds: z.array(z.uuid()).min(1, "Pick at least one sheet").max(2000),
+    layerIds: z.array(z.uuid()).max(2000).default([]),
+    withDefault: z.boolean().default(true),
+    allowDownload: z.boolean().default(true),
+    /** Days it works for, or null for until it's turned off. */
+    days: z.union([z.literal(7), z.literal(30), z.literal(90)]).nullable(),
+  })
+  .strict();
+export type ShareInput = z.infer<typeof shareSchema>;
+
+/** The viewer's Download PDF: ?version=<id>&layers=<id>,<id>&default=1 */
+export function pdfQuery(query: URLSearchParams) {
+  const uuid = z.uuid();
+  const layerIds = (query.get("layers") ?? "").split(",").filter((id) => uuid.safeParse(id).success);
+  const version = query.get("version");
+  return { versionId: version && uuid.safeParse(version).success ? version : null, layerIds, withDefault: query.get("default") !== "0" };
+}
+
 /** A layer's name (Power, Data, Drainage). */
 export const layerSchema = z.object({ name: z.string().trim().min(1, "Give the layer a name").max(60) }).strict();

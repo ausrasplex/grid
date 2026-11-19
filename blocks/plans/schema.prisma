@@ -92,3 +92,36 @@ model PlanLayer {
 
   @@index([sheetId, deletedAt])
 }
+
+/// A private link to some of a job's plan sheets, for someone without a
+/// Grid account (Nov 2026, docs/plans-block.md "Sharing plans"): /s/<token>.
+/// Always shows each sheet's current revision, with the chosen layers'
+/// markups and icons drawn on. Works until it runs out or is turned off.
+model PlanShare {
+  id            String    @id @default(uuid())
+  companyId     String
+  projectId     String
+  /// Who it's for, e.g. "Smith Builders site office".
+  name          String
+  /// The token is in the link; stored hashed (to find it) and encrypted (to show the link again).
+  tokenHash     String    @unique
+  tokenEnc      String
+  /// PlanSheet ids, in the order chosen.
+  sheetIds      Json
+  /// PlanLayer ids whose markups and icons show, and whether Default's do.
+  layerIds      Json
+  withDefault   Boolean   @default(true)
+  allowDownload Boolean   @default(true)
+  /// Null: never runs out.
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  revokedById   String?
+  createdById   String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastOpenedAt  DateTime?
+  openCount     Int       @default(0)
+
+  @@index([projectId, revokedAt])
+  @@index([companyId])
+}
