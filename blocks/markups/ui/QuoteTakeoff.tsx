@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileStack, Loader2 } from "lucide-react";
 import { Alert, Badge, Button, Section, api, useAction, useQuoteTakeoff, type TakeoffLine } from "@grid/ui";
-import { iconByKey, iconLabel, tradeOf } from "../icons";
+import { iconLookup, type CustomIconRow } from "../icons";
 import { IconGlyph } from "./IconGlyph";
 import type { JobIconsJson } from "./IconLayer";
 
@@ -25,8 +25,9 @@ interface Row {
   priceItemId: string | null;
 }
 
-export function QuoteTakeoff({ initial, canEditIcons }: { initial: JobIconsJson | null; canEditIcons: boolean }) {
+export function QuoteTakeoff({ initial, canEditIcons, customIcons }: { initial: JobIconsJson | null; canEditIcons: boolean; customIcons: CustomIconRow[] }) {
   const takeoff = useQuoteTakeoff();
+  const lookup = useMemo(() => iconLookup(customIcons), [customIcons]);
   const [job, setJob] = useState(initial);
   const [names, setNames] = useState<Record<string, string>>({});
   const [kept, setKept] = useState(false);
@@ -54,7 +55,7 @@ export function QuoteTakeoff({ initial, canEditIcons }: { initial: JobIconsJson 
         takeoffKey,
         iconKey: entry.iconKey,
         number: entry.number,
-        label: iconLabel(entry.iconKey, entry.number, version?.name, versions.length >= 2),
+        label: lookup.label(entry.iconKey, entry.number, version?.name, versions.length >= 2),
         count: 0,
         priceItemId: version?.priceItemId ?? null,
       };
@@ -62,7 +63,7 @@ export function QuoteTakeoff({ initial, canEditIcons }: { initial: JobIconsJson 
       totals.set(takeoffKey, row);
     }
     return [...totals.values()].sort((first, second) => first.label.localeCompare(second.label, "en-AU", { numeric: true }));
-  }, [job]);
+  }, [job, lookup]);
 
   // What each linked item is called.
   const linked = rows.flatMap((row) => (row.priceItemId ? [row.priceItemId] : []));
@@ -135,7 +136,7 @@ export function QuoteTakeoff({ initial, canEditIcons }: { initial: JobIconsJson 
                 ))}
                 {gone.map((key) => (
                   <li key={key}>
-                    {iconLabel(key.split("#")[0]!, Number(key.split("#")[1]))}: {takeoff.onQuote[key]} on the quote, none on the plans now
+                    {lookup.label(key.split("#")[0]!, Number(key.split("#")[1]))}: {takeoff.onQuote[key]} on the quote, none on the plans now
                   </li>
                 ))}
               </ul>
@@ -170,8 +171,8 @@ export function QuoteTakeoff({ initial, canEditIcons }: { initial: JobIconsJson 
           ) : (
             <ul className="divide-y border-t">
               {rows.map((row) => {
-                const icon = iconByKey(row.iconKey);
-                const trade = tradeOf(row.iconKey);
+                const icon = lookup.icon(row.iconKey);
+                const trade = lookup.trade(row.iconKey);
                 const onQuote = takeoff.onQuote[row.takeoffKey];
                 return (
                   <li key={row.takeoffKey} className="flex items-center gap-3 px-4 py-2.5 sm:px-6">

@@ -205,3 +205,70 @@ export function searchIcons(query: string): { trade: Trade; icons: TradeIcon[] }
     }),
   })).filter((group) => group.icons.length > 0);
 }
+
+// ---------------------------------------------------------------------
+// Custom icons (phase 4c part 3): a business's own symbols, built from the
+// same parts (an outline, a short label) so they read like the rest and stay
+// sharp at any zoom. Their keys are "custom.<id>"; the rows are CustomIcon.
+// ---------------------------------------------------------------------
+
+export const ICON_OUTLINES: IconOutline[] = ["circle", "square", "triangle", "diamond", "hexagon"];
+export const OUTLINE_NAMES: Record<IconOutline, string> = { circle: "Circle", square: "Square", triangle: "Triangle", diamond: "Diamond", hexagon: "Hexagon", none: "None" };
+
+/** The group custom icons with no trade go in. */
+export const CUSTOM_TRADE: Trade = { id: "custom", name: "Custom", colour: "#7c3aed", icons: [] };
+
+export interface CustomIconRow {
+  id: string;
+  /** A built-in trade's id, or "custom". */
+  trade: string;
+  name: string;
+  words: string[];
+  outline: string;
+  label: string;
+  /** Removed from the library; ones already placed still draw. */
+  deleted: boolean;
+}
+
+export const customKey = (id: string) => `custom.${id}`;
+export const isCustomKey = (key: string) => /^custom\.[0-9a-f-]{36}$/.test(key);
+
+export function customIcon(row: CustomIconRow): TradeIcon {
+  return { key: customKey(row.id), name: row.name, words: row.words, outline: (ICON_OUTLINES as string[]).includes(row.outline) ? (row.outline as IconOutline) : "circle", label: row.label };
+}
+
+/** Looks up built-in and this business's custom icons together. */
+export function iconLookup(customs: CustomIconRow[]) {
+  const byKey = new Map(customs.map((row) => [customKey(row.id), row]));
+  const tradeById = new Map(TRADES.map((trade) => [trade.id, trade]));
+  return {
+    icon: (key: string): TradeIcon | null => {
+      const row = byKey.get(key);
+      return row ? customIcon(row) : iconByKey(key);
+    },
+    trade: (key: string): Trade | null => {
+      const row = byKey.get(key);
+      if (row) return tradeById.get(row.trade) ?? CUSTOM_TRADE;
+      return tradeOf(key);
+    },
+    label: (key: string, number: number | null, versionName?: string | null, numbered = true) => {
+      const row = byKey.get(key);
+      const name = row?.name ?? iconByKey(key)?.name ?? "Icon";
+      if (!numbered || number === null) return name;
+      return `${name} ${number}${versionName ? ` (${versionName})` : ""}`;
+    },
+    /** Library groups: custom icons join their trade's group (or Custom, first), then searched like the rest. */
+    search: (query: string): { trade: Trade; icons: TradeIcon[] }[] => {
+      const live = customs.filter((row) => !row.deleted);
+      const groups = [{ ...CUSTOM_TRADE, icons: live.filter((row) => !tradeById.has(row.trade)).map(customIcon) }, ...TRADES.map((trade) => ({ ...trade, icons: [...live.filter((row) => row.trade === trade.id).map(customIcon), ...trade.icons] }))];
+      const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+      return groups
+        .map((trade) => ({
+          trade,
+          icons: words.length ? trade.icons.filter((entry) => words.every((word) => [entry.name, ...entry.words, trade.name, entry.label ?? ""].join(" ").toLowerCase().includes(word))) : trade.icons,
+        }))
+        .filter((group) => group.icons.length > 0);
+    },
+  };
+}
+export type IconLookup = ReturnType<typeof iconLookup>;

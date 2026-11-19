@@ -855,3 +855,49 @@ export async function spreadsheetForBlock(ctx: RequestContext, documentId: strin
     copyWithColumns: async (additions: Record<string, AddedColumns>) => addColumns(await readFile(storedFilePath(file)), additions, { csv: file.mime === "text/csv" }),
   };
 }
+
+// ---------------------------------------------------------------------
+// Manuals linked to an icon type (phase 4c part 3). The key is Markups'
+// icon key ("electrical.gpo-double"); Documents only stores it.
+// ---------------------------------------------------------------------
+
+const ICON_KEY = /^[a-z0-9-]+\.[a-z0-9-]+$/;
+const checkIconKey = (iconKey: string) => {
+  if (!ICON_KEY.test(iconKey) || iconKey.length > 80) throw badRequest("That isn't an icon");
+};
+
+/** Documents linked to an icon type (library documents, and job documents on jobs you can see). */
+export async function iconDocuments(ctx: RequestContext, iconKey: string) {
+  const companyId = requireCompany(ctx);
+  checkIconKey(iconKey);
+  const links = await db.iconDocumentLink.findMany({ where: { companyId, iconKey }, orderBy: { createdAt: "asc" } });
+  const documents = await db.libraryDocument.findMany({ where: { companyId, id: { in: links.map((link) => link.documentId) }, deletedAt: null }, include: withCurrent });
+  const visible = [];
+  for (const document of documents) if (!document.projectId || (await canSeeJob(ctx, document.projectId))) visible.push(document);
+  return rowsOf(visible, companyId);
+}
+
+export async function linkIconDocument(ctx: RequestContext, iconKey: string, documentId: string) {
+  const companyId = requireCompany(ctx);
+  checkIconKey(iconKey);
+  await db.$transaction(async (tx) => {
+    const document = await ownDocument(tx, ctx, documentId);
+    const existing = await tx.iconDocumentLink.findUnique({ where: { companyId_iconKey_documentId: { companyId, iconKey, documentId } } });
+    if (existing) return;
+    const link = await tx.iconDocumentLink.create({ data: { companyId, iconKey, documentId, createdById: ctx.userId } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "IconDocumentLink", entityId: link.id, action: "added", diff: { iconKey, title: document.title } });
+  });
+  return iconDocuments(ctx, iconKey);
+}
+
+export async function unlinkIconDocument(ctx: RequestContext, iconKey: string, documentId: string) {
+  const companyId = requireCompany(ctx);
+  checkIconKey(iconKey);
+  await db.$transaction(async (tx) => {
+    const link = await tx.iconDocumentLink.findUnique({ where: { companyId_iconKey_documentId: { companyId, iconKey, documentId } } });
+    if (!link) return;
+    await tx.iconDocumentLink.delete({ where: { id: link.id } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "IconDocumentLink", entityId: link.id, action: "removed", diff: { iconKey, documentId } });
+  });
+  return iconDocuments(ctx, iconKey);
+}

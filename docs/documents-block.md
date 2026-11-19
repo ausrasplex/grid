@@ -371,7 +371,7 @@ Later (split out of 5b, Nov 2026; not scheduled, see the roadmap's 10+ row):
 
 4. OCR for scans.
 5. Offline (with phase 6's offline sync) + product scanning.
-6. Icon links: **moved to phase 4c** (built with the icons). Project links are done (pin to a job).
+6. Icon links: **moved to phase 4c, built in 4c part 3** (`IconDocumentLink`, `/documents/icon/<key>`; see the roadmap). Project links are done (pin to a job).
 7. Product catalogue (manufacturer → division → family → model), document ↔ product links, model-number search.
 8. Product notes with Private / Shared visibility and source-page links.
 9. Installed products on plans; shared catalogue on the hosted site later.

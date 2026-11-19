@@ -7,7 +7,11 @@ import "server-only";
 import { badRequest, conflict, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db } from "@grid/db";
 import { canSeeJob } from "@grid/block-projects";
-import { iconByKey } from "./icons";
+import { iconByKey as builtInIcon, isCustomKey } from "./icons";
+import { customIconName } from "./custom-icons";
+
+/** A name for the activity log ("Double GPO", or a custom icon's). */
+const iconByKey = (key: string) => builtInIcon(key) ?? (isCustomKey(key) ? { name: key } : null);
 
 const MOD = "markups";
 
@@ -86,6 +90,7 @@ export async function addIconVersion(ctx: RequestContext, projectId: string, inp
   await jobOrThrow(ctx, projectId);
   const icon = iconByKey(input.iconKey);
   if (!icon) throw badRequest("Pick an icon");
+  if (isCustomKey(input.iconKey)) icon.name = (await customIconName(input.iconKey)) ?? "Custom icon";
   await db.$transaction(async (tx) => {
     // One at a time per job and icon, so two people tapping + don't clash.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`markups:icon-version:${projectId}:${input.iconKey}`}))`;

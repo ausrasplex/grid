@@ -15,7 +15,7 @@ Status: **agreed.** Build for a **sole trader first** and expand to teams, then 
 | **2e. Job storage, the Jobs table and archiving** (parts 1–2 done Nov 2026; Export moved to later) (`projects` + every Block with files) | Storage card on each job (originals and viewing copies per Block); a searchable Jobs table with counts and sizes; Archive job (drops the viewing copies, redrawn for 24 hours when opened) | See what's filling the server and win the space back from finished jobs without losing anything; a handover pack for the client | Maybe later: Export job as a ZIP (handover pack), Import, moving archived originals to a second disk; see `stage-2-projects.md` "Job storage" |
 | **3. Quotes + signing (done: 3a, 3b)** (`templates` basics, `quotes`, `signatures`) | Clients, price book, quick quote on the phone, branded PDF, online client signing with one-time code, signed PDF; an accepted quote creates the job | Quote on site, client signs on their phone, job appears | Estimators, Foreman drafts with Owner review, full estimates with take-offs, signing in person and several signers |
 | **4. Plans, markups, photo pins, measure (done: 4a, 4b)** (`plans`, `markups`) | Upload, tiled viewer, revisions, own markup layer, photo pins, calibrated measuring | Mark up and measure plans on the tablet | Company layers with visibility, plan update requests linked to RFIs |
-| **4c. Trade icons and take-offs** (parts 1–2 done: icons on plans, numbers, counts, take-offs into quotes, Quoting jobs; part 3 custom icons next) (`markups`, `quotes`, `projects`, `documents`) | A symbol library for every trade (accordion per trade, with search) placed on plans; counts per sheet, level and job; take-offs into quotes; Quoting jobs so a quote can have plans before it's won; a manual linked to an icon type opens from a placed icon | Count 42 GPOs off the drawings and have them priced on the quote; the same icons become the install plan when the job is won | Assemblies behind icons, custom icon artwork, trades sharing plans with their own icon layers (phase 8) |
+| **4c. Trade icons and take-offs** (done: icons on plans, numbers, counts, take-offs into quotes, Quoting jobs, custom icons, manuals on icons) (`markups`, `quotes`, `projects`, `documents`) | A symbol library for every trade (accordion per trade, with search) placed on plans; counts per sheet, level and job; take-offs into quotes; Quoting jobs so a quote can have plans before it's won; a manual linked to an icon type opens from a placed icon | Count 42 GPOs off the drawings and have them priced on the quote; the same icons become the install plan when the job is won | Assemblies behind icons, custom icon artwork, trades sharing plans with their own icon layers (phase 8) |
 | **5a. My tickets & licences (the wallet, first part) (done)** | Your own tickets and licences (White Card, electrical licence, EWP…) with card photos, numbers and expiry dates; reminders before they run out | Every ticket on your phone; never caught out by an expired licence | Sharing with a business, inductions, site requirements and the employer-only section (phase 9) |
 | **5b. Documents** (done: libraries, job documents, viewers, row sign-offs, search inside documents) (`documents`, `signoffs`) | Own manual library; job documents (fit-off sheets, points lists) with a built-in spreadsheet viewer (part 2); row sign-offs as a trial Block (part 3); search inside documents (part 4) | Manuals on hand, fit-off and points lists readable on the phone and signed off as you go, finding the right page by searching | Sharing libraries with subcontractors; OCR, product scanning and the product catalogue (later) |
 | **5c. Assets** (after 4c) (`assets`) | Tools and gear with QR tags, check out and in, faults and Do-not-use, inspections and test & tag due dates, vehicles with servicing by km and date | Test-and-tag reminders, knowing who has the gear, van servicing on time | Fleet-wide assets, public lost-and-found QR |
@@ -128,7 +128,7 @@ Built after 5b (Documents) and before 5c (Assets). Trade symbols placed on plans
 **Split into three parts (Nov 2026):**
 1. **The icon library, placing, numbers and counts.** **Done**, see below.
 2. **Take-offs into quotes and Quoting jobs:** the quote's Take-off section, a price book item per number, Add to quote, "Take-off changed", `QUOTING` / `NOT_WON` jobs. **Done**, see "What part 2 built".
-3. **Custom icons and manuals linked to an icon type:** `CustomIcon` per business, and tapping a placed icon offers its documents.
+3. **Custom icons and manuals linked to an icon type:** `CustomIcon` per business, and tapping a placed icon offers its documents. **Done**, see "What part 3 built".
 
 **What part 1 built (Nov 2026):**
 - **The library** (`blocks/markups/icons.ts`, unit-tested): about 80 original line symbols in 8 trades: Electrical, Data & comms, Plumbing, HVAC, Fire, Security, Gas, and Solar & batteries.
@@ -183,6 +183,25 @@ Built after 5b (Documents) and before 5c (Assets). Trade symbols placed on plans
   - measured lengths into metres lines;
   - take-off lines remembering their sheet and level;
   - assemblies.
+
+**What part 3 built (Nov 2026):**
+- **Custom icons: built, not uploaded (decided while building).** A custom icon is made from the same parts as the built-in ones: a shape (circle, square, triangle, diamond, hexagon), up to 3 letters ("BL"), a name, other words for the search, and a trade.
+  - It reads like the rest of the library and stays sharp at any zoom, with no see-through-PNG trouble.
+  - `CustomIcon.fileId` is kept for uploaded pictures later.
+- **Settings › Custom icons** (`/markups/icons`, `markups.manage`) adds, changes and deletes them, with a live preview.
+  - Each joins its trade's group in the library, in that trade's colour; ones with no trade go in **Custom**, first.
+  - The placed key is `custom.<id>`.
+  - Deleting takes an icon out of the library; ones already placed keep drawing, counting and pricing.
+  - The library links to the page for people who may make them.
+- `iconLookup(customs)` in `icons.ts` (unit-tested) looks up built-in and custom icons together, for the plan, the counts and the quote's take-off.
+- **Manuals on an icon type:** tap a placed icon, then **Manuals** (when Documents is on) opens `/documents/icon/<key>`. It lists the documents linked to that type, with **Link a manual** (from the libraries) and Unlink (`documents.edit`).
+  - The links are the same on every job. Job documents only show on jobs you can see.
+  - `IconDocumentLink` belongs to Documents, which only stores the key. Markups just links to the page, so neither Block depends on the other.
+  - `GET` / `POST /api/documents/icon/<key>`, `DELETE /api/documents/icon/<key>/<documentId>`.
+- **Not yet:**
+  - uploaded pictures as icons;
+  - manuals linked to a single placed icon (only to the type);
+  - the links shown from the document's side.
 
 **Data (sketch):** `PlanMarkup` gains `ICON`, `iconKey` and `iconNumber`; `CustomIcon` (`companyId`, `trade`, `name`, `keywords`, `fileId`, soft delete); `JobIconVersion` (`companyId`, `projectId`, `iconKey`, `number`, `name?`, `priceItemId?`, `assemblyId?`, unique on project + icon + number); `ProjectStatus` gains `QUOTING` and `NOT_WON`; quote lines remember their take-off source (sheet, revision, icon, level).
 

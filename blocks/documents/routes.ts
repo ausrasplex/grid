@@ -1,4 +1,5 @@
 // HTTP routes, mounted at /api/documents.
+import { z } from "zod";
 import { notFound, type Routes } from "@grid/core";
 import * as svc from "./service";
 import {
@@ -51,6 +52,13 @@ export const routes: Routes = {
   },
   // Find on page in the PDF viewer: ?q=… → boxes on each page.
   "GET /find/:versionId": { permission: "documents.view", handler: (ctx, request) => svc.findOnPage(ctx, request.params.versionId!, request.query.get("q") ?? "") },
+  // Manuals linked to an icon type (phase 4c part 3): a placed icon on a plan offers these.
+  "GET /icon/:iconKey": { permission: "documents.view", handler: (ctx, request) => svc.iconDocuments(ctx, request.params.iconKey!) },
+  "POST /icon/:iconKey": {
+    permission: "documents.edit",
+    handler: (ctx, request) => svc.linkIconDocument(ctx, request.params.iconKey!, z.object({ documentId: z.uuid() }).strict().parse(request.body).documentId),
+  },
+  "DELETE /icon/:iconKey/:documentId": { permission: "documents.edit", handler: (ctx, request) => svc.unlinkIconDocument(ctx, request.params.iconKey!, request.params.documentId!) },
   "GET /doc/:id": { permission: "documents.view", handler: (ctx, request) => svc.getDocument(ctx, request.params.id!, request.query.get("version")) },
   "PATCH /doc/:id": { permission: "documents.edit", handler: (ctx, request) => svc.updateDocument(ctx, request.params.id!, updateDocumentSchema.parse(request.body)) },
   "POST /doc/:id/versions": { permission: "documents.upload", handler: (ctx, request) => svc.addVersion(ctx, request.params.id!, newVersionSchema.parse(request.body)) },

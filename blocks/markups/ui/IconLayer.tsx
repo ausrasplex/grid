@@ -12,7 +12,7 @@
 // Placed icons are markups (kind ICON), saved as soon as they're tapped.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ListOrdered, Plus, Shapes, Trash2, Undo2, X } from "lucide-react";
+import { BookOpen, ChevronDown, ListOrdered, Plus, Settings2, Shapes, Trash2, Undo2, X } from "lucide-react";
 import {
   Alert,
   Button,
@@ -32,7 +32,7 @@ import {
   usePlanPointer,
   type PlanPointer,
 } from "@grid/ui";
-import { TRADES, iconByKey, searchIcons, tradeOf, type TradeIcon } from "../icons";
+import { CUSTOM_TRADE, TRADES, iconLookup, type CustomIconRow, type IconLookup, type Trade, type TradeIcon } from "../icons";
 import { distance, showsOn, type Point } from "../geometry";
 import { IconGlyph, IconShape } from "./IconGlyph";
 
@@ -97,6 +97,9 @@ export function IconLayer({
   initialIcons,
   initialJob,
   canAdd,
+  customIcons,
+  canManageIcons,
+  documentsOn,
 }: {
   sheetId: string;
   projectId: string;
@@ -104,7 +107,14 @@ export function IconLayer({
   initialIcons: PlacedIconJson[];
   initialJob: JobIconsJson;
   canAdd: boolean;
+  /** The business's own icons (phase 4c part 3), deleted ones too so placed ones still draw. */
+  customIcons: CustomIconRow[];
+  /** May add custom icons (Settings › Custom icons). */
+  canManageIcons: boolean;
+  /** Documents is on: a placed icon offers the manuals linked to its type. */
+  documentsOn: boolean;
 }) {
+  const lookup = useMemo(() => iconLookup(customIcons), [customIcons]);
   const overlay = usePlanOverlay();
   const { view, version, versions, isCurrent, hidden, setTool } = overlay;
   const placing = overlay.tool === "markups.icon";
@@ -146,8 +156,8 @@ export function IconLayer({
   }, [projectId]);
 
   const visible = useMemo(
-    () => showsOn(icons, version.id, versions).filter((entry) => !hiddenTrades.has(tradeOf(entry.iconKey)?.id ?? "")),
-    [icons, version.id, versions, hiddenTrades],
+    () => showsOn(icons, version.id, versions).filter((entry) => !hiddenTrades.has(lookup.trade(entry.iconKey)?.id ?? "")),
+    [icons, version.id, versions, hiddenTrades, lookup],
   );
   const selected = visible.find((entry) => entry.id === selectedId) ?? null;
 
@@ -242,8 +252,8 @@ export function IconLayer({
   const drawn = useMemo(
     () =>
       visible.map((entry) => {
-        const icon = iconByKey(entry.iconKey);
-        const trade = tradeOf(entry.iconKey);
+        const icon = lookup.icon(entry.iconKey);
+        const trade = lookup.trade(entry.iconKey);
         if (!icon || !trade) return null;
         const [x, y] = entry.points[0]!;
         const numbered = numbersOf(entry.iconKey).length >= 2;
@@ -258,13 +268,13 @@ export function IconLayer({
           </g>
         );
       }),
-    [visible, numbersOf],
+    [visible, numbersOf, lookup],
   );
 
-  const pickedIcon = picked ? iconByKey(picked.iconKey) : null;
-  const pickedTrade = picked ? tradeOf(picked.iconKey) : null;
+  const pickedIcon = picked ? lookup.icon(picked.iconKey) : null;
+  const pickedTrade = picked ? lookup.trade(picked.iconKey) : null;
   const pickedNumbers = picked ? numbersOf(picked.iconKey) : [];
-  const selectedIcon = selected ? iconByKey(selected.iconKey) : null;
+  const selectedIcon = selected ? lookup.icon(selected.iconKey) : null;
   const selectedNumbers = selected ? numbersOf(selected.iconKey) : [];
   const likeSelected = selected ? visible.filter((entry) => entry.iconKey === selected.iconKey && (entry.iconNumber ?? 1) === (selected.iconNumber ?? 1) && entry.canChange) : [];
 
@@ -343,12 +353,19 @@ export function IconLayer({
         <div className="pointer-events-auto absolute inset-x-2 bottom-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg">
           <div className="flex items-center gap-2">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-white">
-              <IconGlyph icon={selectedIcon} colour={tradeOf(selected.iconKey)!.colour} className="size-7" />
+              <IconGlyph icon={selectedIcon} colour={lookup.trade(selected.iconKey)!.colour} className="size-7" />
             </span>
             <p className="min-w-0 flex-1 font-semibold">
               {selectedIcon.name}
               {selectedNumbers.length >= 2 ? ` ${selected.iconNumber ?? 1}` : ""}
             </p>
+            {documentsOn && (
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/documents/icon/${encodeURIComponent(selected.iconKey)}?name=${encodeURIComponent(selectedIcon.name)}&back=${encodeURIComponent(`/plans/sheet/${sheetId}`)}`}>
+                  <BookOpen /> Manuals
+                </a>
+              </Button>
+            )}
             {selected.canChange && canPlace && (
               <Button variant="ghost" size="icon" aria-label="Delete this icon" onClick={() => void remove([selected.id])}>
                 <Trash2 />
@@ -393,13 +410,14 @@ export function IconLayer({
 
       <Sheet open={library} onOpenChange={setLibrary}>
         <SheetContent title="Icons" description="Pick one, then tap the plan to place it. It stays picked for the next one.">
-          <IconLibrary onPick={pick} />
+          <IconLibrary lookup={lookup} onPick={pick} canManage={canManageIcons} />
         </SheetContent>
       </Sheet>
 
       <Sheet open={counts} onOpenChange={setCounts}>
         <SheetContent title="Icon counts" description="Placed icons, split by number. These become the quote's take-off.">
           <CountsPanel
+            lookup={lookup}
             job={job}
             sheetId={sheetId}
             levelId={levelId}
@@ -425,7 +443,7 @@ export function IconLayer({
       <Sheet open={!!naming} onOpenChange={(open) => !open && setNaming(null)}>
         <SheetContent
           desktop="dialog"
-          title={naming?.version ? `${iconByKey(naming.iconKey)?.name} ${naming.version.number}` : `Add a number to ${iconByKey(naming?.iconKey ?? "")?.name ?? "this icon"}`}
+          title={naming?.version ? `${lookup.icon(naming.iconKey)?.name} ${naming.version.number}` : `Add a number to ${lookup.icon(naming?.iconKey ?? "")?.name ?? "this icon"}`}
           description={
             naming?.version
               ? "A short name, shown on the chips and in the counts."
@@ -451,12 +469,12 @@ export function IconLayer({
 }
 
 /** The icon library: a search across every trade, then each trade as an accordion (closed ones stay closed on this device). */
-function IconLibrary({ onPick }: { onPick: (iconKey: string) => void }) {
+function IconLibrary({ lookup, onPick, canManage }: { lookup: IconLookup; onPick: (iconKey: string) => void; canManage: boolean }) {
   const [query, setQuery] = useState("");
   const [closed, setClosed] = useState<Set<string>>(new Set());
   useEffect(() => setClosed(readSet(CLOSED_KEY)), []);
   const searching = query.trim().length > 0;
-  const groups = searchIcons(query);
+  const groups = lookup.search(query);
   const toggle = (tradeId: string) => {
     const next = new Set(closed);
     if (next.has(tradeId)) next.delete(tradeId);
@@ -467,7 +485,12 @@ function IconLibrary({ onPick }: { onPick: (iconKey: string) => void }) {
   return (
     <div className="flex flex-col gap-3 px-4 pb-4">
       <SearchInput label="Search icons" placeholder="Search icons, e.g. power point" value={query} onChange={(event) => setQuery(event.target.value)} />
-      {searching && !groups.length && <p className="text-sm text-muted-foreground">No icons match. Custom icons come later.</p>}
+      {searching && !groups.length && <p className="text-sm text-muted-foreground">No icons match.{canManage ? " You can make your own in Custom icons." : ""}</p>}
+      {canManage && (
+        <a href="/markups/icons" className="flex min-h-touch items-center gap-2 self-start rounded-md px-2 text-sm font-semibold text-primary hover:underline">
+          <Settings2 className="size-4" /> Custom icons: make your own
+        </a>
+      )}
       {groups.map(({ trade, icons }) => {
         const open = searching || !closed.has(trade.id);
         return (
@@ -503,6 +526,7 @@ type Scope = "sheet" | "level" | "job";
 
 /** Counts for this sheet, this level or the whole job, split by number; and each trade's layer. */
 function CountsPanel({
+  lookup,
   job,
   sheetId,
   levelId,
@@ -513,6 +537,7 @@ function CountsPanel({
   onAddNumber,
   onRemove,
 }: {
+  lookup: IconLookup;
   job: JobIconsJson;
   sheetId: string;
   levelId: string | null;
@@ -533,7 +558,14 @@ function CountsPanel({
     numbers.set(entry.number, (numbers.get(entry.number) ?? 0) + entry.count);
     totals.set(entry.iconKey, numbers);
   }
-  const tradesUsed = new Set([...job.counts.map((entry) => tradeOf(entry.iconKey)?.id)].filter(Boolean) as string[]);
+  // Group by trade (custom icons in theirs, or Custom), in the library's order.
+  const tradeOrder: Trade[] = [CUSTOM_TRADE, ...TRADES];
+  const groupsFor = (keys: string[]) =>
+    tradeOrder
+      .map((trade) => ({ trade, keys: keys.filter((key) => lookup.trade(key)?.id === trade.id).sort((first, second) => (lookup.icon(first)?.name ?? "").localeCompare(lookup.icon(second)?.name ?? "")) }))
+      .filter((group) => group.keys.length > 0);
+  const groups = groupsFor([...totals.keys()]);
+  const tradesUsed = new Set(job.counts.map((entry) => lookup.trade(entry.iconKey)?.id).filter(Boolean) as string[]);
 
   return (
     <div className="flex flex-col gap-4 px-4 pb-4">
@@ -551,18 +583,19 @@ function CountsPanel({
       {!totals.size ? (
         <p className="text-sm text-muted-foreground">No icons placed {scope === "sheet" ? "on this sheet" : scope === "level" ? "on this level" : "on this job"} yet. Pick one with Icons in the tool bar.</p>
       ) : (
-        TRADES.filter((trade) => trade.icons.some((entry) => totals.has(entry.key))).map((trade) => (
+        groups.map(({ trade, keys }) => (
           <section key={trade.id} className="flex flex-col gap-1">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <span className="size-3 rounded-full" style={{ background: trade.colour }} aria-hidden />
               {trade.name}
             </h3>
             <ul className="flex flex-col divide-y rounded-lg border">
-              {trade.icons
-                .filter((entry) => totals.has(entry.key))
-                .map((entry) => (
-                  <CountRows key={entry.key} icon={entry} colour={trade.colour} counts={totals.get(entry.key)!} versions={job.versions.filter((version) => version.iconKey === entry.key)} canEdit={canEdit} onRename={onRename} onAddNumber={onAddNumber} onRemove={onRemove} />
-                ))}
+              {keys.map((key) => {
+                const icon = lookup.icon(key);
+                return icon ? (
+                  <CountRows key={key} icon={icon} colour={trade.colour} counts={totals.get(key)!} versions={job.versions.filter((version) => version.iconKey === key)} canEdit={canEdit} onRename={onRename} onAddNumber={onAddNumber} onRemove={onRemove} />
+                ) : null;
+              })}
             </ul>
           </section>
         ))
@@ -570,7 +603,7 @@ function CountsPanel({
       {tradesUsed.size > 0 && (
         <section className="flex flex-col gap-1">
           <h3 className="text-sm font-semibold">Show on the plan</h3>
-          {TRADES.filter((trade) => tradesUsed.has(trade.id)).map((trade) => (
+          {tradeOrder.filter((trade) => tradesUsed.has(trade.id)).map((trade) => (
             <label key={trade.id} className="flex min-h-touch items-center justify-between gap-3">
               <span className="flex items-center gap-2">
                 <span className="size-3 rounded-full" style={{ background: trade.colour }} aria-hidden />

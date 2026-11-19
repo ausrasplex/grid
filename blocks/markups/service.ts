@@ -12,6 +12,7 @@ import { audit, db, type Prisma } from "@grid/db";
 import { sheetForOverlay } from "@grid/block-plans";
 import { metresPerUnitFromPoints, metresPerUnitFromRatio, type MarkupKind, type Point } from "./geometry";
 import type { CreateMarkupInput, SetScaleInput, UpdateMarkupInput } from "./validation";
+import { assertCustomIcon } from "./custom-icons";
 
 const MOD = "markups";
 
@@ -114,6 +115,7 @@ export async function createMarkup(ctx: RequestContext, input: CreateMarkupInput
   }
   if (!sheet.versions.some((version) => version.id === input.versionId)) throw badRequest("That revision isn't part of this sheet");
   if (input.visibility === "SHARED") throw badRequest("Sharing markups with other businesses on the job comes later");
+  if (input.kind === "ICON" && input.iconKey) await assertCustomIcon(sheet.companyId, input.iconKey);
 
   const markup = await db.$transaction(async (tx) => {
     const markup = await tx.planMarkup.create({

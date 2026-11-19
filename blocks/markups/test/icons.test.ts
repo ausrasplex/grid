@@ -25,3 +25,20 @@ test("searching finds icons by other words, across trades", () => {
   assert.equal(searchIcons("").length, TRADES.length);
   assert.equal(searchIcons("zzzz").length, 0);
 });
+
+test("custom icons join the library and look up like built-in ones", async () => {
+  const { iconLookup, customKey, isCustomKey } = await import("../icons.ts");
+  const id = "0d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22";
+  const lookup = iconLookup([
+    { id, trade: "electrical", name: "Bollard light", words: ["garden"], outline: "circle", label: "BL", deleted: false },
+    { id: "1d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22", trade: "custom", name: "Gone", words: [], outline: "square", label: "G", deleted: true },
+  ]);
+  assert.ok(isCustomKey(customKey(id)));
+  assert.equal(lookup.icon(customKey(id))?.name, "Bollard light");
+  assert.equal(lookup.trade(customKey(id))?.name, "Electrical");
+  assert.equal(lookup.icon("electrical.gpo-double")?.name, "Double GPO");
+  assert.ok(lookup.search("garden")[0]!.icons.some((entry) => entry.key === customKey(id)));
+  // Deleted ones leave the library but still draw where placed.
+  assert.equal(lookup.search("gone").length, 0);
+  assert.equal(lookup.icon("custom.1d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22")?.name, "Gone");
+});

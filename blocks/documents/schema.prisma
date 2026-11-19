@@ -156,3 +156,19 @@ model DocumentPage {
   @@index([companyId])
   @@index([search], type: Gin)
 }
+
+/// A manual linked to an icon type (phase 4c part 3): tapping a placed
+/// icon on a plan offers its documents. iconKey is the Markups icon key
+/// ("electrical.gpo-double", "custom.<id>"); Documents doesn't need to know
+/// what it means.
+model IconDocumentLink {
+  id          String   @id @default(uuid())
+  companyId   String
+  iconKey     String
+  documentId  String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@unique([companyId, iconKey, documentId])
+  @@index([documentId])
+}

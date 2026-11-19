@@ -40,6 +40,7 @@ export const blockPages: Record<string, () => Promise<BlockPages>> = {
   quotes: async () => (await import("@grid/block-quotes/ui")).pages,
   plans: async () => (await import("@grid/block-plans/ui")).pages,
   documents: async () => (await import("@grid/block-documents/ui")).pages,
+  markups: async () => (await import("@grid/block-markups/ui")).pages,
 };
 
 /** Lazy loaders for pages people see without signing in (/p/<block>/...). */

@@ -113,3 +113,27 @@ model JobIconVersion {
   @@unique([companyId, projectId, iconKey, number])
   @@index([projectId])
 }
+
+/// A business's own icon (phase 4c part 3), built like the built-in ones:
+/// an outline and a short label, in its trade's colour. Placed with the key
+/// "custom.<id>". Deleting hides it from the library; placed ones still draw.
+model CustomIcon {
+  id          String    @id @default(uuid())
+  companyId   String
+  /// A built-in trade id ("electrical"), or "custom".
+  trade       String
+  name        String
+  words       String[]  @default([])
+  /// circle | square | triangle | diamond | hexagon
+  outline     String
+  /// Up to 3 letters or numbers in the middle ("BL").
+  label       String
+  /// A picture instead of the outline and label: later.
+  fileId      String?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([companyId, deletedAt])
+}

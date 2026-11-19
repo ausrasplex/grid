@@ -29,6 +29,8 @@ const THINGS: Record<string, string> = {
   ServerSetting: "server setting",
   SheetSignoff: "row sign-off",
   JobIconVersion: "icon number",
+  CustomIcon: "custom icon",
+  IconDocumentLink: "manual on an icon",
   SheetSignoffSettings: "sign-off match column",
 };
 

@@ -4,6 +4,7 @@
 //   /documents/doc/<id>[/<versionId>]  one document in the viewer
 //   /documents/job/<projectId>         a job's documents and folders
 //   /documents/settings                Settings › Document libraries
+//   /documents/icon/<icon key>         manuals linked to an icon type (phase 4c part 3)
 //   panel "job.area"                   "Documents · 12" on a job page
 //   panel "storage.deleted"            Recently deleted documents
 //   slot "documents.sheet"             other Blocks add to the spreadsheet viewer (row sign-offs)
@@ -13,10 +14,11 @@ import { can, forbidden, notFound } from "@grid/core";
 import { getStorageSettings } from "@grid/db";
 import type { BlockPages, BlockPanels, SheetViewerPanelProps } from "@grid/ui";
 import { getProject, type JobAreaPanelProps } from "@grid/block-projects";
-import { documentsForJobPanel, getDocument, getSettings, jobDocuments, listDeleted, listLibraries, listLibraryDocuments } from "../service";
+import { documentsForJobPanel, iconDocuments, getDocument, getSettings, jobDocuments, listDeleted, listLibraries, listLibraryDocuments } from "../service";
 import { DeletedDocuments, type DeletedDocumentJson } from "./DeletedDocuments";
 import { DocumentPage, type DocumentJson } from "./DocumentPage";
 import { DocumentsHome } from "./DocumentsHome";
+import { IconDocuments } from "./IconDocuments";
 import { JobDocuments, type JobDocumentsJson } from "./JobDocuments";
 import { LibrarySettings } from "./LibrarySettings";
 import type { DocumentRowJson } from "./shared";
@@ -74,6 +76,12 @@ export const pages: BlockPages = {
     const job = await getProject(ctx, projectId ?? "");
     const data = await jobDocuments(ctx, job.id);
     return <JobDocuments job={{ id: job.id, name: job.name }} initial={json<JobDocumentsJson>(data)} permissions={{ upload: can(ctx, "documents.upload"), edit: can(ctx, "documents.edit") }} />;
+  },
+
+  icon: async ({ ctx, params: [iconKey] }) => {
+    const key = decodeURIComponent(iconKey ?? "");
+    const rows = await iconDocuments(ctx, key);
+    return <IconDocuments iconKey={key} initial={json<DocumentRowJson[]>(rows)} canEdit={can(ctx, "documents.edit")} />;
   },
 
   settings: async ({ ctx }) => {
