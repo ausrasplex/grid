@@ -57,7 +57,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, clients, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents (optional)
+blocks/        users, companies, clients, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -90,7 +90,8 @@ prisma/        base, core and auth schemas; migrations
   **Phase 5b part 2** (spreadsheet viewer: Excel, ODS and CSV read once by SheetJS into per-sheet JSON in the cache; tabs, frozen header row and first column, search, filter and sort, row cards, header row per version) is done too; see "What 5b part 2 built" in `docs/documents-block.md`.
   **Sharpness levels** (Settings › Plans & PDFs, server admin: Low/Medium/High/Extreme for plans, Low/Medium/High for documents and quote PDFs; a plan sheet can have its own level; Redraw existing) are done too; see "Sharpness" in `docs/plans-block.md`.
   **Phase 2e parts 1–2** (job Storage section, the Jobs table at /jobs, Archive and Restore job with copies drawn again for a day when opened) are done too; see "Job storage" in `docs/stage-2-projects.md`. A Block with files for jobs adds a `jobStorage` hook, and a `dropArchivedCopies` clean-up hook if it keeps big copies.
-- Next: the rest of **Phase 5b** (Documents): Sign-offs (part 3, adds the `documents.sheet` slot), search inside documents (part 4) (`docs/documents-block.md` build order). Then **Phase 4c** (trade icons, take-offs, Quoting jobs) and **Phase 5c** (Assets, `docs/assets-block.md`). OCR, product scanning and the product catalogue are later.
+  **Phase 5b part 3** (the `signoffs` Block, a trial: sign off spreadsheet rows, progress, To do filter, match column so sign-offs follow rows into new versions, offline, Download with sign-offs; the viewer's `documents.sheet` slot in `@grid/ui` sheet-slot) is done too; see "What 5b part 3 built" in `docs/documents-block.md`.
+- Next: the rest of **Phase 5b** (Documents): search inside documents (part 4) (`docs/documents-block.md` build order). Then **Phase 4c** (trade icons, take-offs, Quoting jobs) and **Phase 5c** (Assets, `docs/assets-block.md`). OCR, product scanning and the product catalogue are later.
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.
 - PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. To show a PDF inside the app (never a new tab: it leaves the installed app), turn it into page pictures with `renderPdfPages()` from `@grid/db` (into `cacheRoot()`) and show them with `PageViewer` from `@grid/ui`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.

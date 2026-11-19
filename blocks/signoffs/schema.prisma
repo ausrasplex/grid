@@ -1,0 +1,40 @@
+// Sign-offs block (phase 5b part 3, a trial): signing off rows on a
+// spreadsheet document (fit-off sheets, points lists) as the work is done.
+// Kept in Grid, never written into the file. Design: docs/documents-block.md
+// "Row sign-offs".
+
+/// One sign-off or undo of a row. Append-only: the row's latest entry is
+/// where it stands, and the table is its history.
+model SheetSignoff {
+  /// Made on the phone, so a sign-off sent twice (after no signal) is kept once.
+  id         String   @id
+  companyId  String
+  documentId String
+  sheetName  String
+  /// The row's key: its match column's value ("c:ahu 1 sat") or a hash of the row ("h:1a2b3c4d").
+  rowKey     String
+  signedOff  Boolean
+  note       String?
+  /// A few cells of the row when it was signed off, shown if it stops matching a new version.
+  rowText    String   @default("")
+  byId       String
+  /// When it was done, on the phone (it may have been offline).
+  at         DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([documentId, sheetName, at])
+  @@index([companyId])
+}
+
+/// Per sheet of a document: which column names each row.
+model SheetSignoffSettings {
+  documentId  String
+  sheetName   String
+  companyId   String
+  /// A header name, "" for the whole row, or null for Grid's guess.
+  matchColumn String?
+  updatedAt   DateTime @updatedAt
+
+  @@id([documentId, sheetName])
+  @@index([companyId])
+}

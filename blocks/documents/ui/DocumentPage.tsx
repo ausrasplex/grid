@@ -4,11 +4,11 @@
 // its actions: download, upload a new version, details, versions, pin to a
 // job, delete.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowLeft, Download, Loader2, MoreHorizontal, Upload } from "lucide-react";
 import { ActionButton, Alert, Badge, Button, Field, FormActions, Label, List, ListRow, PageHeader, SelectField, Sheet, SheetContent, Stack, Switch, api, formatBytes, useAction } from "@grid/ui";
 import { KIND_LABEL, UPLOAD_ACCEPT, type DocumentKind } from "../kinds";
-import { PageViewer } from "@grid/ui";
+import { PageViewer, type SheetViewerPanelProps } from "@grid/ui";
 import { SheetViewer } from "./SheetViewer";
 import type { SheetSummary } from "../sheets";
 import { KindIcon, UploadList, useUploads } from "./shared";
@@ -67,7 +67,12 @@ export function DocumentPage({
   folders,
   permissions,
   deletedDays,
+  sheetPanel,
+  sheetPanels,
 }: {
+  /** Other Blocks' "documents.sheet" panels for the version on screen (row sign-offs), and what they were given. */
+  sheetPanel?: SheetViewerPanelProps;
+  sheetPanels?: ReactNode[];
   initial: DocumentJson;
   /** An older version to show instead of the current one. */
   versionId: string | null;
@@ -156,7 +161,17 @@ export function DocumentPage({
           </Alert>
         )}
         {document.description && <p className="text-sm whitespace-pre-line text-muted-foreground">{document.description}</p>}
-        {version ? <VersionView key={version.id} version={version} title={document.title} canDownload={canDownload} canRetry={permissions.upload} canEdit={permissions.edit} onRetried={reload} /> : <Alert variant="error">This document has no file.</Alert>}
+        {version ? <VersionView
+            key={version.id}
+            version={version}
+            title={document.title}
+            canDownload={canDownload}
+            canRetry={permissions.upload}
+            canEdit={permissions.edit}
+            onRetried={reload}
+            sheetPanel={sheetPanel?.version.id === version.id ? sheetPanel : undefined}
+            sheetPanels={sheetPanel?.version.id === version.id ? sheetPanels : undefined}
+          /> : <Alert variant="error">This document has no file.</Alert>}
       </Stack>
 
       <Sheet open={sheet === "menu"} onOpenChange={(open) => !open && setSheet(null)}>
@@ -221,6 +236,8 @@ function VersionView({
   canRetry,
   canEdit,
   onRetried,
+  sheetPanel,
+  sheetPanels,
 }: {
   version: VersionJson;
   title: string;
@@ -228,6 +245,8 @@ function VersionView({
   canRetry: boolean;
   canEdit: boolean;
   onRetried: () => Promise<void>;
+  sheetPanel?: SheetViewerPanelProps;
+  sheetPanels?: ReactNode[];
 }) {
   const action = useAction();
   if (version.kind === "pdf" || (version.kind === "spreadsheet" && (version.status !== "READY" || version.sheets.length))) {
@@ -264,7 +283,7 @@ function VersionView({
           )}
         </div>
       );
-    if (spreadsheet) return <SheetViewer versionId={version.id} summaries={version.sheets} canEdit={canEdit} />;
+    if (spreadsheet) return <SheetViewer versionId={version.id} summaries={version.sheets} canEdit={canEdit} panel={sheetPanel} panels={sheetPanels} />;
     return <PageViewer title={title} pages={version.pageSizes.map(([width, height], index) => ({ src: `/api/documents/pages/${version.id}/p${index + 1}.jpg?w=${width}`, width, height }))} />;
   }
   if (version.kind === "image") return <PageViewer title={title} pages={[{ src: `/api/files/${version.fileId}?v=display`, width: 0, height: 0 }]} />;

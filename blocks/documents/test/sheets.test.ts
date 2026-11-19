@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as XLSX from "xlsx";
-import { guessHeaderRow, readWorkbook, summarise } from "../sheets.ts";
+import { addColumns, guessHeaderRow, readWorkbook, summarise } from "../sheets.ts";
 
 /** An .xlsx file in memory, built from rows. */
 function workbookFile(sheets: { name: string; rows: unknown[][]; setup?: (sheet: XLSX.WorkSheet) => void; hidden?: boolean }[]): Buffer {
@@ -108,4 +108,17 @@ test("the header row is the first full row", () => {
   assert.equal(guessHeaderRow([]), 0);
   const [summary] = summarise(readWorkbook(Buffer.from("Title\n\nA,B,C\n1,2,3\n"), { csv: true }));
   assert.deepEqual(summary, { name: "Sheet1", rows: 4, columns: 3, headerRow: 2, guessedHeaderRow: 2 });
+});
+
+test("addColumns puts new columns after the last one, on the header row and by file row number", () => {
+  const file = workbookFile([
+    { name: "Points", rows: [["Points list"], ["Point", "Type"], ["AHU-1-SAT", "AI"], ["AHU-1-RAT", "AI"]] },
+    { name: "Other", rows: [["Left alone"]] },
+  ]);
+  const copy = addColumns(file, { Points: { headerRowNumber: 2, headers: ["Signed off", "By"], rows: new Map([[3, ["Yes", "Sam"]]]) } });
+  const [points, other] = readWorkbook(copy);
+  assert.deepEqual(points!.cells[1], ["Point", "Type", "Signed off", "By"]);
+  assert.deepEqual(points!.cells[2], ["AHU-1-SAT", "AI", "Yes", "Sam"]);
+  assert.deepEqual(points!.cells[3], ["AHU-1-RAT", "AI", "", ""]);
+  assert.deepEqual(other!.cells, [["Left alone"]]);
 });

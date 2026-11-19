@@ -18,6 +18,7 @@ const config: NextConfig = {
     "@grid/block-signatures",
     "@grid/block-plans",
     "@grid/block-markups",
+    "@grid/block-signoffs",
     "@grid/block-quotes",
     "@grid/block-documents",
   ],

@@ -6,10 +6,28 @@
 // column (the view only, never the file), tap a row number for the row as
 // a card. Only the rows on screen are drawn, so thousands of rows scroll
 // smoothly on a phone. Each sheet's JSON is made once on the server.
+// Other Blocks add to it through the "documents.sheet" slot (@grid/ui
+// sheet-slot: a column per row, a row filter, the bar, the row card).
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, Minus, Plus, X } from "lucide-react";
-import { Button, Checkbox, Field, FormActions, Scroller, SearchInput, Sheet, SheetContent, api, cn } from "@grid/ui";
+import {
+  Button,
+  Checkbox,
+  Field,
+  FormActions,
+  Scroller,
+  SearchInput,
+  Sheet,
+  SheetContent,
+  SheetSlotProvider,
+  api,
+  cn,
+  type SheetColumn,
+  type SheetInfo,
+  type SheetSlotValue,
+  type SheetViewerPanelProps,
+} from "@grid/ui";
 import type { SheetData, SheetSummary } from "../sheets";
 
 const ROW_HEIGHT = 30;
@@ -55,7 +73,20 @@ function mergeLayout(data: SheetData) {
   return { spans, skipped };
 }
 
-export function SheetViewer({ versionId, summaries, canEdit }: { versionId: string; summaries: SheetSummary[]; canEdit: boolean }) {
+export function SheetViewer({
+  versionId,
+  summaries,
+  canEdit,
+  panel,
+  panels,
+}: {
+  versionId: string;
+  summaries: SheetSummary[];
+  canEdit: boolean;
+  /** What "documents.sheet" panels were given, and the panels themselves (row sign-offs). */
+  panel?: SheetViewerPanelProps;
+  panels?: ReactNode[];
+}) {
   const [sheets, setSheets] = useState(summaries);
   const [active, setActive] = useState(0);
   const [loaded, setLoaded] = useState<Record<number, SheetData>>({});
@@ -73,6 +104,31 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
   const scroller = useRef<HTMLDivElement>(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+
+  // What other Blocks add through the slot.
+  const [slotColumns, setSlotColumns] = useState<Record<string, SheetColumn>>({});
+  const [slotFilters, setSlotFilters] = useState<Record<string, (row: number) => boolean>>({});
+  const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
+  const [rowCardElement, setRowCardElement] = useState<HTMLDivElement | null>(null);
+  const setColumn = useCallback((id: string, column: SheetColumn | null) => {
+    setSlotColumns((current) => {
+      if (!column && !(id in current)) return current;
+      const next = { ...current };
+      if (column) next[id] = column;
+      else delete next[id];
+      return next;
+    });
+  }, []);
+  const setFilter = useCallback((id: string, filter: ((row: number) => boolean) | null) => {
+    setSlotFilters((current) => {
+      if (!filter && !(id in current)) return current;
+      const next = { ...current };
+      if (filter) next[id] = filter;
+      else delete next[id];
+      return next;
+    });
+  }, []);
+  const extras = useMemo(() => Object.values(slotColumns).sort((first, second) => (first.order ?? 100) - (second.order ?? 100)), [slotColumns]);
 
   const loading = useRef(new Set<number>());
   const load = useCallback(
@@ -110,6 +166,7 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
       const shown = new Set(values);
       rows = rows.filter((row) => shown.has(data.cells[row]![Number(column)] ?? ""));
     }
+    for (const filter of Object.values(slotFilters)) rows = rows.filter(filter);
     if (view.sort) {
       const { column, direction } = view.sort;
       rows = [...rows].sort((first, second) => {
@@ -120,8 +177,9 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
       });
     }
     return rows;
-  }, [data, headerRow, view]);
+  }, [data, headerRow, view, slotFilters]);
   const filtered = Object.keys(view.filters).length > 0 || view.sort !== null;
+  const slotFiltered = Object.keys(slotFilters).length > 0;
   const bodyCount = data ? Math.max(0, data.cells.length - headerRow - 1) : 0;
 
   // --- search -----------------------------------------------------------
@@ -153,16 +211,19 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
   const rowHeight = ROW_HEIGHT * zoom;
   const fontSize = FONT_SIZE * zoom;
   const numberWidth = ROW_NUMBER_WIDTH * zoom;
+  const extraWidths = extras.map((column) => column.width * zoom);
+  // The row numbers and the slot's columns stay put on the left.
+  const lead = numberWidth + extraWidths.reduce((total, width) => total + width, 0);
   const widths = useMemo(() => (data ? data.columns.map((column) => column.width * zoom) : []), [data, zoom]);
   const lefts = useMemo(() => {
-    let left = numberWidth;
+    let left = lead;
     return widths.map((width) => {
       const start = left;
       left += width;
       return start;
     });
-  }, [widths, numberWidth]);
-  const totalWidth = numberWidth + widths.reduce((total, width) => total + width, 0);
+  }, [widths, lead]);
+  const totalWidth = lead + widths.reduce((total, width) => total + width, 0);
   const layout = useMemo(() => (data ? mergeLayout(data) : { spans: new Map(), skipped: new Set<string>() }), [data]);
   const fills = useMemo(() => new Map((data?.fills ?? []).map(([row, column, colour]) => [`${row}:${column}`, colour])), [data]);
 
@@ -245,7 +306,7 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
     }
     element.scrollTop = Math.max(0, position * rowHeight - element.clientHeight / 3);
     // The row numbers and first column stay put, so line the cell up just past them.
-    element.scrollLeft = jump.column === 0 ? 0 : Math.max(0, (lefts[jump.column] ?? 0) - numberWidth - (widths[0] ?? 0) - 16);
+    element.scrollLeft = jump.column === 0 ? 0 : Math.max(0, (lefts[jump.column] ?? 0) - lead - (widths[0] ?? 0) - 16);
     setJump(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jump, active, data, bodyRows]);
@@ -275,6 +336,16 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
         >
           {data.rowNumbers[row]}
         </button>
+        {extras.map((extra, index) => (
+          <div
+            key={`extra-${index}`}
+            role={kind === "header" ? "columnheader" : "gridcell"}
+            className={cn("sticky z-10 flex shrink-0 items-center justify-center border-r border-b", kind === "header" ? "z-30 bg-muted" : "bg-card")}
+            style={{ width: extraWidths[index], minWidth: extraWidths[index], left: numberWidth + extraWidths.slice(0, index).reduce((total, width) => total + width, 0), fontSize }}
+          >
+            {kind === "header" ? extra.header : kind === "body" ? extra.cell(row) : null}
+          </div>
+        ))}
         {cells.map((text, column) => {
           const key = `${row}:${column}`;
           if (layout.skipped.has(key)) return null;
@@ -284,7 +355,7 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
           const isMatch = !!needle && !!shownText && shownText.toLowerCase().includes(needle);
           const isCurrent = !!currentMatch && currentMatch.sheet === active && currentMatch.row === row && currentMatch.column === column;
           const sticky = column === 0;
-          const style = { width, minWidth: width, fontSize, lineHeight: `${rowHeight - 1}px`, left: sticky ? numberWidth : undefined, background: fills.get(key) };
+          const style = { width, minWidth: width, fontSize, lineHeight: `${rowHeight - 1}px`, left: sticky ? lead : undefined, background: fills.get(key) };
           const className = cn(
             "shrink-0 truncate border-r border-b px-1.5",
             types[column] === "n" && "text-right tabular-nums",
@@ -311,9 +382,17 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
     );
   };
 
+  const sheetInfo = useMemo<SheetInfo | null>(
+    () => (data && summary ? { index: active, name: summary.name, headerRow, rowNumbers: data.rowNumbers, cells: data.cells } : null),
+    [data, summary, active, headerRow],
+  );
+  const slot: SheetSlotValue | null = panel
+    ? { panel, sheet: sheetInfo, setColumn, setFilter, toolbar, rowCard: data && rowCard != null ? { row: rowCard, element: rowCardElement } : null }
+    : null;
+
   if (!sheets.length) return <p className="py-10 text-center text-muted-foreground">This spreadsheet has nothing in it to show.</p>;
 
-  return (
+  const viewer = (
     <div className="flex flex-col gap-2">
       {/* Search, zoom and the view */}
       <div className="flex flex-wrap items-center gap-2">
@@ -347,17 +426,19 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
           </Button>
         </div>
       </div>
-      {(filtered || (canEdit && data)) && (
+      {/* Other Blocks' bits (progress, To do / Signed off…) */}
+      <div ref={setToolbar} className="flex flex-wrap items-center gap-2 empty:hidden" />
+      {(filtered || slotFiltered || (canEdit && data)) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          {(filtered || slotFiltered) && (
+            <span>
+              Showing {bodyRows.length} of {bodyCount} rows{view.sort ? `, sorted by ${label(view.sort.column)}` : ""}
+            </span>
+          )}
           {filtered && (
-            <>
-              <span>
-                Showing {bodyRows.length} of {bodyCount} rows{view.sort ? `, sorted by ${label(view.sort.column)}` : ""}
-              </span>
-              <Button variant="outline" size="sm" onClick={() => setView({ filters: {}, sort: null })}>
-                <X /> Clear
-              </Button>
-            </>
+            <Button variant="outline" size="sm" onClick={() => setView({ filters: {}, sort: null })}>
+              <X /> Clear
+            </Button>
           )}
           {canEdit && data && (
             <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setHeaderSheet(true)}>
@@ -381,7 +462,7 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
               <div style={{ height: first * rowHeight }} />
               {bodyRows.slice(first, Math.max(first, last)).map((row) => renderRow(row, "body"))}
               <div style={{ height: Math.max(0, bodyRows.length - Math.max(first, last)) * rowHeight }} />
-              {filtered && bodyRows.length === 0 && <p className="sticky left-0 p-6 text-sm text-muted-foreground">No rows match the filter.</p>}
+              {(filtered || slotFiltered) && bodyRows.length === 0 && <p className="sticky left-0 p-6 text-sm text-muted-foreground">No rows match the filter.</p>}
             </div>
           )}
         </div>
@@ -441,6 +522,7 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
                 ) : null,
               )}
             </dl>
+            <div ref={setRowCardElement} className="px-4 empty:hidden" />
             <FormActions>
               <Button variant="outline" disabled={bodyRows.indexOf(rowCard) <= 0} onClick={() => setRowCard(bodyRows[bodyRows.indexOf(rowCard) - 1]!)}>
                 <ChevronUp /> Previous
@@ -466,6 +548,14 @@ export function SheetViewer({ versionId, summaries, canEdit }: { versionId: stri
         />
       )}
     </div>
+  );
+
+  if (!slot) return viewer;
+  return (
+    <SheetSlotProvider value={slot}>
+      {viewer}
+      {panels}
+    </SheetSlotProvider>
   );
 }
 

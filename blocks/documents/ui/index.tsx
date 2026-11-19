@@ -6,11 +6,12 @@
 //   /documents/settings                Settings › Document libraries
 //   panel "job.area"                   "Documents · 12" on a job page
 //   panel "storage.deleted"            Recently deleted documents
+//   slot "documents.sheet"             other Blocks add to the spreadsheet viewer (row sign-offs)
 
 import { FolderOpen } from "lucide-react";
 import { can, forbidden, notFound } from "@grid/core";
 import { getStorageSettings } from "@grid/db";
-import type { BlockPages, BlockPanels } from "@grid/ui";
+import type { BlockPages, BlockPanels, SheetViewerPanelProps } from "@grid/ui";
 import { getProject, type JobAreaPanelProps } from "@grid/block-projects";
 import { documentsForJobPanel, getDocument, getSettings, jobDocuments, listDeleted, listLibraries, listLibraryDocuments } from "../service";
 import { DeletedDocuments, type DeletedDocumentJson } from "./DeletedDocuments";
@@ -40,8 +41,16 @@ export const pages: BlockPages = {
   "": async ({ ctx }) => home(ctx, null),
   library: async ({ ctx, params: [libraryId] }) => home(ctx, libraryId ?? null),
 
-  doc: async ({ ctx, params: [documentId, versionId] }) => {
+  doc: async ({ ctx, params: [documentId, versionId], panels }) => {
     const document = await getDocument(ctx, documentId ?? "", versionId ?? null);
+    // A spreadsheet on screen: other Blocks' bits for the viewer (row sign-offs).
+    const shownId = versionId && document.versions.some((version) => version.id === versionId) ? versionId : document.currentVersionId;
+    const shown = document.versions.find((version) => version.id === shownId);
+    const sheetPanel: SheetViewerPanelProps | undefined =
+      shown?.kind === "spreadsheet"
+        ? { document: { id: document.id, title: document.title, projectId: document.job?.id ?? null }, version: { id: shown.id, isCurrent: shown.id === document.currentVersionId } }
+        : undefined;
+    const sheetPanels = sheetPanel ? await panels("documents.sheet", { ...sheetPanel }) : undefined;
     const [libraries, job, settings] = await Promise.all([
       document.library ? listLibraries(ctx) : Promise.resolve([]),
       document.job ? jobDocuments(ctx, document.job.id) : Promise.resolve(null),
@@ -55,6 +64,8 @@ export const pages: BlockPages = {
         folders={job?.folders ?? []}
         permissions={{ upload: can(ctx, "documents.upload"), edit: can(ctx, "documents.edit"), delete: can(ctx, "documents.delete") }}
         deletedDays={settings.deletedDays}
+        sheetPanel={sheetPanel}
+        sheetPanels={sheetPanels}
       />
     );
   },

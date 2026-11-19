@@ -44,3 +44,17 @@ export {
   type PlanViewerPanelProps,
   type SheetPoint,
 } from "./plan-overlay";
+
+// The spreadsheet viewer's slot (Documents provides it; Sign-offs adds to it)
+export {
+  SheetRowCard,
+  SheetSlotProvider,
+  SheetToolbar,
+  useSheetColumn,
+  useSheetFilter,
+  useSheetSlot,
+  type SheetColumn,
+  type SheetInfo,
+  type SheetSlotValue,
+  type SheetViewerPanelProps,
+} from "./sheet-slot";

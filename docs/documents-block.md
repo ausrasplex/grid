@@ -33,7 +33,46 @@ The `documents` Block (optional, on for every trade and for sole traders; pages 
 - **Tap a row number** for the **row card**: that row as "Header: value" lines (empty cells left out), with Previous and Next.
 - **Header row:** Grid guesses it (the first row in the top 30 that's at least 60% as full as the fullest). People with `documents.edit` can change it per sheet for that version ("Header row: 3"), or put Grid's guess back. Saved on the version and written to the activity log.
 - `GET /api/documents/sheets/<versionId>/<n>` (cached by the phone for good, a version never changes) and `PATCH /api/documents/version/<id>/sheets/<n>` (`{ headerRow }`).
-- **Not yet:** bold and other font styles (the free SheetJS doesn't read them; fills do show), the `documents.sheet` slot (comes with Sign-offs, part 3, when there's a Block to draw into it), offline (phase 6), and cell text in search (part 4).
+- **Not yet:** bold and other font styles (the free SheetJS doesn't read them; fills do show), offline (phase 6), and cell text in search (part 4). (The `documents.sheet` slot came with Sign-offs, part 3.)
+
+## What 5b part 3 built (Nov 2026): row sign-offs
+
+- **The viewer's slot.** `documents.sheet` (`packages/ui/src/sheet-slot.tsx`): the document page renders other Blocks' panels for the spreadsheet on screen (props `SheetViewerPanelProps`: the document, and the version with `isCurrent`), and the viewer hands them:
+  - `useSheetColumn`: a column at the start of every row, sticky beside the row numbers;
+  - `useSheetFilter`: a row filter, on top of the column filters ("Showing 12 of 380 rows");
+  - `SheetToolbar`: the bar above the sheet;
+  - `SheetRowCard`: extra lines on the row card.
+  Documents knows nothing about Sign-offs.
+- **For other Blocks, Documents offers** `spreadsheetForBlock(ctx, documentId)`. It checks access, then gives the current version, its sheets, `readSheet(index)`, and `copyWithColumns()` (`addColumns()` in `sheets.ts`, unit-tested: a copy of the file with columns added after the last one; the original is untouched, and it always comes back as .xlsx).
+- **The `signoffs` Block** (Store name "Sign-offs", optional, off until a business turns it on in the Store):
+  - **The sign-off column:** a circle at the start of every body row (blank rows have none). Tap it to sign the row off, and tap again to undo.
+  - **The bar above the sheet:** "142 of 380 signed off" with a progress bar, **All / To do / Signed off**, and a ⋯ menu.
+  - **The row card:** who and when, an optional note when signing off ("Tested, reads 21.4 °C"), Sign off / Undo, and the row's history.
+  - **The ⋯ menu:**
+    - which column rows are matched by, and **Change the match column** (`signoffs.manage`);
+    - **Download with sign-offs**, which follows the document's Allow download;
+    - **Sign-offs that don't match**;
+    - **Clear this sheet** (manage; the history is kept).
+- **Row keys** (`blocks/signoffs/keys.ts`, shared by the phone and the server, unit-tested):
+  - the match column's value (`c:ahu 1 sat`, case and punctuation ignored), or a hash of the whole row (`h:1a2b3c4d`) when there's no match column or its cell is blank;
+  - repeats get `#2`, `#3`;
+  - Grid guesses the match column from the header (Point name, Point, Tag, Circuit, ID, Ref, Device, Address, Name), only if it fills at least 60% of rows and rarely repeats.
+  - **Changing the match column moves existing sign-offs to the new keys**, worked out on the current version, so none are lost.
+- **New versions:** keys come from the row's content, so sign-offs follow their rows automatically. Signed-off keys with no row on this version show as "6 sign-offs don't match a row in this version", with the row text kept at signing ("AHU-1-SAT · AI · C1"). Someone with manage can clear them.
+- **Rows are signed off on the current version only.** Older versions show the sign-offs but can't change them. **Archived jobs** refuse sign-offs until restored.
+- **Offline:** each sign-off gets an id on the phone and waits in localStorage until it's sent, with "3 waiting for signal" in the bar. It retries every 30 s and when the phone comes back online. A resend is kept once. A refusal (not allowed, archived) drops it and says why. The time used is the phone's, never in the future and never more than 60 days back. If two people sign off the same row, both are kept and the first stands.
+- **Data:** `SheetSignoff` (append-only; the latest entry per row is where it stands) and `SheetSignoffSettings` (`matchColumn`: a header, "" for the whole row, null for Grid's guess). Every sign-off, undo, clear, match column change and download writes the activity log.
+- **API** (`/api/signoffs`):
+  - `GET /doc/<id>`
+  - `POST /doc/<id>/entries` (a batch)
+  - `PUT /doc/<id>/match`
+  - `POST /doc/<id>/clear`
+  - `GET /doc/<id>/export`
+- **Clean-up:** sign-offs go when their document is purged for good, and with a deleted business.
+- **Not yet:**
+  - progress beside the file on the job's Documents list;
+  - opening the spreadsheet itself with no signal (phase 6 offline; sign-offs already wait when the page is open);
+  - the 44 px rule: the sign-off circle is the row's height (30 px at 100%), so zoom in for bigger targets.
 
 ## Sharpness of PDF pages (built Nov 2026)
 
@@ -296,7 +335,7 @@ Default grants: Employee view + notes.write (Private notes); Foreman view + uplo
 2. Libraries, upload, versions, viewing. **Done (5b part 1).**
 2a. Job documents: the job's Documents section, folders, versions, linking library documents. **Done (5b part 1).**
 2b. Spreadsheet viewer. **Done (5b part 2).** The `documents.sheet` slot comes with Sign-offs.
-2c. The `signoffs` Block (trial) and the viewer's `documents.sheet` slot: sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs. **5b part 3 (next).**
+2c. The `signoffs` Block (trial) and the viewer's `documents.sheet` slot: sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs. **Done (5b part 3).**
 3. Text extraction + search. **5b part 4, the end of phase 5b.**
 
 Later (split out of 5b, Nov 2026; not scheduled, see the roadmap's 10+ row):

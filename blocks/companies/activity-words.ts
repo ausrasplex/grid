@@ -27,6 +27,8 @@ const THINGS: Record<string, string> = {
   SignRequest: "signing link",
   QuoteUserSettings: "quote screen setting",
   ServerSetting: "server setting",
+  SheetSignoff: "row sign-off",
+  SheetSignoffSettings: "sign-off match column",
 };
 
 /** Actions that read as "<did> a <thing>". Anything else reads "<Thing>: <action words>". */
@@ -48,6 +50,9 @@ const VERBS: Record<string, string> = {
   completed: "Finished",
   reopened: "Reopened",
   archived: "Archived",
+  signed_off: "Signed off",
+  undone: "Undid",
+  exported: "Downloaded",
   converted: "Converted",
 };
 

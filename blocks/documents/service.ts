@@ -16,7 +16,7 @@ import { canSeeJob, getProject, isJobArchived, myActiveJobs } from "@grid/block-
 import { assertNotArchived, openOnArchivedJob } from "./archive";
 import { documentKind, titleFromFileName, type DocumentKind } from "./kinds";
 import { pagesDir, removePages, renderPdfPages, sheetFile, writeSheets } from "./render";
-import { readWorkbook, summarise, type SheetSummary } from "./sheets";
+import { addColumns, readWorkbook, summarise, type AddedColumns, type SheetData, type SheetSummary } from "./sheets";
 import type { AddDocumentsInput, LibraryInput, UpdateDocumentInput } from "./validation";
 
 const MOD = "documents";
@@ -806,4 +806,32 @@ export async function deleteNow(ctx: RequestContext, ids: string[]) {
     for (const version of document.versions) await removePages(version.id);
   }
   return { removed: documents.length, bytes };
+}
+
+// ---------------------------------------------------------------------
+// For Blocks that build on spreadsheets (row sign-offs)
+// ---------------------------------------------------------------------
+
+/**
+ * A spreadsheet document this person may see, at its current version (or
+ * `versionId`): its sheets, each sheet's viewer data, and a copy of the
+ * file with columns added. 404 if it isn't theirs or isn't a spreadsheet.
+ */
+export async function spreadsheetForBlock(ctx: RequestContext, documentId: string, versionId?: string | null) {
+  const document = await ownDocument(db, ctx, documentId);
+  const version = await db.documentVersion.findFirst({ where: { documentId, id: versionId ?? document.currentVersionId ?? undefined }, orderBy: { createdAt: "desc" } });
+  if (!version) throw notFound("Version not found");
+  const file = await db.storedFile.findUnique({ where: { id: version.fileId } });
+  if (!file || documentKind(file.mime) !== "spreadsheet") throw notFound("That document isn't a spreadsheet");
+  const sheets = (version.sheets ?? []) as unknown as SheetSummary[];
+  return {
+    document: { id: document.id, title: document.title, projectId: document.projectId, allowDownload: document.allowDownload },
+    /** ready: read, and not dropped for an archived job (open it to read it again). */
+    version: { id: version.id, isCurrent: version.id === document.currentVersionId, ready: version.status === "READY" && !version.copiesDroppedAt },
+    sheets,
+    /** One sheet as the viewer has it (made when the version was read). */
+    readSheet: async (index: number): Promise<SheetData> => JSON.parse(await readFile(path.join(pagesDir(version.id), sheetFile(index)), "utf8")) as SheetData,
+    /** A copy of the original with columns added; the original isn't touched. */
+    copyWithColumns: async (additions: Record<string, AddedColumns>) => addColumns(await readFile(storedFilePath(file)), additions, { csv: file.mime === "text/csv" }),
+  };
 }

@@ -145,3 +145,33 @@ export function summarise(sheets: SheetData[]): SheetSummary[] {
     return { name: sheet.name, rows: sheet.cells.length, columns: sheet.columns.length, headerRow: guessed, guessedHeaderRow: guessed };
   });
 }
+
+/** Columns another Block adds to a copy of a sheet: a heading on the header row, then values by the file's row number. */
+export interface AddedColumns {
+  /** The file's row number (1-based) of the header row. */
+  headerRowNumber: number;
+  headers: string[];
+  /** File row number → one value per header. */
+  rows: Map<number, string[]>;
+}
+
+/**
+ * A copy of the workbook with columns added after each named sheet's last
+ * column ("Download with sign-offs"). The original file is never changed.
+ * Comes back as .xlsx, whatever went in (a CSV gains a proper sheet).
+ */
+export function addColumns(file: Buffer, additions: Record<string, AddedColumns>, options: { csv?: boolean } = {}): Buffer {
+  const workbook = XLSX.read(file, { type: "buffer", dense: true, cellStyles: true, raw: !!options.csv });
+  for (const [name, added] of Object.entries(additions)) {
+    const sheet = workbook.Sheets[name];
+    if (!sheet || !added.headers.length) continue;
+    const range = XLSX.utils.decode_range(sheet["!ref"] ?? "A1");
+    const column = range.e.c + 1;
+    XLSX.utils.sheet_add_aoa(sheet, [added.headers], { origin: { r: added.headerRowNumber - 1, c: column } });
+    for (const [rowNumber, values] of added.rows) XLSX.utils.sheet_add_aoa(sheet, [values], { origin: { r: rowNumber - 1, c: column } });
+    const columns = sheet["!cols"] ?? [];
+    added.headers.forEach((header, index) => (columns[column + index] = { wch: Math.max(12, header.length + 2) }));
+    sheet["!cols"] = columns;
+  }
+  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+}
