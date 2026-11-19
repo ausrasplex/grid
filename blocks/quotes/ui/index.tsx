@@ -13,7 +13,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { app, can } from "@grid/core";
-import { AttentionRow, Badge, HomeTile, Icon, List, Section, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages } from "@grid/ui";
+import { AttentionRow, Badge, HomeTile, Icon, List, Section, buttonVariants, cn, type BlockPages, type BlockPanels, type PublicPages, type QuoteTakeoffPanelProps } from "@grid/ui";
 import { getProject, type JobAreaPanelProps, type PlaceStartPanelProps } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import type { PlaceSite } from "@grid/block-sites/components";
@@ -36,14 +36,25 @@ import { UploadedQuote, type UploadedQuoteJson } from "./UploadedQuote";
 const json = <T,>(value: unknown): T => JSON.parse(JSON.stringify(value)) as T;
 
 export const pages: BlockPages = {
-  "": async ({ ctx, params: [id, sub, ...rest] }) => {
+  "": async ({ ctx, params: [id, sub, ...rest], panels }) => {
     // The PDF inside Grid: /quotes/<id>/pdf, …/pdf/rev/<revision>, …/pdf/signed.
     if (id && sub === "pdf") return <QuotePdf quoteId={id} which={{ revisionId: rest[0] === "rev" ? (rest[1] ?? null) : null, signed: rest[0] === "signed" }} />;
     if (id) {
       const [quote, emailReady] = await Promise.all([getQuote(ctx, id), app().mail.configured()]);
       // Made outside Grid: the PDF and its answer, no editor.
       if (quote.uploaded) return <UploadedQuote quote={json<UploadedQuoteJson>(quote)} canAnswer={can(ctx, "quotes.send")} />;
-      return <QuoteEditor key={quote.id} initial={json<QuoteJson>(quote)} permissions={{ edit: can(ctx, "quotes.create"), send: can(ctx, "quotes.send") }} emailReady={emailReady} />;
+      // The Take-off section, from the Markups Block when it's on (phase 4c).
+      const takeoffProps: QuoteTakeoffPanelProps = { quote: { id: quote.id, number: quote.number, title: quote.title, projectId: quote.projectId } };
+      const takeoffPanels = await panels("quote.takeoff", { ...takeoffProps });
+      return (
+        <QuoteEditor
+          key={quote.id}
+          initial={json<QuoteJson>(quote)}
+          permissions={{ edit: can(ctx, "quotes.create"), send: can(ctx, "quotes.send") }}
+          emailReady={emailReady}
+          takeoffPanels={takeoffPanels}
+        />
+      );
     }
     const [rows, settings] = await Promise.all([listQuotes(ctx), getTaxSettings(ctx)]);
     return <QuotesList initial={json<QuoteRowJson[]>(rows)} currency={settings.currency} locale={settings.locale} canCreate={can(ctx, "quotes.create")} />;

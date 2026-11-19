@@ -126,7 +126,7 @@ export async function updateIconVersion(ctx: RequestContext, id: string, input: 
   return jobIcons(ctx, version.projectId);
 }
 
-/** Removes a number, only while no placed icon uses it. Removing down to one number leaves the icon unnumbered. */
+/** Removes a number, only while no placed icon uses it. Removing down to one number leaves the icon unnumbered (that number becomes 1). */
 export async function deleteIconVersion(ctx: RequestContext, id: string) {
   const version = await ownVersion(ctx, id);
   const used = await db.planMarkup.count({
@@ -135,10 +135,11 @@ export async function deleteIconVersion(ctx: RequestContext, id: string) {
   if (used) throw conflict(`${used} placed icon${used === 1 ? " uses" : "s use"} number ${version.number}. Switch ${used === 1 ? "it" : "them"} to another number first.`);
   await db.$transaction(async (tx) => {
     await tx.jobIconVersion.delete({ where: { id } });
-    // One number left: the icon goes back to unnumbered (its icons were all that number).
+    // One number left: the icon goes back to unnumbered (its icons were all that number). It becomes
+    // number 1, keeping its name and price book item.
     const left = await tx.jobIconVersion.findMany({ where: { companyId: version.companyId, projectId: version.projectId, iconKey: version.iconKey } });
     if (left.length === 1) {
-      await tx.jobIconVersion.delete({ where: { id: left[0]!.id } });
+      if (left[0]!.number !== 1) await tx.jobIconVersion.update({ where: { id: left[0]!.id }, data: { number: 1 } });
       await tx.planMarkup.updateMany({ where: { companyId: version.companyId, projectId: version.projectId, kind: "ICON", iconKey: version.iconKey }, data: { iconNumber: null } });
     }
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId: version.companyId, projectId: version.projectId, entityType: "JobIconVersion", entityId: id, action: "deleted", diff: { icon: iconByKey(version.iconKey)?.name, number: version.number } });
@@ -178,4 +179,25 @@ export async function renumberIcons(ctx: RequestContext, input: { ids: string[];
     });
   });
   return { ids: markups.map((markup) => markup.id), iconNumber: input.iconNumber };
+}
+
+/**
+ * The price book item an icon (and number) becomes on a quote: set from the
+ * quote's Take-off. An unnumbered icon gets a row for number 1 (it stays
+ * unnumbered: numbers show from two rows up).
+ */
+export async function linkIconItem(ctx: RequestContext, projectId: string, input: { iconKey: string; number: number; priceItemId: string | null }) {
+  const companyId = requireCompany(ctx);
+  await jobOrThrow(ctx, projectId);
+  const icon = iconByKey(input.iconKey);
+  if (!icon) throw badRequest("Pick an icon");
+  await db.$transaction(async (tx) => {
+    const existing = await tx.jobIconVersion.findUnique({ where: { companyId_projectId_iconKey_number: { companyId, projectId, iconKey: input.iconKey, number: input.number } } });
+    if (!existing && input.number !== 1) throw notFound(`There's no number ${input.number} for that icon on this job`);
+    const row = existing
+      ? await tx.jobIconVersion.update({ where: { id: existing.id }, data: { priceItemId: input.priceItemId } })
+      : await tx.jobIconVersion.create({ data: { companyId, projectId, iconKey: input.iconKey, number: 1, priceItemId: input.priceItemId, createdById: ctx.userId } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, projectId, entityType: "JobIconVersion", entityId: row.id, action: "item_linked", diff: { icon: icon.name, number: input.number, before: existing?.priceItemId ?? null, after: input.priceItemId } });
+  });
+  return jobIcons(ctx, projectId);
 }

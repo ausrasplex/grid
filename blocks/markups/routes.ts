@@ -2,7 +2,7 @@
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
 import * as icons from "./icon-versions";
-import { addIconVersionSchema, createMarkupSchema, renumberSchema, setScaleSchema, updateIconVersionSchema, updateMarkupSchema } from "./validation";
+import { addIconVersionSchema, linkItemSchema, createMarkupSchema, renumberSchema, setScaleSchema, updateIconVersionSchema, updateMarkupSchema } from "./validation";
 
 export const routes: Routes = {
   "GET /sheet/:sheetId": { permission: "markups.view", handler: (ctx, request) => svc.sheetMarkups(ctx, request.params.sheetId!) },
@@ -18,6 +18,7 @@ export const routes: Routes = {
     permission: "markups.add",
     handler: (ctx, request) => icons.addIconVersion(ctx, request.params.projectId!, addIconVersionSchema.parse(request.body)),
   },
+  "PUT /job/:projectId/icon-item": { permission: "markups.add", handler: (ctx, request) => icons.linkIconItem(ctx, request.params.projectId!, linkItemSchema.parse(request.body)) },
   "PATCH /icon-versions/:id": { permission: "markups.add", handler: (ctx, request) => icons.updateIconVersion(ctx, request.params.id!, updateIconVersionSchema.parse(request.body)) },
   "DELETE /icon-versions/:id": { permission: "markups.add", handler: (ctx, request) => icons.deleteIconVersion(ctx, request.params.id!) },
   "POST /icons/renumber": { permission: "markups.add", handler: (ctx, request) => icons.renumberIcons(ctx, renumberSchema.parse(request.body)) },

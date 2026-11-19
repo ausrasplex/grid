@@ -39,6 +39,11 @@ export default defineBlock({
   on: {
     // Jobs keep a copy of the client's name (lists, search, the Sites list).
     "clients.renamed": async (payload) => (await import("./service")).clientRenamed(payload),
+    // A quote's answer moves its Quoting job along (phase 4c). Events, so Jobs doesn't depend on Quotes.
+    "quotes.accepted": async (payload, meta) => (await import("./service")).quotingOutcome(payload, meta, "WON"),
+    "quotes.declined": async (payload, meta) => (await import("./service")).quotingOutcome(payload, meta, "NOT_WON"),
+    "quotes.withdrawn": async (payload, meta) => (await import("./service")).quotingOutcome(payload, meta, "NOT_WON"),
+    "quotes.reopened": async (payload, meta) => (await import("./service")).quotingOutcome(payload, meta, "QUOTING"),
     // Forget a deleted floor as anyone's "last area" on a job.
     "sites.level.deleted": async (payload) => (await import("./service")).levelDeleted(payload),
   },

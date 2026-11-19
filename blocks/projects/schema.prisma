@@ -7,6 +7,13 @@ enum ProjectStatus {
   ACTIVE
   /// Finished. Shows under "Earlier jobs" on the site page; read-only until reopened.
   COMPLETED
+  /// A quote's job before it's won (phase 4c, docs/stage-2-projects.md "Quoting
+  /// jobs"): holds plans for the take-off. Kept out of the Sites list, the site's
+  /// jobs and Home. Becomes ACTIVE when the quote is accepted.
+  QUOTING
+  /// Its quote was declined or withdrawn: kept (with its plans) in case the
+  /// client comes back, shown only from the quote and Jobs › All.
+  NOT_WON
 }
 
 enum ProjectListing {

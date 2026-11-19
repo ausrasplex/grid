@@ -264,7 +264,7 @@ Why: on a home server the disk is finite. The owner needs to see what each job u
 
 **4. Later, not now:** Import (rebuilding every Block's records from a ZIP, across Grid versions) and "export then remove". They're a lot of work, and the ZIP would become the only copy, outside the backups. If archiving isn't enough, the next step is a setting that keeps archived jobs' originals on a second, cheaper disk or share, still inside Grid.
 
-### Quoting jobs (decided Nov 2026, built with phase 4c)
+### Quoting jobs (decided Nov 2026, built in phase 4c part 2: see the roadmap's "What part 2 built")
 
 A quote that needs plans (for a take-off) before the work is won gets a job to hold them.
 

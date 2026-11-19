@@ -67,7 +67,7 @@ export interface JobsTableRow {
   siteId: string;
   siteName: string;
   address: string;
-  status: "ACTIVE" | "COMPLETED";
+  status: "ACTIVE" | "COMPLETED" | "QUOTING" | "NOT_WON";
   startedAt: Date;
   completedAt: Date | null;
   archivedAt: Date | null;

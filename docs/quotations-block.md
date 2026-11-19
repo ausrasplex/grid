@@ -112,6 +112,7 @@ Owners set their own tax naming and rules in company settings; nothing is hard-c
 - **Numbered versions, set per job** (`docs/roadmap.md`, "Numbered versions of an icon"): the same icon can be DGPO 1 (standard) and DGPO 2 (expensive) on one job. Each number links to its own price book item (later an assembly) through `JobIconVersion`, and becomes its own quote line. Nothing carries over between jobs. A number with no item yet shows **Pick an item** in the Take-off section.
 - Take-off lines remember their source (sheet, revision, icon type, layer).
 - **When a plan revision changes the counts**, the quote shows a "Take-off changed" banner with the differences, and you choose to update or keep.
+- **Built (phase 4c part 2, Nov 2026):** the Take-off section, Quoting jobs and "Take-off changed"; see "What part 2 built" under Phase 4c in `roadmap.md`. Lengths into metres and per-sheet sources come later.
 
 ### Internal vs client view
 

@@ -22,6 +22,12 @@ const itemsQuery = z.object({
   kind: z.enum(["LABOUR", "MATERIAL"]).optional(),
   /// A brand's id, or "none" for items without one.
   brand: z.union([z.string().uuid(), z.literal("none")]).optional(),
+  /** Comma-separated item ids (the take-off's linked items). */
+  ids: z
+    .string()
+    .max(4000)
+    .optional()
+    .transform((value) => (value ? value.split(",").filter(Boolean).slice(0, 200) : undefined)),
 });
 const queryParams = (request: { query: URLSearchParams }) => Object.fromEntries(request.query);
 
@@ -71,6 +77,8 @@ export const routes: Routes = {
   },
   "GET /:id/pdf/pages/:key/:name": { permission: "quotes.view", handler: (ctx, request) => svc.quotePdfPageResponse(ctx, request.params.id!, request.params.key!, request.params.name!) },
   "POST /:id/send": { permission: "quotes.send", handler: (ctx, request) => svc.sendQuote(ctx, request.params.id!, sendSchema.parse(request.body)) },
+  // Take-off from plans (phase 4c): the job to count from (a Quoting job is made when there's none).
+  "POST /:id/takeoff": { permission: "quotes.create", handler: (ctx, request) => svc.startTakeoff(ctx, request.params.id!) },
   "POST /:id/reopen": { permission: "quotes.create", handler: (ctx, request) => svc.reopenQuote(ctx, request.params.id!) },
   "POST /:id/accept": { permission: "quotes.send", handler: (ctx, request) => svc.acceptQuote(ctx, request.params.id!, acceptSchema.parse(request.body ?? {})) },
   "POST /:id/decline": { permission: "quotes.send", handler: (ctx, request) => svc.declineQuote(ctx, request.params.id!, declineSchema.parse(request.body ?? {}).reason) },

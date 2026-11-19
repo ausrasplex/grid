@@ -2,6 +2,7 @@
 export {
   getProject,
   createProject,
+  createQuotingJob,
   canSeeJob,
   jobLabelsForSystem,
   jobsAt,
@@ -23,7 +24,7 @@ export {
 
 /** What a block's "job.area" panel receives (photos, plans… on a job page). */
 export interface JobAreaPanelProps {
-  job: { id: string; name: string; status: "ACTIVE" | "COMPLETED"; siteId: string };
+  job: { id: string; name: string; status: "ACTIVE" | "COMPLETED" | "QUOTING" | "NOT_WON"; siteId: string };
   /** The work area being viewed, or null for the whole job. */
   area: import("./service").Area | null;
   areas: import("./service").Area[];

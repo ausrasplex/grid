@@ -13,7 +13,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { attachFile, audit, cacheRoot, db, getRenderingSettings, pageDpi, pdfLongestSideInches, readStoredFile, renderPdfPages, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
-import { createProject, getProject } from "@grid/block-projects";
+import { createProject, createQuotingJob, getProject } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
 import { clientIdsNamed, clientsById, requireClient, type ClientRow } from "@grid/block-clients";
 import { createSignRequest, latestSignRequest, maskEmail, revokeSignRequests } from "@grid/block-signatures";
@@ -204,13 +204,14 @@ function priceItemView(item: PriceItemWithBrand, showCost: boolean) {
   };
 }
 
-export async function listPriceItems(ctx: RequestContext, options: { q?: string; kind?: "LABOUR" | "MATERIAL"; brand?: string } = {}) {
+export async function listPriceItems(ctx: RequestContext, options: { q?: string; kind?: "LABOUR" | "MATERIAL"; brand?: string; ids?: string[] } = {}) {
   const companyId = requireCompany(ctx);
   const words = (options.q ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 5);
   const rows = await db.priceItem.findMany({
     where: {
       companyId,
       deletedAt: null,
+      ...(options.ids ? { id: { in: options.ids } } : {}),
       ...(options.kind ? { kind: options.kind } : {}),
       ...(options.brand === "none"
         ? { OR: [{ brandId: null }, { brand: { deletedAt: { not: null } } }] }
@@ -506,6 +507,7 @@ export async function getQuote(ctx: RequestContext, id: string) {
       markupSell: totals.lines[index]!.markedUp ? totals.lines[index]!.unitCents / 100 : null,
       taxCodeId: line.taxCodeId,
       optional: line.optional,
+      takeoffKey: line.takeoffKey,
     })),
     totals: { ...totals, costCents: showCost ? totals.costCents : 0, margin: showCost ? totals.margin : null },
     revisions: quote.revisions.map((revision) => ({ id: revision.id, label: revision.label, sentAt: revision.sentAt, sentTo: revision.sentTo, hasPdf: !!revision.pdfFileId, sentBy: names.get(revision.sentById) ?? "Someone" })),
@@ -565,6 +567,7 @@ export async function updateQuote(ctx: RequestContext, id: string, input: Update
             sell: line.sell,
             taxCodeId: line.taxCodeId,
             optional: line.optional,
+            takeoffKey: line.takeoffKey ?? null,
           })),
         });
       }
@@ -830,15 +833,17 @@ export async function sendQuote(ctx: RequestContext, id: string, input: SendInpu
 /** Edit a sent quote: back to draft; the next send is the next revision. */
 export async function reopenQuote(ctx: RequestContext, id: string) {
   const companyId = requireCompany(ctx);
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const quote = await ownQuote(tx, companyId, id);
     if (quote.uploadedFileId) throw conflict("This quote was made outside Grid. Upload a new PDF instead.");
     if (quote.status !== "SENT" && quote.status !== "DECLINED" && quote.status !== "EXPIRED") throw conflict("Only a sent, declined or expired quote can be revised");
     await tx.quote.update({ where: { id }, data: { status: "DRAFT", declinedAt: null, declineReason: null, viewedAt: null } });
     await revokeSignRequests(tx, MOD, id, "Being revised");
     await event(tx, id, "REOPENED", ctx.userId, `Editing for Rev ${String.fromCharCode(65 + quote.revisions.length)}`);
-    return { id };
+    return { id, projectId: quote.projectId };
   });
+  await emit("quotes.reopened", { quoteId: id, projectId: result.projectId }, ctx);
+  return { id };
 }
 
 /** A site, building and floor this company can see (the building and floor are dropped if they're gone). */
@@ -856,14 +861,16 @@ async function placeFor(ctx: RequestContext, siteId: string, buildingId: string 
 export async function makeJobFromQuote(
   ctx: RequestContext,
   quote: { title: string; number: string; siteAddress: string | null; clientId: string | null; siteId?: string | null; buildingId?: string | null; levelId?: string | null },
+  options: { quoting?: boolean } = {},
 ) {
+  const make = options.quoting ? createQuotingJob : createProject;
   if (quote.siteId) {
     const place = await placeFor(ctx, quote.siteId, quote.buildingId ?? null, quote.levelId ?? null).catch(() => null);
     // The floor gone: the job covers the building. The building or site gone: use the address.
     if (place?.buildingId) {
       const companyId = requireCompany(ctx);
       const clientId = quote.clientId ? await requireClient(db, companyId, quote.clientId).then((client) => client.id, () => null) : null;
-      const job = await createProject(ctx, {
+      const job = await make(ctx, {
         name: quote.title,
         clientId,
         siteId: place.siteId,
@@ -877,13 +884,35 @@ export async function makeJobFromQuote(
   // The quote's client goes on the job, unless they've since been removed from the list.
   const companyId = requireCompany(ctx);
   const clientId = quote.clientId ? await requireClient(db, companyId, quote.clientId).then((client) => client.id, () => null) : null;
-  const job = await createProject(ctx, {
+  const job = await make(ctx, {
     name: quote.title,
     clientId,
     address: quote.siteAddress,
     references: [{ label: "Quote", value: quote.number }],
   });
   return job.id;
+}
+
+/**
+ * Take-off from plans (phase 4c): the job whose plans this quote counts.
+ * A quote for an existing job uses that job; otherwise a Quoting job is
+ * made at the quote's site (docs/stage-2-projects.md "Quoting jobs"),
+ * which becomes the real job when the quote is accepted.
+ */
+export async function startTakeoff(ctx: RequestContext, id: string) {
+  const companyId = requireCompany(ctx);
+  const quote = await ownQuote(db, companyId, id);
+  if (quote.projectId) return { projectId: quote.projectId, made: false };
+  if (quote.uploadedFileId) throw conflict("This quote was made outside Grid, so it has no lines to take off into");
+  if (quote.status === "ACCEPTED" || quote.status === "WITHDRAWN") throw conflict("This quote has been answered");
+  if (!quote.siteId && !quote.siteAddress) throw badRequest("Add the site address to the quote first, so the plans know where they're for");
+  const projectId = await makeJobFromQuote(ctx, quote, { quoting: true });
+  await db.$transaction(async (tx) => {
+    await tx.quote.update({ where: { id }, data: { projectId } });
+    await event(tx, id, "JOB_CREATED", ctx.userId, "Quoting job made for the take-off");
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Quote", entityId: id, action: "takeoff_started", diff: { projectId } });
+  });
+  return { projectId, made: true };
 }
 
 /**
@@ -914,26 +943,30 @@ export async function acceptQuote(ctx: RequestContext, id: string, input: { note
 
 export async function declineQuote(ctx: RequestContext, id: string, reason?: string) {
   const companyId = requireCompany(ctx);
-  return db.$transaction(async (tx) => {
+  const projectId = await db.$transaction(async (tx) => {
     const quote = await ownQuote(tx, companyId, id);
     if (quote.status !== "SENT") throw conflict("This quote isn't waiting for an answer");
     await tx.quote.update({ where: { id }, data: { status: "DECLINED", declinedAt: new Date(), declineReason: reason ?? null } });
     await revokeSignRequests(tx, MOD, id, "Declined another way");
     await event(tx, id, "DECLINED", ctx.userId, reason);
-    return { id };
+    return quote.projectId;
   });
+  await emit("quotes.declined", { quoteId: id, projectId }, ctx);
+  return { id };
 }
 
 export async function withdrawQuote(ctx: RequestContext, id: string) {
   const companyId = requireCompany(ctx);
-  return db.$transaction(async (tx) => {
+  const projectId = await db.$transaction(async (tx) => {
     const quote = await ownQuote(tx, companyId, id);
     if (quote.status !== "SENT" && quote.status !== "DRAFT") throw conflict("This quote can't be withdrawn now");
     await tx.quote.update({ where: { id }, data: { status: "WITHDRAWN" } });
     await revokeSignRequests(tx, MOD, id, "Withdrawn");
     await event(tx, id, "WITHDRAWN", ctx.userId);
-    return { id };
+    return quote.projectId;
   });
+  await emit("quotes.withdrawn", { quoteId: id, projectId }, ctx);
+  return { id };
 }
 
 export async function deleteDraft(ctx: RequestContext, id: string) {

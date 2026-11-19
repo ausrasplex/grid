@@ -37,5 +37,5 @@ export default defineBlock({
     Quote: (id) => `/quotes/${id}`,
   },
   fileAccess: async () => (await import("./service")).canReadQuoteFile,
-  emits: ["quotes.created", "quotes.sent", "quotes.accepted"],
+  emits: ["quotes.created", "quotes.sent", "quotes.accepted", "quotes.declined", "quotes.withdrawn", "quotes.reopened"],
 });

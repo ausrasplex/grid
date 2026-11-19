@@ -267,7 +267,9 @@ async function JobPage({
   }));
   const allHref = area?.levelId ? `${siteHref(site.id, area.buildingId, area.levelId)}/all` : area && site.buildings.length > 1 ? siteHref(site.id, area.buildingId) : siteHref(site.id);
   const canEdit = job.isHost && can(ctx, "projects.edit");
-  const canFinish = job.isHost && can(ctx, "projects.complete");
+  // A quote's job (Quoting / Not won) is moved along by its quote, not finished by hand.
+  const quoteJob = job.status === "QUOTING" || job.status === "NOT_WON";
+  const canFinish = job.isHost && can(ctx, "projects.complete") && !quoteJob;
   const storage = can(ctx, "projects.complete") ? await jobStorage(ctx, job.id) : null;
   const finishLeavesSiteEmpty = job.status === "ACTIVE" && here.site.activeJobs <= 1;
   const plain = isHouse(site);
@@ -294,7 +296,7 @@ async function JobPage({
       />
       <PageHeader
         title={job.name}
-        meta={[job.jobNumber, job.clientName, job.archivedAt ? "Archived" : job.status === "COMPLETED" ? "Finished" : null].filter(Boolean).join(" · ") || undefined}
+        meta={[job.jobNumber ?? job.quoteNumber, job.clientName, job.archivedAt ? "Archived" : job.status === "COMPLETED" ? "Finished" : job.status === "QUOTING" ? "Quoting" : job.status === "NOT_WON" ? "Not won" : null].filter(Boolean).join(" · ") || undefined}
         actions={
           <>
             <CopyLink codePath={`/projects/${job.id}/code`} />
@@ -304,6 +306,10 @@ async function JobPage({
       />
       <div className="flex flex-col gap-4 sm:gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_26rem]">
       <Stack>
+        {job.status === "QUOTING" && (
+          <Alert>Quoting{job.quoteNumber ? ` for ${job.quoteNumber}` : ""}: it becomes a job when the quote is accepted. Upload plans and place icons for the take-off; it stays out of the Sites list until then.</Alert>
+        )}
+        {job.status === "NOT_WON" && <Alert>Not won{job.quoteNumber ? `: ${job.quoteNumber}` : ""} was declined or withdrawn. Its plans are kept in case the client comes back; revising the quote picks it up again.</Alert>}
         {job.archivedAt ? (
           <Alert>
             Archived on {date(job.archivedAt)}. Plans and documents are drawn again when you open them, for a quick look, and removed again after a while. Restore it to keep them, or reopen it to carry on.
@@ -367,7 +373,7 @@ async function JobPage({
         {storage && <JobStorage storage={storage} />}
 
         {canFinish && (
-          <FinishJob jobId={job.id} status={job.status} archived={!!job.archivedAt} archiveBytes={storage?.totals.archiveBytes ?? 0} siteName={site.name} lastActiveHere={finishLeavesSiteEmpty} />
+          <FinishJob jobId={job.id} status={job.status as "ACTIVE" | "COMPLETED"} archived={!!job.archivedAt} archiveBytes={storage?.totals.archiveBytes ?? 0} siteName={site.name} lastActiveHere={finishLeavesSiteEmpty} />
         )}
       </Stack>
       </div>

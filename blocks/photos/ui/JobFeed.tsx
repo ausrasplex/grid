@@ -34,7 +34,7 @@ export interface Feed {
 }
 
 interface Props {
-  job: { id: string; name: string; status: "ACTIVE" | "COMPLETED" };
+  job: { id: string; name: string; status: "ACTIVE" | "COMPLETED" | "QUOTING" | "NOT_WON" };
   areas: AreaOpt[];
   area: AreaOpt | null;
   initial: Feed;

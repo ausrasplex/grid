@@ -58,3 +58,6 @@ export {
   type SheetSlotValue,
   type SheetViewerPanelProps,
 } from "./sheet-slot";
+
+// The quote editor's take-off slot (Quotes provides it; Markups fills it)
+export { QuoteTakeoffProvider, useQuoteTakeoff, type QuoteTakeoffPanelProps, type QuoteTakeoffValue, type TakeoffLine } from "./quote-slot";

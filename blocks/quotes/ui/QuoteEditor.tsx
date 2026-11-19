@@ -4,7 +4,7 @@
 // change it, add from the price book, totals update as you type, and it
 // saves itself. Once sent it's read-only: revisions, PDF, accept/decline.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Copy, FileText, FolderInput, ListPlus, Plus, Send, Star, ToggleLeft, Trash2, type LucideIcon } from "lucide-react";
 import { AddressField, Alert,
   Badge,
@@ -24,8 +24,7 @@ import { AddressField, Alert,
   Switch,
   api,
   cn,
-  useAction,
-} from "@grid/ui";
+  useAction, QuoteTakeoffProvider, type QuoteTakeoffValue } from "@grid/ui";
 import { calculate, formatMoney, groupBySection, markedUpUnitCents } from "../money";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { StatusBadge } from "./StatusBadge";
@@ -46,6 +45,8 @@ export interface LineJson {
   markupSell?: number | null;
   taxCodeId: string | null;
   optional: boolean;
+  /** Made by the take-off from plans: "<icon key>#<number>" (phase 4c). */
+  takeoffKey?: string | null;
 }
 
 export interface QuoteJson {
@@ -123,7 +124,18 @@ const toNum = (text: string) => {
 const dateInput = (isoDate: string) => isoDate.slice(0, 10);
 const when = (isoDate: string) => new Date(isoDate).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
-export function QuoteEditor({ initial, permissions, emailReady }: { initial: QuoteJson; permissions: { edit: boolean; send: boolean }; emailReady: boolean }) {
+export function QuoteEditor({
+  initial,
+  permissions,
+  emailReady,
+  takeoffPanels,
+}: {
+  initial: QuoteJson;
+  permissions: { edit: boolean; send: boolean };
+  emailReady: boolean;
+  /** Other Blocks' "quote.takeoff" panels (the Take-off section from Markups). */
+  takeoffPanels?: ReactNode[];
+}) {
   const [quote, setQuote] = useState(initial);
   // Saved lines come with their database id; the editor keys them itself and never sends the id back.
   const [lines, setLines] = useState<LineJson[]>(() => initial.lines.map(({ id: _id, ...line }) => ({ ...line, key: key() })));
@@ -196,6 +208,7 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
           sell: line.sell,
           taxCodeId: line.taxCodeId,
           optional: line.optional,
+          takeoffKey: line.takeoffKey ?? null,
           ...(quote.canSeeCosts ? { cost: line.cost } : {}),
         })),
     }),
@@ -274,7 +287,8 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
     setLines((currentLines) => {
       const index = currentLines.findIndex((existing) => existing.key === line.key);
       const copy = [...currentLines];
-      copy.splice(index + 1, 0, { ...line, key: key() });
+      // A copy is a line of its own, not part of the take-off.
+      copy.splice(index + 1, 0, { ...line, key: key(), takeoffKey: null });
       return copy;
     });
   const swipeLeft = isSwipeAction(settings.swipeLeft) ? settings.swipeLeft : "OFF";
@@ -302,6 +316,69 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
     taxCodeId: settings.defaultTaxCodeId,
     optional: false,
   });
+
+  // --- take-off from plans (the "quote.takeoff" slot) --------------------
+  /** Waiting for the price book picker to choose an item for a take-off number. */
+  const chooser = useRef<((item: { id: string; name: string } | null) => void) | null>(null);
+  const priceOf = (item: PriceItemJson) => {
+    // Price book prices are ex tax; convert when this quote is typed incl.
+    const rate = settings.codes.find((code) => code.id === item.taxCodeId)?.rate ?? 0;
+    return form.pricesIncludeTax ? Math.round(item.sell * (1 + rate) * 100) / 100 : item.sell;
+  };
+  const takeoff: QuoteTakeoffValue = {
+    editable: draft,
+    projectId: quote.projectId,
+    onQuote: lines.reduce<Record<string, number>>((found, line) => (line.takeoffKey ? { ...found, [line.takeoffKey]: (found[line.takeoffKey] ?? 0) + line.qty } : found), {}),
+    start: async () => {
+      if (quote.projectId) return quote.projectId;
+      if (saving.current || json !== lastSaved.current) await flush();
+      const result = await api<{ projectId: string }>(`/quotes/${quote.id}/takeoff`, { body: {} });
+      setQuote((current) => ({ ...current, projectId: result.projectId }));
+      return result.projectId;
+    },
+    addLines: async (wanted) => {
+      if (!wanted.length) return;
+      const ids = [...new Set(wanted.map((line) => line.priceItemId))];
+      const items = new Map((await api<PriceItemJson[]>(`/quotes/items?ids=${ids.join(",")}`)).map((item) => [item.id, item]));
+      setLines((currentLines) => {
+        let next = [...currentLines];
+        for (const want of wanted) {
+          const item = items.get(want.priceItemId);
+          if (!item) continue;
+          const existing = next.find((line) => line.takeoffKey === want.takeoffKey);
+          if (existing) {
+            next = next.map((line) => (line.key === existing.key ? { ...line, qty: want.qty } : line));
+            continue;
+          }
+          next.push({
+            ...blank(),
+            section: "Take-off",
+            priceItemId: item.id,
+            kind: item.kind,
+            description: item.name,
+            unit: item.unit,
+            sell: priceOf(item),
+            cost: item.cost,
+            taxCodeId: item.taxCodeId ?? settings.defaultTaxCodeId,
+            qty: want.qty,
+            takeoffKey: want.takeoffKey,
+          });
+        }
+        return next;
+      });
+    },
+    chooseItem: () =>
+      new Promise((resolve) => {
+        chooser.current?.(null);
+        chooser.current = resolve;
+        setPicking(true);
+      }),
+    itemNames: async (ids) => {
+      if (!ids.length) return {};
+      const items = await api<PriceItemJson[]>(`/quotes/items?ids=${[...new Set(ids)].join(",")}`);
+      return Object.fromEntries(items.map((item) => [item.id, item.name]));
+    },
+  };
 
   const codeLabel = (id: string | null) => settings.codes.find((code) => code.id === id)?.label ?? "";
   const lineAmount = (index: number) => totals.lines[index]?.amountCents ?? 0;
@@ -430,6 +507,8 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
           <Totals totals={totals} money={money} includesTax={form.pricesIncludeTax} taxName={settings.taxName} canSeeCosts={quote.canSeeCosts} markupPct={markupPct} />
         </Section>
 
+        {takeoffPanels && takeoffPanels.length > 0 && <QuoteTakeoffProvider value={takeoff}>{takeoffPanels}</QuoteTakeoffProvider>}
+
         {draft ? (
           <>
             <Section title="Details">
@@ -529,11 +608,26 @@ export function QuoteEditor({ initial, permissions, emailReady }: { initial: Quo
       />
       <PriceBookPicker
         open={picking}
-        onOpenChange={setPicking}
+        choosing={!!chooser.current}
+        onOpenChange={(open) => {
+          setPicking(open);
+          // Closed without choosing: the take-off's question gets "nothing".
+          if (!open && chooser.current) {
+            chooser.current(null);
+            chooser.current = null;
+          }
+        }}
         includesTax={form.pricesIncludeTax}
         codes={settings.codes}
         money={money}
         onPick={(item) => {
+          // Choosing an item for a take-off number, not adding a line.
+          if (chooser.current) {
+            chooser.current({ id: item.id, name: item.name });
+            chooser.current = null;
+            setPicking(false);
+            return;
+          }
           // Price book prices are ex tax; convert when this quote is typed incl.
           const rate = settings.codes.find((code) => code.id === item.taxCodeId)?.rate ?? 0;
           const sell = form.pricesIncludeTax ? Math.round(item.sell * (1 + rate) * 100) / 100 : item.sell;
@@ -986,12 +1080,15 @@ function AddLineSheet({ open, onOpenChange, onPriceBook, onCustom }: { open: boo
 
 function PriceBookPicker({
   open,
+  choosing,
   onOpenChange,
   onPick,
   includesTax,
   codes,
   money,
 }: {
+  /** Picking the item a take-off number becomes, rather than adding lines. */
+  choosing?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPick: (item: PriceItemJson) => void;
@@ -1024,7 +1121,7 @@ function PriceBookPicker({
   };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent title="Add from price book" description="Tap to add. Change the quantity after.">
+      <SheetContent title={choosing ? "Pick the item" : "Add from price book"} description={choosing ? "What this icon number is priced as on the quote." : "Tap to add. Change the quantity after."}>
         <div className="flex flex-col gap-3 px-2">
           <SearchInput label="Search the price book" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} />
           <Segmented

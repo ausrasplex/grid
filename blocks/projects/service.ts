@@ -78,7 +78,8 @@ export async function clientRenamed(event: ClientRenamedEvent) {
 /** Keeps the site's per-company counts (and archiving) in step with its jobs. */
 async function syncSite(tx: Tx, siteId: string, companyId: string, actorId: string | null) {
   const projects = await tx.project.findMany({
-    where: { siteId, deletedAt: null, companies: { some: { companyId, status: VISIBLE } } },
+    // Quoting and Not won jobs don't count: a site with only those stays archived.
+    where: { siteId, deletedAt: null, status: { in: ["ACTIVE", "COMPLETED"] }, companies: { some: { companyId, status: VISIBLE } } },
     select: { status: true, name: true, clientName: true },
   });
   const keywords = [...new Set(projects.flatMap((project) => [project.clientName ?? "", project.name]).filter(Boolean))].join(" ").slice(0, 2000);
@@ -125,8 +126,9 @@ async function assertJobNumberFree(tx: Tx, companyId: string, value: string, exc
  * was archived). The host's ProjectCompany row means the contract chain
  * exists from day one.
  */
-export async function createProject(ctx: RequestContext, input: CreateProjectInput) {
+export async function createProject(ctx: RequestContext, input: CreateProjectInput, options: { quoting?: boolean } = {}) {
   const companyId = requireCompany(ctx);
+  const quoting = !!options.quoting;
   const result = await db.$transaction(async (tx) => {
     let siteId: string;
     let covers: CoverInput[];
@@ -153,8 +155,9 @@ export async function createProject(ctx: RequestContext, input: CreateProjectInp
 
     const site = await tx.site.findUniqueOrThrow({ where: { id: siteId }, select: { kind: true } });
     const client = input.clientId ? await requireClient(tx, companyId, input.clientId) : null;
-    const jobNumber = input.jobNumber?.trim() || (await nextJobNumber(tx, companyId));
-    await assertJobNumberFree(tx, companyId, jobNumber);
+    // A Quoting job gets its job number when it's won.
+    const jobNumber = quoting ? null : input.jobNumber?.trim() || (await nextJobNumber(tx, companyId));
+    if (jobNumber) await assertJobNumberFree(tx, companyId, jobNumber);
 
     const project = await tx.project.create({
       data: {
@@ -164,12 +167,13 @@ export async function createProject(ctx: RequestContext, input: CreateProjectInp
         clientId: client?.id ?? null,
         clientName: client?.name ?? null,
         description: input.description || null,
+        status: quoting ? "QUOTING" : "ACTIVE",
         listing: site.kind === "MANAGED" ? "LISTED" : "UNLISTED",
         createdById: ctx.userId,
         covers: { create: covers.map((cover) => ({ buildingId: cover.buildingId, levelId: cover.levelId ?? null })) },
         companies: { create: { companyId, status: "ACTIVE" } },
         references: {
-          create: [{ companyId, label: JOB_LABEL, value: jobNumber }, ...(input.references ?? []).map((reference) => ({ companyId, ...reference }))],
+          create: [...(jobNumber ? [{ companyId, label: JOB_LABEL, value: jobNumber }] : []), ...(input.references ?? []).map((reference) => ({ companyId, ...reference }))],
         },
       },
     });
@@ -183,12 +187,57 @@ export async function createProject(ctx: RequestContext, input: CreateProjectInp
       entityType: "Project",
       entityId: project.id,
       action: "created",
-      diff: { name: input.name, siteId, jobNumber, covers, reactivatedSite: reactivated } as Prisma.InputJsonValue,
+      diff: { name: input.name, siteId, jobNumber, covers, reactivatedSite: reactivated, quoting: quoting || undefined } as Prisma.InputJsonValue,
     });
     return { id: project.id, siteId, jobNumber, reactivatedSite: reactivated };
   });
-  await emit("projects.created", { projectId: result.id, siteId: result.siteId }, ctx);
+  if (!quoting) await emit("projects.created", { projectId: result.id, siteId: result.siteId }, ctx);
   return result;
+}
+
+/** A quote's job before it's won, to hold plans for the take-off (docs/stage-2-projects.md "Quoting jobs"). Only the Quotes Block makes these. */
+export async function createQuotingJob(ctx: RequestContext, input: CreateProjectInput) {
+  return createProject(ctx, input, { quoting: true });
+}
+
+/**
+ * A quote's answer moves its Quoting job along (events from the Quotes
+ * Block, so Jobs doesn't depend on it): accepted → an ordinary active job
+ * with a job number; declined or withdrawn → Not won (kept with its plans);
+ * revised again → back to Quoting. Jobs that aren't Quoting or Not won
+ * (a quote for extra work on a real job) are left alone.
+ */
+export async function quotingOutcome(event: { projectId: string | null }, meta: { companyId: string | null; actorId: string | null }, outcome: "WON" | "NOT_WON" | "QUOTING") {
+  if (!event.projectId || !meta.companyId) return;
+  const companyId = meta.companyId;
+  const result = await db.$transaction(async (tx) => {
+    const project = await tx.project.findFirst({ where: { id: event.projectId!, hostCompanyId: companyId, deletedAt: null } });
+    if (!project || (project.status !== "QUOTING" && project.status !== "NOT_WON")) return null;
+    const to = outcome === "WON" ? "ACTIVE" : outcome;
+    if (project.status === to) return null;
+    let jobNumber: string | null = null;
+    if (to === "ACTIVE") {
+      const has = await tx.projectReference.findFirst({ where: { projectId: project.id, companyId, label: JOB_LABEL } });
+      if (!has) {
+        jobNumber = await nextJobNumber(tx, companyId);
+        await tx.projectReference.create({ data: { projectId: project.id, companyId, label: JOB_LABEL, value: jobNumber } });
+      }
+    }
+    await tx.project.update({ where: { id: project.id }, data: { status: to, ...(to === "ACTIVE" ? { startedAt: new Date() } : {}) } });
+    await syncSite(tx, project.siteId, companyId, meta.actorId);
+    await audit(tx, {
+      blockId: MOD,
+      actorId: meta.actorId,
+      companyId,
+      projectId: project.id,
+      entityType: "Project",
+      entityId: project.id,
+      action: to === "ACTIVE" ? "won" : to === "NOT_WON" ? "not_won" : "quoting_again",
+      diff: { from: project.status, to, jobNumber: jobNumber ?? undefined },
+    });
+    return { siteId: project.siteId, won: to === "ACTIVE" };
+  });
+  if (result?.won) await emit("projects.created", { projectId: event.projectId, siteId: result.siteId }, { companyId, userId: meta.actorId });
 }
 
 // ---------------------------------------------------------------------
@@ -255,7 +304,8 @@ export interface JobSummary {
   name: string;
   clientId: string | null;
   clientName: string | null;
-  status: "ACTIVE" | "COMPLETED";
+  /** QUOTING and NOT_WON are a quote's job before (or instead of) being won. */
+  status: "ACTIVE" | "COMPLETED" | "QUOTING" | "NOT_WON";
   jobNumber: string | null;
   startedAt: Date;
   completedAt: Date | null;
@@ -299,6 +349,8 @@ function toSummary(row: SummaryRow, siteName: string): JobSummary {
 }
 
 export interface JobView extends JobSummary {
+  /** The quote it came from ("Q-1042"), when it did. */
+  quoteNumber: string | null;
   description: string | null;
   listing: "LISTED" | "UNLISTED";
   isHost: boolean;
@@ -329,6 +381,7 @@ export async function getProject(ctx: RequestContext, projectId: string): Promis
     siteId: project.siteId,
     siteName: site.name,
     jobNumber: project.references.find((reference) => reference.label === JOB_LABEL)?.value ?? null,
+    quoteNumber: project.references.find((reference) => reference.label === "Quote")?.value ?? null,
     isHost: project.hostCompanyId === companyId,
     covers,
     areas: areasOf(site, covers),
@@ -544,6 +597,7 @@ export async function setProjectStatus(ctx: RequestContext, projectId: string, s
   const result = await db.$transaction(async (tx) => {
     const project = await accessibleProject(tx, companyId, projectId);
     assertHost(companyId, project);
+    if (project.status === "QUOTING" || project.status === "NOT_WON") throw conflict("This is a quote's job: it becomes a job when the quote is accepted");
     if (project.status === status) return { id: projectId, status, siteId: project.siteId, restored: false };
     // Reopening an archived job restores it first (its copies are drawn again).
     const restored = status === "ACTIVE" && !!project.archivedAt;
@@ -653,8 +707,10 @@ export interface SearchResult {
   /** Breadcrumb-ish trail so similar names can be told apart. */
   trail: string;
   href: string;
-  status?: "ACTIVE" | "COMPLETED";
+  status?: JobSummary["status"];
 }
+
+const STATUS_WORD: Record<JobSummary["status"], string | null> = { ACTIVE: null, COMPLETED: "Finished", QUOTING: "Quoting", NOT_WON: "Not won" };
 
 function jobHref(id: string) {
   return `/jobs/${id}`;
@@ -718,7 +774,7 @@ export async function search(ctx: RequestContext, typed: string): Promise<{ exac
       type: "job",
       id: summary.id,
       title: summary.name,
-      meta: [summary.jobNumber, summary.clientName, summary.status === "COMPLETED" ? "Finished" : null].filter(Boolean).join(" · "),
+      meta: [summary.jobNumber, summary.clientName, STATUS_WORD[summary.status]].filter(Boolean).join(" · "),
       trail: summary.siteName,
       href: jobHref(summary.id),
       status: summary.status,

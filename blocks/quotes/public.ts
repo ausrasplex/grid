@@ -198,6 +198,8 @@ async function decline(token: string, body: unknown, caller: Caller) {
     await tx.quote.update({ where: { id: quote.id }, data: { status: "DECLINED", declinedAt: new Date(), declineReason: reason ?? null } });
     await tx.quoteEvent.create({ data: { quoteId: quote.id, type: "DECLINED", note: `Declined online by the client${reason ? `: ${reason}` : ""}` } });
   });
+  // A Quoting job becomes Not won (Jobs listens).
+  await app().events.emit("quotes.declined", { quoteId: quote.id, projectId: quote.projectId }, { emittedBy: MOD, companyId: signRequest.companyId, actorId: null });
   await emailBusiness(
     quote.id,
     revision.sentById,

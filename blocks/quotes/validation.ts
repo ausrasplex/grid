@@ -110,6 +110,8 @@ export const lineSchema = z
     sell: money,
     taxCodeId: uuid.nullable(),
     optional: z.boolean().default(false),
+    /** From the take-off (phase 4c): "<icon key>#<number>". */
+    takeoffKey: z.string().max(100).nullable().optional(),
   })
   .strict();
 
