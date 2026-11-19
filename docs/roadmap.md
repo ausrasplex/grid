@@ -221,10 +221,31 @@ Both read the same `CheckIn` rows, kept for good (nothing is purged). Each row s
   - **Shared with names:** staff see who's away and when. The type and note stay private either way: they see "Away", not "Personal leave".
   - Pending requests are never shown to other staff, only approved leave.
 
+### Upcoming leave alerts (added Nov 2026)
+
+So whoever plans the work knows who's away before the day comes.
+
+- **Who gets them:** anyone with the new permission `leave.notify` ("Hear about upcoming leave"). The Owner always has it, Foremen have it by default, and any role can be given it on Roles. Each person can turn the alerts off, or change the timing, under **Settings › You › Leave alerts**.
+- **When:**
+  - **Before it starts.** By default 1 week before and 1 day before. Each person picks any of: 2 weeks, 1 week, 3 days, 1 day.
+  - **Weekly look-ahead.** Monday morning: everyone away this week and next. It's skipped if nobody is.
+  - **When leave is approved** that starts within the alert window (for example, approved on Friday for Monday), so a late booking isn't missed. It doesn't go to the person who approved it.
+  - **Pending and starting soon.** People with `leave.approve` are told when a request starting within 3 days still hasn't been answered.
+- **What it says:**
+  - "Sam: away Mon 8 – Fri 12 Dec (5 days)".
+  - The jobs Sam was checked in to most in the last 2 weeks (from `attendance`, when it's on), so you know which work needs covering.
+  - The leave type shows only to people with `leave.approve`; others see "away", the same privacy as the shared calendar.
+  - Only approved leave, apart from the pending reminder above.
+- **How it arrives:**
+  - **Now:** an email, in the 7 am daily run (the same block job pattern as the Wallet reminders, `leave.remind`, `schedule: "0 7 * * *"`).
+  - **Now:** a **Coming up** card on Home for `leave.notify` holders, showing leave in the next 14 days.
+  - **Phase 6:** the same alerts in the app's notifications and as push.
+  - Each alert is sent once. A sent-log table (`LeaveAlert`: leave id, person, which alert) stops repeats. A changed or cancelled leave sends a short update to anyone already told.
+
 ### Build order
 
 1. `attendance`: check in/out, auto check-out, the Actions centre button for checked-in members, Who's where with the Home card, My check-ins and the Check-in history with CSV export.
-2. `leave`: the form, approvals and notifications, the calendar, sharing, and "On leave today" in Who's where.
+2. `leave`: the form, approvals and notifications, the calendar, sharing, "On leave today" in Who's where, and upcoming leave alerts (email and the Home card now; in-app and push with phase 6).
 
 ## Phase 7: apprentices (planned, decided Nov 2026)
 
