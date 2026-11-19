@@ -178,7 +178,26 @@ Both are **team features**: hidden while solo (`teamOnly`), appearing when the f
   - each person, the building and level, and "since 7:12 am";
   - then **Not checked in** and **On leave today** (from the `leave` Block through a panel slot, when it's on).
 - Live enough: it refreshes when opened and every minute while open. No push.
-- Each person's own history is behind their name: check-ins for the last 30 days, with auto check-outs flagged.
+- Tapping a name opens the **Check-in history** filtered to that person.
+
+### Check-in history (two pages, added Nov 2026)
+
+Both read the same `CheckIn` rows, kept for good (nothing is purged). Each row shows:
+- the date, job and site, and the building and level;
+- the in and out times, and how long;
+- a badge for **Auto** (checked out at end of day: they forgot) and **Corrected** (a time was changed, with who changed it and the times before).
+
+**My check-ins** (everyone with `attendance.checkin`, under **Settings › You**, shown when the Block is on and the business isn't solo):
+- Your own history only, newest first, grouped by day with a day total ("7 h 45 m").
+- Filter by month or by job.
+- You can't change your own times. **Ask for a correction** sends the Owner a note with the right time, and they fix it.
+
+**Check-in history** (`attendance.view`, under **Team**, next to Who's where):
+- Everyone's history, filtered by person, job, and date range (This week, Last week, This month, or pick dates).
+- Grouped by day, with each person's day total. Totals for the range, per person, are at the top.
+- People with `attendance.manage` can correct a time from here (written to the activity log).
+- **Export CSV** of what's shown (person, date, job, site, in, out, hours, auto, corrected), for payroll or a dispute.
+- Day and week totals are plain sums of time checked in, not a timesheet. Breaks, overtime and pay rules belong to timesheets later.
 
 ### Leave (`leave` Block, depends on `companies`)
 
@@ -204,7 +223,7 @@ Both are **team features**: hidden while solo (`teamOnly`), appearing when the f
 
 ### Build order
 
-1. `attendance`: check in/out, auto check-out, the Actions centre button for checked-in members, Who's where with the Home card.
+1. `attendance`: check in/out, auto check-out, the Actions centre button for checked-in members, Who's where with the Home card, My check-ins and the Check-in history with CSV export.
 2. `leave`: the form, approvals and notifications, the calendar, sharing, and "On leave today" in Who's where.
 
 ## Phase 7: apprentices (planned, decided Nov 2026)
