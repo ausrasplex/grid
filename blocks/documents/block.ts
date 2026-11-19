@@ -48,6 +48,13 @@ export default defineBlock({
     // Archived jobs (phase 2e): drop the copies, or make them all again on restore.
     "documents.archive": { handler: async (data) => (await import("./archive")).dropForJob(String(data.projectId)), expireInSeconds: 30 * 60, retryLimit: 1 },
     "documents.restore": { handler: async (data) => void (await (await import("./archive")).restoreJob(String(data.projectId))), expireInSeconds: 10 * 60, retryLimit: 1 },
+    // Search: the text of versions read before search existed (or that failed), a few hundred a night.
+    "documents.text": {
+      handler: async () => void (await (await import("./text")).extractMissing()),
+      schedule: "40 3 * * *",
+      expireInSeconds: 60 * 60,
+      retryLimit: 0,
+    },
     // Sizes for page pictures made before Grid recorded them (the job Storage section).
     "documents.measure": {
       handler: async () => void (await (await import("./storage")).measure()),

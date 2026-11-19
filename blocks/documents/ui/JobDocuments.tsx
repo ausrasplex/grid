@@ -9,6 +9,7 @@ import { ArrowLeft, FolderPlus, Library, MoreHorizontal, Upload } from "lucide-r
 import { ActionButton, Alert, Badge, Button, EmptyState, Field, FormActions, List, PageHeader, SearchInput, Section, SelectField, Sheet, SheetContent, Stack, api, useAction } from "@grid/ui";
 import { UPLOAD_ACCEPT } from "../kinds";
 import { DuplicatesAlert, addedMessage } from "./DocumentsHome";
+import { SearchResults } from "./SearchResults";
 import { DocumentLink, UploadList, matches, useUploads, type DocumentRowJson } from "./shared";
 
 export interface JobDocumentsJson {
@@ -110,7 +111,8 @@ export function JobDocuments({ job, initial, permissions }: { job: { id: string;
             onAddAnyway={() => void action.run(() => add(duplicates.list.map((duplicate) => duplicate.fileId), duplicates.folderId, true))}
           />
         )}
-        {total > 6 && <SearchInput label="Search this job's documents" placeholder="Title or tag" value={query} onChange={(event) => setQuery(event.target.value)} />}
+        {total > 0 && <SearchInput label="Search this job's documents" placeholder="Title, tag, or words inside" value={query} onChange={(event) => setQuery(event.target.value)} />}
+        <SearchResults query={query} projectId={job.id} />
 
         {total === 0 && !permissions.upload ? (
           <Section>

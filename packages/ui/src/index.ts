@@ -23,7 +23,7 @@ export { Crumbs, type Crumb } from "./crumbs";
 export { HomeTile, AttentionRow, AttentionList } from "./home";
 export { Icon, ICONS } from "./icons";
 export { Scroller, useOverflow } from "./scroller";
-export { PageViewer, type ViewerPage } from "./page-viewer";
+export { PageViewer, type FindMatch, type ViewerPage } from "./page-viewer";
 
 // Client data helpers
 export { api, useApi, useAction, ApiError } from "./api";

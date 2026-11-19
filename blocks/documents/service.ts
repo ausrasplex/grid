@@ -16,6 +16,7 @@ import { canSeeJob, getProject, isJobArchived, myActiveJobs } from "@grid/block-
 import { assertNotArchived, openOnArchivedJob } from "./archive";
 import { documentKind, titleFromFileName, type DocumentKind } from "./kinds";
 import { pagesDir, removePages, renderPdfPages, sheetFile, writeSheets } from "./render";
+import { extractText, findInVersion } from "./text";
 import { addColumns, readWorkbook, summarise, type AddedColumns, type SheetData, type SheetSummary } from "./sheets";
 import type { AddDocumentsInput, LibraryInput, UpdateDocumentInput } from "./validation";
 
@@ -528,6 +529,7 @@ export async function deleteVersion(ctx: RequestContext, versionId: string) {
     const document = await ownDocument(tx, ctx, version.documentId);
     const others = await tx.documentVersion.findMany({ where: { documentId: document.id, id: { not: versionId } }, orderBy: { createdAt: "desc" } });
     if (!others.length) throw conflict("This is the only version. Delete the document instead.");
+    await tx.documentPage.deleteMany({ where: { versionId } });
     await tx.documentVersion.delete({ where: { id: versionId } });
     if (document.currentVersionId === versionId) await tx.libraryDocument.update({ where: { id: document.id }, data: { currentVersionId: others[0]!.id } });
     await purgeStoredFile(tx, version.fileId);
@@ -646,15 +648,33 @@ export async function renderVersion(versionId: string, again = false) {
       const before = new Map(((version.sheets ?? []) as unknown as SheetSummary[]).map((sheet) => [sheet.name, sheet.headerRow]));
       const summary = summarise(sheets).map((sheet) => ({ ...sheet, headerRow: Math.min(before.get(sheet.name) ?? sheet.headerRow, Math.max(0, sheet.rows - 1)) }));
       await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, sheets: summary as unknown as Prisma.InputJsonValue, cacheBytes: await folderBytes(pagesDir(versionId)), copiesDroppedAt: null } });
+      await readTextQuietly(versionId);
       return;
     }
     const sizes = await renderPdfPages(storedFilePath(file), versionId);
     await db.documentVersion.update({ where: { id: versionId }, data: { status: "READY", error: null, pages: sizes.length, pageSizes: sizes, cacheBytes: await folderBytes(pagesDir(versionId)), copiesDroppedAt: null } });
+    await readTextQuietly(versionId);
   } catch (error) {
     console.error(`[documents] couldn't render version ${versionId}`, error);
     if (again) return;
     await db.documentVersion.update({ where: { id: versionId }, data: { status: "FAILED", error: ((error as Error).message || "Couldn't read the file").slice(0, 300) } });
   }
+}
+
+/** Text for search (and find on page). Failing here never fails the viewer: the nightly documents.text tries again. */
+async function readTextQuietly(versionId: string) {
+  try {
+    await extractText(versionId);
+  } catch (error) {
+    console.error(`[documents] couldn't read the text of version ${versionId}`, error);
+  }
+}
+
+/** Find on page: where the words appear on a PDF version's pages (boxes for the viewer to highlight). */
+export async function findOnPage(ctx: RequestContext, versionId: string, query: string) {
+  if (!(await canSeeVersion(ctx, versionId))) throw notFound();
+  if (query.trim().length < 2) return { matches: [], ready: true };
+  return findInVersion(versionId, query);
 }
 
 /** Settings › Plans & PDFs › Re-render existing: every PDF version that's showing, drawn again at the current level. */

@@ -21,7 +21,7 @@ The `documents` Block (optional, on for every trade and for sole traders; pages 
 - **Delete** goes to Recently deleted (**Settings › Storage**, panel `storage.deleted`, `documents.delete`): Restore or Delete now; the storage clean-up removes it for good after the set days ("Deleted document"). Deleting a business removes its documents (`purgeCompany`).
 - **Permissions:** `documents.view`, `.upload`, `.edit`, `.delete`, `.libraries.manage`. Foreman: view, upload, edit. Employee and Viewer: view. Owner: all. (`products.manage` and the notes permissions come with the product catalogue.)
 - **Data:** `DocumentLibrary`, `DocumentSettings` (`jobFolders`), `JobDocumentFolder`, `LibraryDocument` (library or job), `DocumentVersion` (`status`, `pages`, `pageSizes`; `sheets` stored for the spreadsheet viewer), `DocumentLink` (pinned to a job).
-- **Not yet:** find on page and search inside documents (part 3, text extraction), Word to PDF, the spreadsheet viewer and Sign-offs (parts 2b and 2c), offline, the product catalogue, company connections.
+- **Not yet:** Word to PDF, offline, the product catalogue, company connections. (Search inside documents and find on page came in part 4; the spreadsheet viewer and Sign-offs in parts 2 and 3.)
 
 ## What 5b part 2 built (Nov 2026): the spreadsheet viewer
 
@@ -73,6 +73,35 @@ The `documents` Block (optional, on for every trade and for sole traders; pages 
   - progress beside the file on the job's Documents list;
   - opening the spreadsheet itself with no signal (phase 6 offline; sign-offs already wait when the page is open);
   - the 44 px rule: the sign-off circle is the row's height (30 px at 100%), so zoom in for bigger targets.
+
+## What 5b part 4 built (Nov 2026): search inside documents
+
+- **Reading the text.**
+  - A PDF's words are read with poppler's `pdftotext -bbox` (in the image already, beside pdftoppm), by `pdfWords()` in `@grid/db` (`pdf-text.ts`, unit-tested). Each page's text goes into `DocumentPage`. Every word's box (fractions of the page) goes into `words.json` beside the page pictures in the cache, for find on page.
+  - A spreadsheet's cell text goes in one row per sheet (`page` = sheet number, `sheetName`).
+  - This runs straight after a version is read for the viewer (`documents.render`). A failure never fails the viewer.
+  - **Older versions** are caught up by `documents.text` at 3:40 am, 300 a night. Until then they don't show in results.
+  - `DocumentVersion.textAt` says when a version's text was read. `textPages` counts its pages with text: 0 on a PDF means a scan, which needs OCR (later).
+- **Searching.**
+  - PostgreSQL full-text search: `DocumentPage.search` is a `tsvector` (`to_tsvector('english', text)`, filled by SQL) with a GIN index. The query uses `websearch_to_tsquery`: words, "a phrase", and -word to leave out. Words match by their stem ("trips" finds "trip").
+  - It searches current versions only, every library document, and the job documents of jobs the person can see. On a job's page, only that job's.
+  - Results are best first, up to 5 pages (or sheets) per document, each with a snippet with the matching words marked.
+  - `GET /api/documents/search?q=…[&job=<projectId>]`.
+- **Where it shows.**
+  - **Inside documents** appears under the title matches on the Documents page and on a job's Documents (the job's search box now shows whenever it has documents), once 3 letters are typed.
+  - A result opens `/documents/doc/<id>?page=12&q=…`, at that page with the words found. For a spreadsheet, it opens that sheet with its search filled in, at the first match.
+- **Find on page** in the PDF viewer (`PageViewer` in `@grid/ui`, a magnifier in its bar):
+  - type, and every match is highlighted over the page pictures;
+  - "3 of 12" with next and previous (Enter, Shift + Enter);
+  - the current match is scrolled to the middle of the screen.
+  - `GET /api/documents/find/<versionId>?q=…` returns the boxes. Words must follow each other, and the last may be the start of a word. A render from before this reads the words the first time someone finds on it.
+- **Clean-up:** a version's text goes when it's deleted, and a document's when it's purged or its business is deleted. Archiving keeps the text (search still finds archived job documents); the word boxes go with the page pictures and come back when opened.
+- **Not yet:**
+  - OCR for scans;
+  - filters (library, manufacturer, type) on results;
+  - typo-tolerant model numbers (`pg_trgm`, with the product catalogue);
+  - documents in the header's Jump to search;
+  - offline search (phase 6).
 
 ## Sharpness of PDF pages (built Nov 2026)
 
@@ -336,7 +365,7 @@ Default grants: Employee view + notes.write (Private notes); Foreman view + uplo
 2a. Job documents: the job's Documents section, folders, versions, linking library documents. **Done (5b part 1).**
 2b. Spreadsheet viewer. **Done (5b part 2).** The `documents.sheet` slot comes with Sign-offs.
 2c. The `signoffs` Block (trial) and the viewer's `documents.sheet` slot: sign-offs, progress, matching across versions, offline sign-offs, Download with sign-offs. **Done (5b part 3).**
-3. Text extraction + search. **5b part 4, the end of phase 5b.**
+3. Text extraction + search. **Done (5b part 4), the end of phase 5b.**
 
 Later (split out of 5b, Nov 2026; not scheduled, see the roadmap's 10+ row):
 

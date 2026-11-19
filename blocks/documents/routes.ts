@@ -44,6 +44,13 @@ export const routes: Routes = {
   "POST /add": { permission: "documents.upload", handler: (ctx, request) => svc.addDocuments(ctx, addDocumentsSchema.parse(request.body)) },
 
   // One document
+  // Search inside documents (PDF page text, spreadsheet cells): ?q=…[&job=<projectId>].
+  "GET /search": {
+    permission: "documents.view",
+    handler: async (ctx, request) => (await import("./text")).search(ctx, request.query.get("q") ?? "", request.query.get("job")),
+  },
+  // Find on page in the PDF viewer: ?q=… → boxes on each page.
+  "GET /find/:versionId": { permission: "documents.view", handler: (ctx, request) => svc.findOnPage(ctx, request.params.versionId!, request.query.get("q") ?? "") },
   "GET /doc/:id": { permission: "documents.view", handler: (ctx, request) => svc.getDocument(ctx, request.params.id!, request.query.get("version")) },
   "PATCH /doc/:id": { permission: "documents.edit", handler: (ctx, request) => svc.updateDocument(ctx, request.params.id!, updateDocumentSchema.parse(request.body)) },
   "POST /doc/:id/versions": { permission: "documents.upload", handler: (ctx, request) => svc.addVersion(ctx, request.params.id!, newVersionSchema.parse(request.body)) },

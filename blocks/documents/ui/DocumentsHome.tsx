@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Settings, Upload } from "lucide-react";
 import { ActionButton, Alert, Button, EmptyState, List, PageHeader, SearchInput, Section, SelectField, Sheet, SheetContent, Stack, api, useAction } from "@grid/ui";
 import { UPLOAD_ACCEPT } from "../kinds";
+import { SearchResults } from "./SearchResults";
 import { Chips, DocumentLink, UploadList, matches, useUploads, type DocumentRowJson } from "./shared";
 
 export interface LibraryJson {
@@ -162,7 +163,7 @@ export function DocumentsHome({
         )}
 
         <div className="flex flex-col gap-3">
-          <SearchInput label="Search documents" placeholder="Title, manufacturer, model or tag" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <SearchInput label="Search documents" placeholder="Title, model, tag, or words inside" value={query} onChange={(event) => setQuery(event.target.value)} />
           <Chips
             label="Library"
             value={libraryId}
@@ -174,7 +175,7 @@ export function DocumentsHome({
         <Section flush>
           {shown.length === 0 ? (
             query ? (
-              <EmptyState title="Nothing matches">Try fewer words, or a model number without the dashes.</EmptyState>
+              <EmptyState title="No titles match">Try fewer words, or a model number without the dashes.</EmptyState>
             ) : (
               <EmptyState title={current ? `Nothing in ${current.name} yet` : "No documents yet"}>
                 {permissions.upload ? (
@@ -199,6 +200,7 @@ export function DocumentsHome({
             </List>
           )}
         </Section>
+        <SearchResults query={query} />
       </Stack>
 
       <Sheet open={picking} onOpenChange={setPicking}>

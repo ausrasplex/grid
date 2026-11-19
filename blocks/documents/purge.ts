@@ -20,6 +20,7 @@ export async function purgeDeleted(options: { before: Date; dryRun: boolean }): 
     for (const version of document.versions) await removePages(version.id);
     await db.$transaction(async (tx) => {
       for (const file of files) await purgeStoredFile(tx, file.id);
+      await tx.documentPage.deleteMany({ where: { documentId: document.id } });
       await tx.libraryDocument.update({ where: { id: document.id }, data: { purgedAt: new Date() } });
     });
   }
@@ -35,6 +36,7 @@ export async function purgeCompany(companyId: string): Promise<void> {
   for (const version of versions) await removePages(version.id);
   await db.$transaction(async (tx) => {
     // Versions and pins go with each document (cascade).
+    await tx.documentPage.deleteMany({ where: { companyId } });
     await tx.libraryDocument.deleteMany({ where: { companyId } });
     await tx.documentLink.deleteMany({ where: { companyId } });
     await tx.jobDocumentFolder.deleteMany({ where: { companyId } });

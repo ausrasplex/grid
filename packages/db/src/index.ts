@@ -7,3 +7,4 @@ export * from "./server-settings";
 export * from "./cleanup-log";
 export * from "./pdf-pages";
 export * from "./render-levels";
+export * from "./pdf-text";

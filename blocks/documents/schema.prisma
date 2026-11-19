@@ -106,6 +106,10 @@ model DocumentVersion {
   copiesDroppedAt DateTime?
   /// Last opened while the job is archived (see PlanVersion.openedAt).
   openedAt        DateTime?
+  /// When its text was read for search (null: not yet; the nightly documents.text
+  /// catches up). textPages: pages (or sheets) with any text; 0 on a PDF means a scan.
+  textAt          DateTime?
+  textPages       Int       @default(0)
   note         String?
   uploadedById String
   createdAt    DateTime              @default(now())
@@ -131,4 +135,24 @@ model DocumentLink {
 
   @@unique([documentId, projectId])
   @@index([projectId])
+}
+
+/// The text of one page of a PDF, or one sheet of a spreadsheet, for search
+/// (docs/documents-block.md "Search"). Rebuilt whenever a version is read.
+/// `search` is filled by SQL (to_tsvector), with a GIN index.
+model DocumentPage {
+  id         String                   @id @default(uuid())
+  companyId  String
+  documentId String
+  versionId  String
+  /// PDF page number, or sheet number (1 = the first sheet).
+  page       Int
+  /// Spreadsheets: the name of the sheet.
+  sheetName  String?
+  text       String
+  search     Unsupported("tsvector")?
+
+  @@index([versionId, page])
+  @@index([companyId])
+  @@index([search], type: Gin)
 }

@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { AlertTriangle, ArrowLeft, Download, Loader2, MoreHorizontal, Upload } from "lucide-react";
 import { ActionButton, Alert, Badge, Button, Field, FormActions, Label, List, ListRow, PageHeader, SelectField, Sheet, SheetContent, Stack, Switch, api, formatBytes, useAction } from "@grid/ui";
 import { KIND_LABEL, UPLOAD_ACCEPT, type DocumentKind } from "../kinds";
-import { PageViewer, type SheetViewerPanelProps } from "@grid/ui";
+import { PageViewer, type FindMatch, type SheetViewerPanelProps } from "@grid/ui";
 import { SheetViewer } from "./SheetViewer";
 import type { SheetSummary } from "../sheets";
 import { KindIcon, UploadList, useUploads } from "./shared";
@@ -89,6 +89,14 @@ export function DocumentPage({
   const input = useRef<HTMLInputElement>(null);
 
   const reload = useCallback(async () => setDocument(await api<DocumentJson>(`/documents/doc/${initial.id}`)), [initial.id]);
+  // Opened from a search result (?page=12&q=trip+curve): that page, with the words found.
+  const [start, setStart] = useState<{ page?: number; query?: string } | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const page = Number(params.get("page")) || undefined;
+    const query = params.get("q")?.trim() || undefined;
+    if (page || query) setStart({ page, query });
+  }, []);
   const shownId = versionId ?? document.currentVersionId;
   const version = document.versions.find((entry) => entry.id === shownId) ?? document.versions[0] ?? null;
   const isCurrent = !!version && version.id === document.currentVersionId;
@@ -171,6 +179,7 @@ export function DocumentPage({
             onRetried={reload}
             sheetPanel={sheetPanel?.version.id === version.id ? sheetPanel : undefined}
             sheetPanels={sheetPanel?.version.id === version.id ? sheetPanels : undefined}
+            start={start}
           /> : <Alert variant="error">This document has no file.</Alert>}
       </Stack>
 
@@ -238,6 +247,7 @@ function VersionView({
   onRetried,
   sheetPanel,
   sheetPanels,
+  start,
 }: {
   version: VersionJson;
   title: string;
@@ -247,8 +257,10 @@ function VersionView({
   onRetried: () => Promise<void>;
   sheetPanel?: SheetViewerPanelProps;
   sheetPanels?: ReactNode[];
+  start?: { page?: number; query?: string } | null;
 }) {
   const action = useAction();
+  const find = useCallback((query: string) => api<{ matches: FindMatch[]; ready: boolean }>(`/documents/find/${version.id}?q=${encodeURIComponent(query)}`), [version.id]);
   if (version.kind === "pdf" || (version.kind === "spreadsheet" && (version.status !== "READY" || version.sheets.length))) {
     const spreadsheet = version.kind === "spreadsheet";
     if (version.status === "PENDING" || version.dropped)
@@ -283,8 +295,8 @@ function VersionView({
           )}
         </div>
       );
-    if (spreadsheet) return <SheetViewer versionId={version.id} summaries={version.sheets} canEdit={canEdit} panel={sheetPanel} panels={sheetPanels} />;
-    return <PageViewer title={title} pages={version.pageSizes.map(([width, height], index) => ({ src: `/api/documents/pages/${version.id}/p${index + 1}.jpg?w=${width}`, width, height }))} />;
+    if (spreadsheet) return <SheetViewer versionId={version.id} summaries={version.sheets} canEdit={canEdit} panel={sheetPanel} panels={sheetPanels} start={start} />;
+    return <PageViewer title={title} find={find} start={start} pages={version.pageSizes.map(([width, height], index) => ({ src: `/api/documents/pages/${version.id}/p${index + 1}.jpg?w=${width}`, width, height }))} />;
   }
   if (version.kind === "image") return <PageViewer title={title} pages={[{ src: `/api/files/${version.fileId}?v=display`, width: 0, height: 0 }]} />;
   const later = version.kind === "word" ? "Opening Word files in Grid is coming." : null;

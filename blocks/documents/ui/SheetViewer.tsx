@@ -79,7 +79,10 @@ export function SheetViewer({
   canEdit,
   panel,
   panels,
+  start,
 }: {
+  /** Opened from a search result: this sheet (1 = the first) and these words searched for. */
+  start?: { page?: number; query?: string } | null;
   versionId: string;
   summaries: SheetSummary[];
   canEdit: boolean;
@@ -198,6 +201,26 @@ export function SheetViewer({
   }, [needle, loaded, sheets]);
   useEffect(() => setMatchIndex(-1), [needle]);
   const currentMatch = matches[matchIndex] ?? null;
+
+  // From a search result: open that sheet and search, then go to the first match on it.
+  const startPending = useRef(false);
+  useEffect(() => {
+    if (!start) return;
+    if (start.page && start.page <= sheets.length) setActive(start.page - 1);
+    if (start.query) {
+      setQuery(start.query);
+      startPending.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start?.page, start?.query]);
+  useEffect(() => {
+    if (!startPending.current || !matches.length) return;
+    const sheet = (start?.page ?? 1) - 1;
+    if (!loaded[sheet]) return;
+    startPending.current = false;
+    goToMatch(Math.max(0, matches.findIndex((match) => match.sheet === sheet)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches]);
   const goToMatch = (index: number) => {
     if (!matches.length) return;
     const wrapped = (((index % matches.length) + matches.length) % matches.length);

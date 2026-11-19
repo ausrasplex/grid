@@ -3,10 +3,14 @@
 // A PDF viewer (Documents, quote PDFs): pages one under another, on paper. Zoom with the
 // buttons, Ctrl + scroll wheel or two fingers; jump to a page; see every
 // page small and tap one to go there. Pages load as they come into view.
+// With `find` (Documents), Find on page highlights the words over the
+// pictures, with next and previous; `start` opens at a page and/or with a
+// search already made (from a search result).
 
 import { useEffect, useRef, useState } from "react";
-import { LayoutGrid, Minus, Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, LayoutGrid, Minus, Plus, Search, X } from "lucide-react";
 import { Button } from "./components/button";
+import { SearchInput } from "./controls";
 import { Sheet, SheetContent } from "./components/sheet";
 import { cn } from "./lib/utils";
 
@@ -20,8 +24,32 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const clamp = (zoom: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(zoom * 100) / 100));
 
-export function PageViewer({ pages, title }: { pages: ViewerPage[]; title: string }) {
+/** One place words were found: the page (1-based) and each word's box as fractions of the page [left, top, right, bottom]. */
+export interface FindMatch {
+  page: number;
+  boxes: [number, number, number, number][];
+}
+
+export function PageViewer({
+  pages,
+  title,
+  find,
+  start,
+}: {
+  pages: ViewerPage[];
+  title: string;
+  /** Find on page: where the words are. `ready: false` while the server is still reading the document. */
+  find?: (query: string) => Promise<{ matches: FindMatch[]; ready: boolean }>;
+  /** Open at this page, and/or with this search made. */
+  start?: { page?: number; query?: string } | null;
+}) {
   const [zoom, setZoom] = useState(1);
+  const [finding, setFinding] = useState(false);
+  const [query, setQuery] = useState("");
+  const [found, setFound] = useState<{ query: string; matches: FindMatch[]; ready: boolean } | null>(null);
+  const [matchIndex, setMatchIndex] = useState(0);
+  const currentMark = useRef<HTMLSpanElement | null>(null);
+  const jumpToFirst = useRef<number | null>(null);
   const [current, setCurrent] = useState(1);
   const [grid, setGrid] = useState(false);
   const [jumping, setJumping] = useState(false);
@@ -80,9 +108,65 @@ export function PageViewer({ pages, title }: { pages: ViewerPage[]; title: strin
     target?.scrollIntoView({ block: "start" });
   };
 
+  // Opened from a search result: go to the page, and search for the words.
+  useEffect(() => {
+    if (!start) return;
+    if (start.page) {
+      jumpToFirst.current = start.page;
+      setTimeout(() => goTo(start.page!), 50);
+    }
+    if (start.query && find) {
+      setFinding(true);
+      setQuery(start.query);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start?.page, start?.query]);
+
+  // Find on page, a moment after typing stops.
+  useEffect(() => {
+    if (!find) return;
+    const typed = query.trim();
+    if (typed.length < 2) {
+      setFound(null);
+      return;
+    }
+    let alive = true;
+    const timer = setTimeout(() => {
+      void find(typed)
+        .then((result) => {
+          if (!alive) return;
+          setFound({ query: typed, ...result });
+          // The first match on (or after) the page we opened at, else the first.
+          const from = jumpToFirst.current;
+          jumpToFirst.current = null;
+          const first = from ? Math.max(0, result.matches.findIndex((match) => match.page >= from)) : 0;
+          setMatchIndex(first);
+        })
+        .catch(() => alive && setFound({ query: typed, matches: [], ready: true }));
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [query, find]);
+
+  const matches = finding ? (found?.matches ?? []) : [];
+  const currentMatch = matches[matchIndex] ?? null;
+  const step = (by: number) => matches.length && setMatchIndex((index) => (((index + by) % matches.length) + matches.length) % matches.length);
+  // Bring the current match into view.
+  useEffect(() => {
+    if (!currentMatch) return;
+    const timer = setTimeout(() => {
+      if (currentMark.current) currentMark.current.scrollIntoView({ block: "center", inline: "center" });
+      else goTo(currentMatch.page);
+    }, 30);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMatch, zoom]);
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-xl sm:border sm:px-3">
+      <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-xl sm:border sm:px-3">
         {pages.length > 1 && (
           <>
             {jumping ? (
@@ -112,6 +196,11 @@ export function PageViewer({ pages, title }: { pages: ViewerPage[]; title: strin
           </>
         )}
         <span className="flex-1" />
+        {find && (
+          <Button variant={finding ? "secondary" : "ghost"} size="icon" aria-label="Find on page" aria-pressed={finding} onClick={() => setFinding((value) => !value)}>
+            <Search />
+          </Button>
+        )}
         <Button variant="ghost" size="icon" aria-label="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom((value) => clamp(value / 1.25))}>
           <Minus />
         </Button>
@@ -121,12 +210,41 @@ export function PageViewer({ pages, title }: { pages: ViewerPage[]; title: strin
         <Button variant="ghost" size="icon" aria-label="Zoom in" disabled={zoom >= MAX_ZOOM} onClick={() => setZoom((value) => clamp(value * 1.25))}>
           <Plus />
         </Button>
+        {finding && (
+          <div className="flex w-full basis-full items-center gap-1 pt-1">
+            <SearchInput
+              label="Find on page"
+              placeholder="Find in this document"
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                step(event.shiftKey ? -1 : 1);
+              }}
+              className="min-w-0 flex-1"
+            />
+            <span className="min-w-20 text-center text-sm text-muted-foreground tabular-nums" aria-live="polite">
+              {query.trim().length < 2 ? "" : !found || found.query !== query.trim() ? "Finding…" : !found.ready ? "Not ready yet" : matches.length ? `${matchIndex + 1} of ${matches.length}` : "Not found"}
+            </span>
+            <Button variant="ghost" size="icon" aria-label="Previous match" disabled={!matches.length} onClick={() => step(-1)}>
+              <ChevronUp />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label="Next match" disabled={!matches.length} onClick={() => step(1)}>
+              <ChevronDown />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label="Close find" onClick={() => (setFinding(false), setQuery(""))}>
+              <X />
+            </Button>
+          </div>
+        )}
       </div>
 
       <div ref={wrapper} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ touchAction: "pan-x pan-y" }}>
         <div className={cn("mx-auto flex flex-col gap-3", zoom === 1 && "max-w-4xl")} style={{ width: zoom === 1 ? undefined : `${zoom * 100}%` }}>
           {pages.map((page, index) => (
-            <div key={page.src} ref={(element) => void (pageRefs.current[index] = element)} data-page={index + 1} className="paper scroll-mt-16 overflow-hidden rounded-md bg-white shadow-sm">
+            <div key={page.src} ref={(element) => void (pageRefs.current[index] = element)} data-page={index + 1} className="paper relative scroll-mt-16 overflow-hidden rounded-md bg-white shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={page.src}
@@ -137,6 +255,20 @@ export function PageViewer({ pages, title }: { pages: ViewerPage[]; title: strin
                 className="block h-auto w-full"
                 style={page.width && page.height ? { aspectRatio: `${page.width} / ${page.height}` } : undefined}
               />
+              {/* Find on page: a highlight over each word found on this page. */}
+              {matches.map((match, number) =>
+                match.page !== index + 1
+                  ? null
+                  : match.boxes.map(([left, top, right, bottom], boxIndex) => (
+                      <span
+                        key={`${number}-${boxIndex}`}
+                        ref={number === matchIndex && boxIndex === 0 ? currentMark : undefined}
+                        aria-hidden
+                        className={cn("pointer-events-none absolute rounded-[2px] mix-blend-multiply", number === matchIndex ? "bg-primary ring-2 ring-primary" : "bg-primary/50")}
+                        style={{ left: `${left * 100 - 0.2}%`, top: `${top * 100 - 0.15}%`, width: `${(right - left) * 100 + 0.4}%`, height: `${(bottom - top) * 100 + 0.3}%` }}
+                      />
+                    )),
+              )}
             </div>
           ))}
         </div>
