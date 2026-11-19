@@ -41,3 +41,6 @@ export type UpdateSheetInput = z.infer<typeof updateSheetSchema>;
 
 /** One sheet's own sharpness, or null for the server's Plans level. */
 export const qualitySchema = z.object({ quality: z.enum(PLAN_LEVELS).nullable() }).strict();
+
+/** A layer's name (Power, Data, Drainage). */
+export const layerSchema = z.object({ name: z.string().trim().min(1, "Give the layer a name").max(60) }).strict();

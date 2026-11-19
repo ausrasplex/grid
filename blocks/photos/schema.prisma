@@ -44,6 +44,8 @@ model JobPhoto {
   planSheetId String?
   planX       Float?
   planY       Float?
+  /// The sheet layer the pin is on (PlanLayer in plans), or null for Default.
+  planLayerId String?
 
   @@index([projectId, takenAt])
   @@index([projectId, buildingId, levelId])

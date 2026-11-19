@@ -9,11 +9,12 @@ export default defineBlock({
   permissions: [
     { key: "plans.view", label: "See plans" },
     { key: "plans.upload", label: "Upload plans and new revisions" },
-    { key: "plans.manage", label: "Rename, re-order and delete sheets and revisions" },
+    { key: "plans.manage", label: "Rename, re-order and delete sheets and revisions", description: "And rename or delete anyone's layers" },
+    { key: "plans.layers", label: "Add layers to plan sheets", description: "And rename or delete your own" },
   ],
   grants: {
-    FOREMAN: ["plans.view", "plans.upload", "plans.manage"],
-    EMPLOYEE: ["plans.view"],
+    FOREMAN: ["plans.view", "plans.upload", "plans.manage", "plans.layers"],
+    EMPLOYEE: ["plans.view", "plans.layers"],
     VIEWER: ["plans.view"],
   },
   routes: async () => (await import("./routes")).routes,
@@ -56,7 +57,7 @@ export default defineBlock({
       retryLimit: 0,
     },
   }),
-  emits: ["plans.uploaded"],
+  emits: ["plans.uploaded", "plans.layerDeleted"],
   on: {
     "projects.archived": async (payload) => app().jobs.send("plans.archive", { projectId: payload.projectId }),
     "projects.restored": async (payload) => app().jobs.send("plans.restore", { projectId: payload.projectId }),

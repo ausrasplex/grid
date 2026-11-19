@@ -77,6 +77,18 @@ The discipline comes from the number's letters (E Electrical, M Mechanical, H Hy
 - Pins belong to the sheet, not a revision, so they show on every revision.
 - `JobPhoto` gained `planSheetId?`, `planX?`, `planY?`. `GET /api/photos/pins/<sheetId>?job=<projectId>`; `POST /api/photos` and `PATCH /api/photos/<id>` take `pin` (`null` unpins).
 
+## Layers (decided and built Nov 2026)
+
+Electricians keep Power, Data and Lighting apart; plumbers draw Water and Drainage on separate layers.
+
+- **Per sheet.** Every sheet has **Default**, which has no row: anything with no layer, including everything drawn before layers existed, is on it, so no data changed. People add more layers per sheet (`PlanLayer` in the `plans` Block). Names are unique on a sheet, and "Default" is taken.
+- **Everything goes on a layer:** markups (`PlanMarkup.layerId`), trade icons (they're markups) and photo pins (`JobPhoto.planLayerId`). New things go on the layer you're **drawing on**, picked in the Layers panel. A chip at the bottom left shows it once a sheet has layers. A selected markup or icon has a **Layer** picker to move it.
+- **On and off is per person,** remembered on the device (localStorage per sheet). The eye in the panel hides a layer just for you; the Layers button shows how many you've turned off. Picking a hidden layer to draw on turns it back on. Hide markups (the eye with the zoom buttons) still hides everything, and icon trade show/hide stays. Counts and take-offs count every layer.
+- **Who:** `plans.layers` (Owner, Foreman and Employee by default: the people who can draw) adds layers and renames or deletes their own; `plans.manage` changes anyone's. Adding layers is offered on the current revision only.
+- **Deleting a layer** deletes nothing on it: Plans emits `plans.layerDeleted`, and Markups and Photos move what was on it back to Default. Until then, a layer that's gone counts as Default anyway.
+- **How Blocks use it:** the plan overlay (`@grid/ui`) gives `activeLayerId`, `layerShown(layerId)` and `layers`. A Block saves `activeLayerId` on what it adds and draws only what `layerShown` allows. Markups checks that a layer belongs to the sheet (`checkLayer` from `@grid/block-plans`); Photos doesn't depend on Plans, so it just keeps the id.
+- Later: layers shared across a job's sheets, a layer's own colour, and printing or exporting chosen layers.
+
 ## Not yet
 
 - Moving or resizing a markup after it's drawn (delete and redraw for now); markup icons (GPO, switchboard…) and counts for take-offs (`docs/quotations-block.md` §4); a list of a sheet's measurements with totals.

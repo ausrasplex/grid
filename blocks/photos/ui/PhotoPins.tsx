@@ -19,6 +19,8 @@ export interface PinJson {
   fileId: string;
   x: number;
   y: number;
+  /** The plan sheet layer it's on (null = Default). */
+  layerId: string | null;
   caption: string | null;
   tag: "NONE" | "BEFORE" | "AFTER";
   at: string;
@@ -78,10 +80,11 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
       if (!byKey.has(key)) byKey.set(key, { key, x, y, photos: [], waiting: [] });
       return byKey.get(key)!;
     };
-    for (const photo of photos) pinAt(photo.x, photo.y).photos.push(photo);
-    for (const item of outbox) if (item.pin?.sheetId === sheet.id) pinAt(item.pin.x, item.pin.y).waiting.push(item);
+    // Layers this person turned off hide their pins.
+    for (const photo of photos) if (overlay.layerShown(photo.layerId)) pinAt(photo.x, photo.y).photos.push(photo);
+    for (const item of outbox) if (item.pin?.sheetId === sheet.id && overlay.layerShown(item.pin.layerId)) pinAt(item.pin.x, item.pin.y).waiting.push(item);
     return [...byKey.values()];
-  }, [photos, outbox, sheet.id]);
+  }, [photos, outbox, sheet.id, overlay.layerShown]);
   const open = pins.find((pin) => pin.key === openKey) ?? null;
 
   // Tap the plan with the Photo tool to pick the spot.
@@ -117,7 +120,7 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
           tag: "NONE",
           caption: `On ${sheet.number}`,
           takenAt: Date.now(),
-          pin: { sheetId: sheet.id, x: at[0], y: at[1] },
+          pin: { sheetId: sheet.id, x: at[0], y: at[1], layerId: overlay.activeLayerId },
           // The note goes on the first photo only, so a pin doesn't show it several times.
           note: index === 0 && note?.trim() ? note.trim() : undefined,
           blob,

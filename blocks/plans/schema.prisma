@@ -74,3 +74,21 @@ model PlanVersion {
   @@index([sheetId, createdAt])
   @@index([fileId])
 }
+
+/// A layer on a plan sheet (Nov 2026, docs/plans-block.md "Layers"):
+/// Power, Data, Lighting; Water, Drainage. Markups, icons and photo pins
+/// each sit on one (their `layerId`), or on Default (null), which every sheet
+/// has without a row. Each person turns layers on and off for themselves
+/// (on their device). Deleting a layer puts what was on it back on Default.
+model PlanLayer {
+  id          String    @id @default(uuid())
+  companyId   String
+  sheetId     String
+  name        String
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([sheetId, deletedAt])
+}

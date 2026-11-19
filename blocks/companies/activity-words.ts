@@ -11,6 +11,7 @@ const THINGS: Record<string, string> = {
   JobPhoto: "photo",
   JobNote: "note",
   PlanSheet: "plan sheet",
+  PlanLayer: "plan layer",
   LibraryDocument: "document",
   DocumentLibrary: "document library",
   DocumentSettings: "document settings",

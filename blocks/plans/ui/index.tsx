@@ -8,6 +8,7 @@ import { FileStack } from "lucide-react";
 import { can } from "@grid/core";
 import type { BlockPages, BlockPanels, PlanViewerPanelProps } from "@grid/ui";
 import { getProject, type JobAreaPanelProps } from "@grid/block-projects";
+import { sheetLayers } from "../layers";
 import { getSheet, listSheets, sheetsForArea } from "../service";
 import { PlansList, type SheetRowJson } from "./PlansList";
 import { Viewer, type SheetJson } from "./Viewer";
@@ -41,7 +42,8 @@ export const pages: BlockPages = {
         versionId={versionId && sheet.versions.some((version) => version.id === versionId) ? versionId : null}
         jobName={job.name}
         areas={areas}
-        permissions={{ manage: can(ctx, "plans.manage"), upload: can(ctx, "plans.upload") }}
+        permissions={{ manage: can(ctx, "plans.manage"), upload: can(ctx, "plans.upload"), layers: can(ctx, "plans.layers") }}
+        layers={await sheetLayers(ctx, sheet.id)}
       />
     );
   },

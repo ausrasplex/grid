@@ -50,6 +50,8 @@ model PlanMarkup {
   /// ICON: which symbol ("electrical.gpo-double") and its number on this job (null = 1; JobIconVersion).
   iconKey     String?
   iconNumber  Int?
+  /// The sheet layer it is on (PlanLayer in plans), or null for Default.
+  layerId     String?
   visibility  MarkupVisibility @default(COMPANY)
   createdById String
   createdAt   DateTime         @default(now())

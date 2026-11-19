@@ -1,7 +1,7 @@
 // HTTP routes, mounted at /api/plans.
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
-import { currentSchema, importSchema, previewSchema, qualitySchema, updateSheetSchema, updateVersionSchema } from "./validation";
+import { currentSchema, importSchema, layerSchema, previewSchema, qualitySchema, updateSheetSchema, updateVersionSchema } from "./validation";
 
 export const routes: Routes = {
   "GET /job/:projectId": { permission: "plans.view", handler: (ctx, request) => svc.listSheets(ctx, request.params.projectId!) },
@@ -10,6 +10,11 @@ export const routes: Routes = {
   "POST /job/:projectId/import": { permission: "plans.upload", handler: (ctx, request) => svc.commitImport(ctx, request.params.projectId!, importSchema.parse(request.body).rows) },
 
   "GET /sheet/:id": { permission: "plans.view", handler: (ctx, request) => svc.getSheet(ctx, request.params.id!) },
+  // Layers on a sheet (Power, Data…); Default has no row.
+  "GET /sheet/:id/layers": { permission: "plans.view", handler: async (ctx, request) => (await import("./layers")).sheetLayers(ctx, request.params.id!) },
+  "POST /sheet/:id/layers": { permission: "plans.layers", handler: async (ctx, request) => (await import("./layers")).addLayer(ctx, request.params.id!, layerSchema.parse(request.body).name) },
+  "PATCH /layers/:id": { permission: "plans.layers", handler: async (ctx, request) => (await import("./layers")).renameLayer(ctx, request.params.id!, layerSchema.parse(request.body).name) },
+  "DELETE /layers/:id": { permission: "plans.layers", handler: async (ctx, request) => (await import("./layers")).deleteLayer(ctx, request.params.id!) },
   "PATCH /sheet/:id": { permission: "plans.manage", handler: (ctx, request) => svc.updateSheet(ctx, request.params.id!, updateSheetSchema.parse(request.body)) },
   "PUT /sheet/:id/quality": { permission: "plans.manage", handler: (ctx, request) => svc.setSheetQuality(ctx, request.params.id!, qualitySchema.parse(request.body).quality) },
   "POST /sheet/:id/current": { permission: "plans.manage", handler: (ctx, request) => svc.setCurrentVersion(ctx, request.params.id!, currentSchema.parse(request.body).versionId) },

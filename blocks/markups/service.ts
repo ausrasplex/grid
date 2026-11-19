@@ -9,7 +9,7 @@
 import "server-only";
 import { app, badRequest, conflict, forbidden, notFound, type RequestContext } from "@grid/core";
 import { audit, db, type Prisma } from "@grid/db";
-import { sheetForOverlay } from "@grid/block-plans";
+import { checkLayer, sheetForOverlay, type LayerDeletedEvent } from "@grid/block-plans";
 import { metresPerUnitFromPoints, metresPerUnitFromRatio, type MarkupKind, type Point } from "./geometry";
 import type { CreateMarkupInput, SetScaleInput, UpdateMarkupInput } from "./validation";
 import { assertCustomIcon } from "./custom-icons";
@@ -27,6 +27,8 @@ export interface MarkupView {
   /** ICON: the symbol and its number on this job (null = 1, or unnumbered). */
   iconKey: string | null;
   iconNumber: number | null;
+  /** The sheet layer it's on (null = Default). */
+  layerId: string | null;
   visibility: "JUST_ME" | "COMPANY" | "SHARED";
   by: string;
   createdAt: Date;
@@ -71,6 +73,7 @@ function view(ctx: RequestContext, markup: Prisma.PlanMarkupGetPayload<object>, 
     text: markup.text,
     iconKey: markup.iconKey,
     iconNumber: markup.iconNumber,
+    layerId: markup.layerId,
     visibility: markup.visibility,
     by: who.get(markup.createdById) ?? "Someone",
     createdAt: markup.createdAt,
@@ -116,6 +119,7 @@ export async function createMarkup(ctx: RequestContext, input: CreateMarkupInput
   if (!sheet.versions.some((version) => version.id === input.versionId)) throw badRequest("That revision isn't part of this sheet");
   if (input.visibility === "SHARED") throw badRequest("Sharing markups with other businesses on the job comes later");
   if (input.kind === "ICON" && input.iconKey) await assertCustomIcon(sheet.companyId, input.iconKey);
+  const layerId = await checkLayer(sheet.companyId, sheet.id, input.layerId);
 
   const markup = await db.$transaction(async (tx) => {
     const markup = await tx.planMarkup.create({
@@ -133,6 +137,7 @@ export async function createMarkup(ctx: RequestContext, input: CreateMarkupInput
         iconKey: input.kind === "ICON" ? (input.iconKey ?? null) : null,
         iconNumber: input.kind === "ICON" ? (input.iconNumber ?? null) : null,
         visibility: input.visibility,
+        layerId,
         createdById: ctx.userId,
       },
     });
@@ -169,6 +174,7 @@ export async function updateMarkup(ctx: RequestContext, id: string, input: Updat
   if (input.visibility === "JUST_ME" && before.createdById !== ctx.userId) throw badRequest("Only the person who drew it can make it theirs alone");
   if (input.text !== undefined && before.kind !== "TEXT") throw badRequest("Only text markups have text");
   if (input.iconNumber !== undefined && before.kind !== "ICON") throw badRequest("Only icons have a number");
+  if (input.layerId !== undefined) input.layerId = await checkLayer(before.companyId, before.sheetId, input.layerId);
   const markup = await db.$transaction(async (tx) => {
     const markup = await tx.planMarkup.update({ where: { id }, data: { ...input, updatedById: ctx.userId } });
     await audit(tx, {
@@ -179,7 +185,7 @@ export async function updateMarkup(ctx: RequestContext, id: string, input: Updat
       entityType: "PlanMarkup",
       entityId: id,
       action: "updated",
-      diff: { before: { color: before.color, size: before.size, text: before.text, visibility: before.visibility, iconNumber: input.iconNumber !== undefined ? before.iconNumber : undefined, moved: input.points ? true : undefined } } as Prisma.InputJsonValue,
+      diff: { before: { color: before.color, size: before.size, text: before.text, visibility: before.visibility, iconNumber: input.iconNumber !== undefined ? before.iconNumber : undefined, layerId: input.layerId !== undefined ? before.layerId : undefined, moved: input.points ? true : undefined } } as Prisma.InputJsonValue,
     });
     return markup;
   });
@@ -262,4 +268,9 @@ export async function clearScale(ctx: RequestContext, sheetId: string, versionId
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId: sheet.companyId, projectId: sheet.projectId, entityType: "PlanScale", entityId: versionId, action: "deleted", diff: { metresPerUnit: before.metresPerUnit } });
   });
   return { versionId, cleared: true };
+}
+
+/** "plans.layerDeleted": what was on the layer goes back on Default. */
+export async function layerDeleted(event: LayerDeletedEvent) {
+  await db.planMarkup.updateMany({ where: { companyId: event.companyId, sheetId: event.sheetId, layerId: event.layerId }, data: { layerId: null } });
 }

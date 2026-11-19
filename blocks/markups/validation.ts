@@ -41,6 +41,8 @@ export const createMarkupSchema = z
     visibility: visibility.default("COMPANY"),
     iconKey: z.string().max(80).nullable().optional(),
     iconNumber: iconNumber.optional(),
+    /** The sheet layer it goes on (null = Default). */
+    layerId: z.uuid().nullable().optional(),
   })
   .strict()
   .superRefine((markup, issues) => {
@@ -58,6 +60,8 @@ export const updateMarkupSchema = z
     text: z.string().trim().min(1, "Type some text").max(2000),
     visibility,
     iconNumber,
+    /** Move it to another layer (null = Default). */
+    layerId: z.uuid().nullable(),
   })
   .partial()
   .strict();

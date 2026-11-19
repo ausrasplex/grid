@@ -27,4 +27,8 @@ export default defineBlock({
     return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
   },
   emits: ["markups.added"],
+  on: {
+    // A sheet layer was deleted: its markups and icons go back on Default.
+    "plans.layerDeleted": async (payload) => (await import("./service")).layerDeleted(payload as never),
+  },
 });

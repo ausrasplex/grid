@@ -26,4 +26,8 @@ export default defineBlock({
   levelUsage: async () => (await import("./service")).levelUsage,
   jobStorage: async () => (await import("./storage")).jobStorage,
   emits: ["photos.added"],
+  on: {
+    // A plan sheet layer was deleted (Plans): its photo pins go back on Default.
+    "plans.layerDeleted": async (payload) => (await import("./service")).layerDeleted(payload as never),
+  },
 });

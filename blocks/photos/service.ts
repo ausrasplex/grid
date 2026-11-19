@@ -200,7 +200,7 @@ export async function addPhoto(ctx: RequestContext, input: AddPhotoInput) {
         tag: input.tag,
         takenAt,
         takenById: ctx.userId,
-        ...(input.pin ? { planSheetId: input.pin.sheetId, planX: input.pin.x, planY: input.pin.y } : {}),
+        ...(input.pin ? { planSheetId: input.pin.sheetId, planX: input.pin.x, planY: input.pin.y, planLayerId: input.pin.layerId ?? null } : {}),
       },
     });
     if (input.note) {
@@ -232,7 +232,12 @@ async function ownPhoto(ctx: RequestContext, id: string) {
 export async function updatePhoto(ctx: RequestContext, id: string, input: UpdatePhotoInput) {
   const { photo, job } = await ownPhoto(ctx, id);
   const area = input.buildingId !== undefined ? cleanArea(job, input.buildingId, input.levelId) : {};
-  const pin = input.pin === undefined ? {} : input.pin ? { planSheetId: input.pin.sheetId, planX: input.pin.x, planY: input.pin.y } : { planSheetId: null, planX: null, planY: null };
+  const pin =
+    input.pin === undefined
+      ? {}
+      : input.pin
+        ? { planSheetId: input.pin.sheetId, planX: input.pin.x, planY: input.pin.y, ...(input.pin.layerId === undefined ? {} : { planLayerId: input.pin.layerId }) }
+        : { planSheetId: null, planX: null, planY: null, planLayerId: null };
   await db.$transaction(async (tx) => {
     await tx.jobPhoto.update({
       where: { id },
@@ -263,6 +268,8 @@ export interface PinnedPhoto {
   fileId: string;
   x: number;
   y: number;
+  /** The plan sheet layer it's on (null = Default). */
+  layerId: string | null;
   caption: string | null;
   tag: "NONE" | "BEFORE" | "AFTER";
   at: Date;
@@ -291,6 +298,7 @@ export async function pinsForSheet(ctx: RequestContext, projectId: string, sheet
     fileId: photo.fileId,
     x: photo.planX ?? 0,
     y: photo.planY ?? 0,
+    layerId: photo.planLayerId,
     caption: photo.caption,
     tag: photo.tag,
     at: photo.takenAt,
@@ -605,4 +613,9 @@ export async function levelUsage(levelId: string): Promise<LevelUsage[]> {
     { count: deletedPhotos, one: "photo in Recently deleted", many: "photos in Recently deleted" },
     { count: deletedNotes, one: "note in Recently deleted", many: "notes in Recently deleted" },
   ];
+}
+
+/** "plans.layerDeleted" (Plans): pins on the deleted layer go back on Default. */
+export async function layerDeleted(event: { layerId: string; sheetId: string; companyId: string }) {
+  await db.jobPhoto.updateMany({ where: { companyId: event.companyId, planSheetId: event.sheetId, planLayerId: event.layerId }, data: { planLayerId: null } });
 }

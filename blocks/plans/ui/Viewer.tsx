@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LEVEL_NAMES, PLAN_LEVELS, PLAN_LEVEL_DISK, PLAN_LEVEL_SIZES, type PlanLevel } from "@grid/db/render-levels";
 import type OpenSeadragonType from "openseadragon";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Info, Loader2, Maximize, Minus, Plus, RotateCw } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Info, Layers, Loader2, Maximize, Minus, Plus, RotateCw } from "lucide-react";
 import {
   Alert,
   Badge,
@@ -32,6 +32,7 @@ import {
   type PlanView,
 } from "@grid/ui";
 import { DISCIPLINES, disciplineName } from "../parse";
+import { LayersPanel, useSheetLayers, type LayerJson } from "./Layers";
 
 export interface SheetJson {
   id: string;
@@ -87,13 +88,16 @@ export function Viewer({
   jobName,
   areas,
   permissions,
+  layers: initialLayers = [],
   overlays = [],
 }: {
   sheet: SheetJson;
   versionId: string | null;
   jobName: string;
   areas: AreaJson[];
-  permissions: { manage: boolean; upload: boolean };
+  permissions: { manage: boolean; upload: boolean; layers: boolean };
+  /** The sheet's layers (Default has no row). */
+  layers?: LayerJson[];
   /** Other Blocks' "plans.viewer" panels: markups, photo pins. */
   overlays?: ReactNode[];
 }) {
@@ -106,7 +110,9 @@ export function Viewer({
   const box = useRef<HTMLDivElement>(null);
   const viewer = useRef<OpenSeadragonType.Viewer | null>(null);
   const [loading, setLoading] = useState(true);
-  const [panel, setPanel] = useState<"info" | "revs" | "set" | null>(null);
+  const [panel, setPanel] = useState<"info" | "revs" | "set" | "layers" | null>(null);
+  const layerState = useSheetLayers(initial.id, initialLayers);
+  const activeLayerName = layerState.layers.find((layer) => layer.id === layerState.active)?.name ?? "Default";
 
   // The overlay: where the view is, the tool in use, and who's listening for taps.
   const [view, setView] = useState<PlanView>({ x: 0, y: 0, scale: 1, width: 0, height: 0 });
@@ -292,10 +298,13 @@ export function Viewer({
       tool,
       setTool,
       hidden,
+      activeLayerId: layerState.active,
+      layerShown: layerState.layerShown,
+      layers: layerState.layers,
       onPointer,
       toolbar,
     };
-  }, [sheet, version, isCurrent, view, tool, setTool, hidden, onPointer, toolbar]);
+  }, [sheet, version, isCurrent, view, tool, setTool, hidden, layerState.active, layerState.layerShown, layerState.layers, onPointer, toolbar]);
   const showOverlays = overlays.length > 0 && ready && overlay !== null;
 
   return (
@@ -368,17 +377,37 @@ export function Viewer({
             <div className="absolute right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2">
               {[
                 ...(showOverlays
-                  ? [{ icon: hidden ? <EyeOff className="size-5" /> : <Eye className="size-5" />, label: hidden ? "Show markups and pins" : "Hide markups and pins", on: () => setHidden(!hidden) }]
+                  ? [
+                      { icon: <Layers className="size-5" />, label: "Layers", on: () => setPanel("layers"), badge: layerState.hiddenCount || null },
+                      { icon: hidden ? <EyeOff className="size-5" /> : <Eye className="size-5" />, label: hidden ? "Show markups and pins" : "Hide markups and pins", on: () => setHidden(!hidden) },
+                    ]
                   : []),
                 { icon: <Plus className="size-5" />, label: "Zoom in", on: () => zoom(1.6) },
                 { icon: <Minus className="size-5" />, label: "Zoom out", on: () => zoom(1 / 1.6) },
                 { icon: <Maximize className="size-5" />, label: "Whole sheet", on: home },
               ].map((button) => (
-                <button key={button.label} type="button" onClick={button.on} aria-label={button.label} className="flex size-12 items-center justify-center rounded-full bg-neutral-900/90 shadow-lg hover:bg-neutral-700">
+                <button key={button.label} type="button" onClick={button.on} aria-label={button.label} className="relative flex size-12 items-center justify-center rounded-full bg-neutral-900/90 shadow-lg hover:bg-neutral-700">
                   {button.icon}
+                  {"badge" in button && button.badge ? (
+                    <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground" aria-label={`${button.badge} off`}>
+                      {button.badge}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>
+            {/* The layer new things go on, when there's more than Default. */}
+            {showOverlays && layerState.layers.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setPanel("layers")}
+                className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 flex min-h-11 max-w-[60%] items-center gap-2 rounded-full bg-neutral-900/90 px-3 text-sm shadow-lg hover:bg-neutral-700"
+                aria-label={`Drawing on ${activeLayerName}. Change layer`}
+              >
+                <Layers className="size-4 shrink-0 text-primary" />
+                <span className="truncate">{activeLayerName}</span>
+              </button>
+            )}
           </>
         ) : version?.status === "FAILED" ? (
           <Failed versionId={version.id} error={version.error} canRetry={permissions.upload} onRetry={reload} />
@@ -418,6 +447,12 @@ export function Viewer({
       <Sheet open={panel === "revs"} onOpenChange={(open) => !open && setPanel(null)}>
         <SheetContent title={`Revisions of ${sheet.number}`} description="Newest first. The current one is what everyone sees first.">
           <Revisions sheet={sheet} viewing={version?.id ?? null} canManage={permissions.manage} onView={(id) => (setViewingId(id), setPanel(null))} onChanged={reload} />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={panel === "layers"} onOpenChange={(open) => !open && setPanel(null)}>
+        <SheetContent title="Layers" description={`On ${sheet.number}. Power, Data, Lighting; Water, Drainage.`}>
+          <LayersPanel sheetId={sheet.id} state={layerState} canAdd={permissions.layers && isCurrent} />
         </SheetContent>
       </Sheet>
 

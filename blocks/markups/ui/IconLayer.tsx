@@ -35,6 +35,7 @@ import {
 import { CUSTOM_TRADE, TRADES, iconLookup, type CustomIconRow, type IconLookup, type Trade, type TradeIcon } from "../icons";
 import { distance, showsOn, type Point } from "../geometry";
 import { IconGlyph, IconShape } from "./IconGlyph";
+import { LayerPick } from "./MarkupLayer";
 
 export interface PlacedIconJson {
   id: string;
@@ -43,6 +44,8 @@ export interface PlacedIconJson {
   size: number;
   iconKey: string;
   iconNumber: number | null;
+  /** The sheet layer it's on (null = Default). */
+  layerId: string | null;
   canChange: boolean;
 }
 
@@ -156,8 +159,8 @@ export function IconLayer({
   }, [projectId]);
 
   const visible = useMemo(
-    () => showsOn(icons, version.id, versions).filter((entry) => !hiddenTrades.has(lookup.trade(entry.iconKey)?.id ?? "")),
-    [icons, version.id, versions, hiddenTrades, lookup],
+    () => showsOn(icons, version.id, versions).filter((entry) => !hiddenTrades.has(lookup.trade(entry.iconKey)?.id ?? "") && overlay.layerShown(entry.layerId)),
+    [icons, version.id, versions, hiddenTrades, lookup, overlay.layerShown],
   );
   const selected = visible.find((entry) => entry.id === selectedId) ?? null;
 
@@ -167,12 +170,12 @@ export function IconLayer({
       if (!picked) return;
       const id = newId();
       const numbered = numbersOf(picked.iconKey).length >= 2;
-      const placed: PlacedIconJson = { id, versionId: version.id, points: [point], size: ICON_SIZE, iconKey: picked.iconKey, iconNumber: numbered ? (picked.number ?? 1) : null, canChange: true };
+      const placed: PlacedIconJson = { id, versionId: version.id, points: [point], size: ICON_SIZE, iconKey: picked.iconKey, iconNumber: numbered ? (picked.number ?? 1) : null, layerId: overlay.activeLayerId, canChange: true };
       setIcons((current) => [...current, placed]);
       setPlacedNow((current) => [...current, id]);
       try {
         await api("/markups", {
-          body: { id, sheetId, versionId: version.id, kind: "ICON", points: [point], color: "black", size: ICON_SIZE, iconKey: placed.iconKey, iconNumber: placed.iconNumber },
+          body: { id, sheetId, versionId: version.id, kind: "ICON", points: [point], color: "black", size: ICON_SIZE, iconKey: placed.iconKey, iconNumber: placed.iconNumber, layerId: placed.layerId },
         });
         refresh();
       } catch (failure) {
@@ -181,7 +184,7 @@ export function IconLayer({
         failed(failure);
       }
     },
-    [picked, numbersOf, version.id, sheetId, refresh],
+    [picked, numbersOf, version.id, sheetId, refresh, overlay.activeLayerId],
   );
 
   const remove = async (ids: string[]) => {
@@ -193,6 +196,17 @@ export function IconLayer({
       refresh();
     } catch (failure) {
       setIcons((current) => [...current, ...gone.filter((entry) => !current.some((other) => other.id === entry.id))]);
+      failed(failure);
+    }
+  };
+
+  const moveToLayer = async (id: string, layerId: string | null) => {
+    const before = icons;
+    setIcons((current) => current.map((entry) => (entry.id === id ? { ...entry, layerId } : entry)));
+    try {
+      await api(`/markups/${id}`, { method: "PATCH", body: { layerId } });
+    } catch (failure) {
+      setIcons(before);
       failed(failure);
     }
   };
@@ -402,6 +416,7 @@ export function IconLayer({
               )}
             </>
           )}
+          {selected.canChange && canPlace && <LayerPick layerId={selected.layerId} onChange={(layerId) => void moveToLayer(selected.id, layerId)} />}
         </div>
       )}
 

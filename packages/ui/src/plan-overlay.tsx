@@ -85,6 +85,16 @@ export interface PlanOverlayValue {
   setTool: (tool: string | null, options?: { tapsOnly?: boolean }) => void;
   /** "Hide markups": every layer hides its drawing while this is on. */
   hidden: boolean;
+  /**
+   * Sheet layers (Power, Data…), chosen in the viewer's Layers panel. New
+   * markups, icons and pins go on `activeLayerId` (null = Default); keep it
+   * on what you save. Draw something only if `layerShown(its layerId)`: a
+   * layer the person turned off, for themselves, hides what's on it. An id
+   * that isn't one of the sheet's layers (deleted) counts as Default.
+   */
+  activeLayerId: string | null;
+  layerShown: (layerId: string | null | undefined) => boolean;
+  layers: { id: string; name: string }[];
   onPointer: (listener: (pointer: PlanPointer) => void) => () => void;
   /** Where PlanToolButton puts tool buttons (the bar under the plan). */
   toolbar: HTMLElement | null;

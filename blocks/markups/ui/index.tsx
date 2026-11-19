@@ -30,7 +30,7 @@ export const panels: BlockPanels = {
     const [initial, job, custom] = await Promise.all([sheetMarkups(ctx, sheet.id), jobIcons(ctx, sheet.projectId), customIcons(ctx)]);
     const icons: PlacedIconJson[] = initial.markups
       .filter((markup) => markup.kind === "ICON" && markup.iconKey)
-      .map((markup) => ({ id: markup.id, versionId: markup.versionId, points: markup.points, size: markup.size, iconKey: markup.iconKey!, iconNumber: markup.iconNumber, canChange: markup.canChange }));
+      .map((markup) => ({ id: markup.id, versionId: markup.versionId, points: markup.points, size: markup.size, iconKey: markup.iconKey!, iconNumber: markup.iconNumber, layerId: markup.layerId, canChange: markup.canChange }));
     const drawings = { ...initial, markups: initial.markups.filter((markup) => markup.kind !== "ICON") };
     return (
       <>

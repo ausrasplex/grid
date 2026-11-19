@@ -17,7 +17,7 @@ export interface OutboxItem {
   caption: string;
   takenAt: number;
   /** Pinned to a spot on a plan sheet (sheet units). */
-  pin?: { sheetId: string; x: number; y: number };
+  pin?: { sheetId: string; x: number; y: number; layerId?: string | null };
   /** The first note on the photo, typed when it was taken. */
   note?: string;
   blob: Blob;

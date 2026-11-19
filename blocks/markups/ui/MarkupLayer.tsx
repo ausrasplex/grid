@@ -66,6 +66,8 @@ export interface MarkupJson {
   color: string;
   size: number;
   text: string | null;
+  /** The sheet layer it's on (null = Default). */
+  layerId: string | null;
   visibility: "JUST_ME" | "COMPANY" | "SHARED";
   by: string;
   createdAt: string;
@@ -152,9 +154,10 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
   /** A saved measurement's points while one is being dragged (shown live, saved on letting go). */
   const [movedPoints, setMovedPoints] = useState<{ id: string; points: Point[] } | null>(null);
   const visible = useMemo(() => {
-    const shown = showsOn(markups, version.id, versions);
+    // Layers turned off (by this person) hide what's on them.
+    const shown = showsOn(markups, version.id, versions).filter((markup) => overlay.layerShown(markup.layerId));
     return movedPoints ? shown.map((markup) => (markup.id === movedPoints.id ? { ...markup, points: movedPoints.points } : markup)) : shown;
-  }, [markups, version.id, versions, movedPoints]);
+  }, [markups, version.id, versions, movedPoints, overlay.layerShown]);
   const scale = useMemo(() => scaleFor(version.id, versions, scales), [version.id, versions, scales]);
   const metresPerUnit = scale?.metresPerUnit ?? null;
   const selected = visible.find((markup) => markup.id === selectedId) ?? null;
@@ -200,6 +203,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
         color: inkName,
         size,
         text: options.text ?? null,
+        layerId: overlay.activeLayerId,
         visibility: "COMPANY",
         by: "You",
         createdAt: new Date().toISOString(),
@@ -211,7 +215,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       setUndo((current) => [...current, { type: "add", id }]);
       try {
         const saved = await api<MarkupJson>("/markups", {
-          body: { id, sheetId, versionId: version.id, kind, points, color: inkName, size, text: options.text ?? null },
+          body: { id, sheetId, versionId: version.id, kind, points, color: inkName, size, text: options.text ?? null, layerId: overlay.activeLayerId },
         });
         setMarkups((current) => current.map((entry) => (entry.id === id ? saved : entry)));
       } catch (error) {
@@ -223,7 +227,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
     [inkName, sizeStep, view.scale, version.id, sheetId],
   );
 
-  const update = async (markup: MarkupJson, changes: Partial<Pick<MarkupJson, "color" | "text" | "visibility" | "points" | "size">>, record = true) => {
+  const update = async (markup: MarkupJson, changes: Partial<Pick<MarkupJson, "color" | "text" | "visibility" | "points" | "size" | "layerId">>, record = true) => {
     const before = Object.fromEntries(Object.keys(changes).map((key) => [key, markup[key as keyof MarkupJson]])) as Partial<MarkupJson>;
     setMarkups((current) => current.map((entry) => (entry.id === markup.id ? { ...entry, ...changes } : entry)));
     try {
@@ -554,6 +558,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
           onInk={(color) => void update(selected, { color })}
           onEditText={() => setDialog({ type: "text", point: selected.points[0]!, markup: selected })}
           onVisibility={(visibility) => void update(selected, { visibility })}
+          onLayer={(layerId) => void update(selected, { layerId })}
           onDelete={() => void remove(selected)}
         />
       )}
@@ -793,6 +798,7 @@ function SelectedCard({
   onInk,
   onEditText,
   onVisibility,
+  onLayer,
   onDelete,
 }: {
   markup: MarkupJson;
@@ -804,6 +810,7 @@ function SelectedCard({
   onInk: (color: Ink) => void;
   onEditText: () => void;
   onVisibility: (visibility: "JUST_ME" | "COMPANY") => void;
+  onLayer: (layerId: string | null) => void;
   onDelete: () => void;
 }) {
   return (
@@ -842,6 +849,7 @@ function SelectedCard({
               <Switch checked={markup.visibility === "JUST_ME"} onCheckedChange={(checked: boolean) => onVisibility(checked ? "JUST_ME" : "COMPANY")} />
             </label>
           )}
+          <LayerPick layerId={markup.layerId} onChange={onLayer} />
           <div className="flex flex-wrap gap-2">
             {markup.kind === "TEXT" && (
               <Button size="sm" variant="outline" onClick={onEditText}>
@@ -855,6 +863,26 @@ function SelectedCard({
         </>
       )}
     </div>
+  );
+}
+
+/** Which layer a selected markup or icon is on, to move it to another. */
+export function LayerPick({ layerId, onChange }: { layerId: string | null; onChange: (layerId: string | null) => void }) {
+  const { layers } = usePlanOverlay();
+  if (!layers.length) return null;
+  const current = layerId && layers.some((layer) => layer.id === layerId) ? layerId : "";
+  return (
+    <label className="flex min-h-touch items-center justify-between gap-3 text-sm">
+      <span>Layer</span>
+      <select value={current} onChange={(event) => onChange(event.target.value || null)} className="min-h-touch rounded-md border border-input bg-card px-2 text-base">
+        <option value="">Default</option>
+        {layers.map((layer) => (
+          <option key={layer.id} value={layer.id}>
+            {layer.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

@@ -3,7 +3,15 @@ import { z } from "zod";
 const uuid = z.string().uuid();
 const area = { buildingId: uuid.nullable().optional(), levelId: uuid.nullable().optional() };
 /** A photo pin: the plan sheet and the spot on it, in sheet units. */
-const pin = z.object({ sheetId: uuid, x: z.number().finite().min(-1).max(10), y: z.number().finite().min(-1).max(10) }).strict();
+const pin = z
+  .object({
+    sheetId: uuid,
+    x: z.number().finite().min(-1).max(10),
+    y: z.number().finite().min(-1).max(10),
+    /** The sheet layer it's on (null = Default); left out when moving keeps it. */
+    layerId: uuid.nullable().optional(),
+  })
+  .strict();
 
 export const addPhotoSchema = z
   .object({
