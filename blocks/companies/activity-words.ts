@@ -28,6 +28,7 @@ const THINGS: Record<string, string> = {
   QuoteUserSettings: "quote screen setting",
   ServerSetting: "server setting",
   SheetSignoff: "row sign-off",
+  JobIconVersion: "icon number",
   SheetSignoffSettings: "sign-off match column",
 };
 
@@ -53,6 +54,7 @@ const VERBS: Record<string, string> = {
   signed_off: "Signed off",
   undone: "Undid",
   exported: "Downloaded",
+  renumbered: "Renumbered",
   converted: "Converted",
 };
 

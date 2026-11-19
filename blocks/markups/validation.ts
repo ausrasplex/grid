@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { INKS, MARKUP_KINDS } from "./geometry";
+import { isIconKey } from "./icons";
 
 // Sheet units: x 0 → 1, y 0 → height/width. A little slack past the edges.
 const coordinate = z.number().finite().min(-1).max(10);
@@ -19,7 +20,9 @@ const POINTS: Record<(typeof MARKUP_KINDS)[number], [number, number]> = {
   CLOUD: [2, 2],
   LENGTH: [2, 500],
   AREA: [3, 500],
+  ICON: [1, 1],
 };
+const iconNumber = z.number().int().min(1).max(99).nullable();
 
 export const createMarkupSchema = z
   .object({
@@ -32,12 +35,15 @@ export const createMarkupSchema = z
     size: z.number().positive().max(1),
     text: z.string().trim().max(2000).nullable().optional(),
     visibility: visibility.default("COMPANY"),
+    iconKey: z.string().max(80).nullable().optional(),
+    iconNumber: iconNumber.optional(),
   })
   .strict()
   .superRefine((markup, issues) => {
     const [least, most] = POINTS[markup.kind];
     if (markup.points.length < least || markup.points.length > most) issues.addIssue({ code: "custom", path: ["points"], message: `A ${markup.kind.toLowerCase()} needs ${least === most ? least : `${least} to ${most}`} points` });
     if (markup.kind === "TEXT" && !markup.text) issues.addIssue({ code: "custom", path: ["text"], message: "Type some text" });
+    if (markup.kind === "ICON" && !(markup.iconKey && isIconKey(markup.iconKey))) issues.addIssue({ code: "custom", path: ["iconKey"], message: "Pick an icon" });
   });
 
 export const updateMarkupSchema = z
@@ -47,6 +53,7 @@ export const updateMarkupSchema = z
     size: z.number().positive().max(1),
     text: z.string().trim().min(1, "Type some text").max(2000),
     visibility,
+    iconNumber,
   })
   .partial()
   .strict();
@@ -55,6 +62,12 @@ export const setScaleSchema = z.discriminatedUnion("method", [
   z.object({ method: z.literal("RATIO"), ratio: z.number().int().min(1).max(100_000) }).strict(),
   z.object({ method: z.literal("POINTS"), points: z.tuple([point, point]), knownMetres: z.number().positive().max(100_000) }).strict(),
 ]);
+
+/** A new number for an icon on a job ("+" on the number chips). */
+export const addIconVersionSchema = z.object({ iconKey: z.string().max(80).refine(isIconKey, "Pick an icon"), name: z.string().trim().max(40).nullable().optional() }).strict();
+export const updateIconVersionSchema = z.object({ name: z.string().trim().max(40).nullable(), priceItemId: z.uuid().nullable() }).partial().strict();
+/** Switch placed icons to another number. */
+export const renumberSchema = z.object({ ids: z.array(z.uuid()).min(1).max(2000), iconNumber }).strict();
 
 export type CreateMarkupInput = z.infer<typeof createMarkupSchema>;
 export type UpdateMarkupInput = z.infer<typeof updateMarkupSchema>;

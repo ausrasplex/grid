@@ -246,6 +246,9 @@ importers:
       '@grid/block-plans':
         specifier: workspace:*
         version: link:../plans
+      '@grid/block-projects':
+        specifier: workspace:*
+        version: link:../projects
       '@grid/core':
         specifier: workspace:*
         version: link:../../packages/core

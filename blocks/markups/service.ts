@@ -23,6 +23,9 @@ export interface MarkupView {
   color: string;
   size: number;
   text: string | null;
+  /** ICON: the symbol and its number on this job (null = 1, or unnumbered). */
+  iconKey: string | null;
+  iconNumber: number | null;
   visibility: "JUST_ME" | "COMPANY" | "SHARED";
   by: string;
   createdAt: Date;
@@ -65,6 +68,8 @@ function view(ctx: RequestContext, markup: Prisma.PlanMarkupGetPayload<object>, 
     color: markup.color,
     size: markup.size,
     text: markup.text,
+    iconKey: markup.iconKey,
+    iconNumber: markup.iconNumber,
     visibility: markup.visibility,
     by: who.get(markup.createdById) ?? "Someone",
     createdAt: markup.createdAt,
@@ -123,6 +128,8 @@ export async function createMarkup(ctx: RequestContext, input: CreateMarkupInput
         color: input.color,
         size: input.size,
         text: input.kind === "TEXT" ? (input.text ?? null) : null,
+        iconKey: input.kind === "ICON" ? (input.iconKey ?? null) : null,
+        iconNumber: input.kind === "ICON" ? (input.iconNumber ?? null) : null,
         visibility: input.visibility,
         createdById: ctx.userId,
       },
@@ -135,7 +142,7 @@ export async function createMarkup(ctx: RequestContext, input: CreateMarkupInput
       entityType: "PlanMarkup",
       entityId: markup.id,
       action: "added",
-      diff: { kind: input.kind, sheet: sheet.number, versionId: input.versionId },
+      diff: { kind: input.kind, sheet: sheet.number, versionId: input.versionId, icon: input.kind === "ICON" ? input.iconKey : undefined, number: input.kind === "ICON" ? (input.iconNumber ?? undefined) : undefined },
     });
     return markup;
   });
@@ -159,6 +166,7 @@ export async function updateMarkup(ctx: RequestContext, id: string, input: Updat
   if (input.visibility === "SHARED") throw badRequest("Sharing markups with other businesses on the job comes later");
   if (input.visibility === "JUST_ME" && before.createdById !== ctx.userId) throw badRequest("Only the person who drew it can make it theirs alone");
   if (input.text !== undefined && before.kind !== "TEXT") throw badRequest("Only text markups have text");
+  if (input.iconNumber !== undefined && before.kind !== "ICON") throw badRequest("Only icons have a number");
   const markup = await db.$transaction(async (tx) => {
     const markup = await tx.planMarkup.update({ where: { id }, data: { ...input, updatedById: ctx.userId } });
     await audit(tx, {
@@ -169,7 +177,7 @@ export async function updateMarkup(ctx: RequestContext, id: string, input: Updat
       entityType: "PlanMarkup",
       entityId: id,
       action: "updated",
-      diff: { before: { color: before.color, size: before.size, text: before.text, visibility: before.visibility, moved: input.points ? true : undefined } } as Prisma.InputJsonValue,
+      diff: { before: { color: before.color, size: before.size, text: before.text, visibility: before.visibility, iconNumber: input.iconNumber !== undefined ? before.iconNumber : undefined, moved: input.points ? true : undefined } } as Prisma.InputJsonValue,
     });
     return markup;
   });

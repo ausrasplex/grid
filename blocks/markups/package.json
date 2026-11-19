@@ -7,10 +7,12 @@
     ".": "./index.ts",
     "./block": "./block.ts",
     "./ui": "./ui/index.tsx",
-    "./geometry": "./geometry.ts"
+    "./geometry": "./geometry.ts",
+    "./icons": "./icons.ts"
   },
   "dependencies": {
     "@grid/block-plans": "workspace:*",
+    "@grid/block-projects": "workspace:*",
     "@grid/core": "workspace:*",
     "@grid/db": "workspace:*",
     "@grid/ui": "workspace:*",

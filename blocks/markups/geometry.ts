@@ -8,7 +8,7 @@
 
 export type Point = [number, number];
 
-export const MARKUP_KINDS = ["PEN", "HIGHLIGHT", "TEXT", "LINE", "ARROW", "RECT", "ELLIPSE", "CLOUD", "LENGTH", "AREA"] as const;
+export const MARKUP_KINDS = ["PEN", "HIGHLIGHT", "TEXT", "LINE", "ARROW", "RECT", "ELLIPSE", "CLOUD", "LENGTH", "AREA", "ICON"] as const;
 export type MarkupKind = (typeof MARKUP_KINDS)[number];
 
 /** Ink colours. Stored by name so the palette can be tuned later. */
@@ -35,6 +35,7 @@ export const KIND_NAMES: Record<MarkupKind, string> = {
   CLOUD: "Cloud",
   LENGTH: "Length",
   AREA: "Area",
+  ICON: "Icon",
 };
 
 export interface MarkupShape {
