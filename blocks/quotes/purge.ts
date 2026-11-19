@@ -32,3 +32,9 @@ export async function purgeCompany(companyId: string): Promise<void> {
   // The PDF page pictures shown inside Grid (cache, so not files of the business).
   for (const id of quoteIds) await rm(cacheRoot("quotes", "pdf", id), { recursive: true, force: true });
 }
+
+/** A deleted job, for good: its quotes stay (they're the business's record), no longer linked to it. */
+export async function purgeProject(projectId: string): Promise<string[]> {
+  await db.quote.updateMany({ where: { projectId }, data: { projectId: null } });
+  return [];
+}

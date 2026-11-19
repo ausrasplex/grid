@@ -76,7 +76,7 @@ export async function clientRenamed(event: ClientRenamedEvent) {
 }
 
 /** Keeps the site's per-company counts (and archiving) in step with its jobs. */
-async function syncSite(tx: Tx, siteId: string, companyId: string, actorId: string | null) {
+export async function syncSite(tx: Tx, siteId: string, companyId: string, actorId: string | null) {
   const projects = await tx.project.findMany({
     // Quoting and Not won jobs don't count: a site with only those stays archived.
     where: { siteId, deletedAt: null, status: { in: ["ACTIVE", "COMPLETED"] }, companies: { some: { companyId, status: VISIBLE } } },

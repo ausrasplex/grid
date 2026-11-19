@@ -33,3 +33,15 @@ export async function purgeCompany(companyId: string): Promise<void> {
     }
   });
 }
+
+/** A deleted job, for good: the job, its areas, businesses on it and route code. Runs after every other Block's part. */
+export async function purgeProject(projectId: string): Promise<string[]> {
+  await db.$transaction(async (tx) => {
+    await tx.userProjectLevel.deleteMany({ where: { projectId } });
+    await tx.projectCompany.deleteMany({ where: { projectId } });
+    await tx.routeCode.deleteMany({ where: { entityType: "Project", entityId: projectId } });
+    // Covers and references go with the job (cascade). The activity log keeps its entries.
+    await tx.project.delete({ where: { id: projectId } });
+  });
+  return [];
+}

@@ -36,7 +36,7 @@ export default defineBlock({
   // Recently deleted running out (none here), and deleting a whole business.
   cleanup: async () => {
     const purge = await import("./purge");
-    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany, purgeProject: purge.purgeProject };
   },
   routeTargets: {
     Site: (id) => `/sites/${id}`,

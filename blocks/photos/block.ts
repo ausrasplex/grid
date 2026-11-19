@@ -21,7 +21,7 @@ export default defineBlock({
   // Recently deleted running out, and deleting a whole business.
   cleanup: async () => {
     const purge = await import("./purge");
-    return { purgeDeleted: (await import("./service")).purgeDeleted, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+    return { purgeDeleted: (await import("./service")).purgeDeleted, companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany, purgeProject: purge.purgeProject };
   },
   levelUsage: async () => (await import("./service")).levelUsage,
   jobStorage: async () => (await import("./storage")).jobStorage,

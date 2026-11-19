@@ -45,6 +45,7 @@ const VERBS: Record<string, string> = {
   deleted: "Deleted",
   removed: "Removed",
   restored: "Restored",
+  restored_from_deleted: "Put back",
   renamed: "Renamed",
   moved: "Moved",
   invited: "Invited",

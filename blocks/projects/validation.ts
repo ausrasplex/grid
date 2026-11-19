@@ -41,3 +41,6 @@ export const areaSchema = z
 export type CoverInput = z.infer<typeof cover>;
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+
+/** Deleting a job: what the person typed to confirm (its job number, or name). */
+export const deleteSchema = z.object({ confirm: z.string().max(300) }).strict();

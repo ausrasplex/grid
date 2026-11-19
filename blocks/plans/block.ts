@@ -29,7 +29,7 @@ export default defineBlock({
       purgeDeleted: (await import("./service")).purgeDeleted,
       dropArchivedCopies: (await import("./archive")).dropArchivedCopies,
       companyUsage: purge.companyUsage,
-      purgeCompany: purge.purgeCompany,
+      purgeCompany: purge.purgeCompany, purgeProject: purge.purgeProject,
     };
   },
   levelUsage: async () => (await import("./service")).levelUsage,

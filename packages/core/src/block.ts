@@ -251,7 +251,7 @@ export interface BlockJob {
 /** One thing a clean-up removed (or would, in a dry run). */
 export interface CleanupItem {
   companyId: string | null;
-  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "deleted-document" | "deleted-business" | "archived-copy" | "stray";
+  kind: "unfiled" | "deleted-photo" | "deleted-note" | "deleted-plan" | "deleted-ticket" | "deleted-document" | "deleted-business" | "deleted-job" | "archived-copy" | "stray";
   label: string;
   refId?: string | null;
   bytes: number;
@@ -277,6 +277,15 @@ export interface BlockCleanup {
    * what another business still uses (a shared job or site).
    */
   purgeCompany?(companyId: string): Promise<void>;
+  /**
+   * Deleting a job (docs/stage-2-projects.md "Deleting a job"): an archived
+   * job was deleted longer ago than Recently deleted keeps things. Remove
+   * this block's records for the job for good, and any cached copies on
+   * disk, and return the StoredFile ids of its files: the clean-up removes
+   * those afterwards. Runs dependent Blocks first (markups before plans
+   * before jobs).
+   */
+  purgeProject?(projectId: string, companyId: string): Promise<string[]>;
 }
 
 const ID_RE = /^[a-z][a-z0-9-]*$/;

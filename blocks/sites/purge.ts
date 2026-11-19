@@ -37,3 +37,9 @@ export async function purgeCompany(companyId: string): Promise<void> {
     }
   });
 }
+
+/** A deleted job, for good: people's last-opened place stops pointing at it (the site stays). */
+export async function purgeProject(projectId: string): Promise<string[]> {
+  await db.userSiteLocation.updateMany({ where: { projectId }, data: { projectId: null } });
+  return [];
+}

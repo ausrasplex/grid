@@ -264,6 +264,25 @@ Why: on a home server the disk is finite. The owner needs to see what each job u
 
 **4. Later, not now:** Import (rebuilding every Block's records from a ZIP, across Grid versions) and "export then remove". They're a lot of work, and the ZIP would become the only copy, outside the backups. If archiving isn't enough, the next step is a setting that keeps archived jobs' originals on a second, cheaper disk or share, still inside Grid.
 
+### Deleting a job (decided and built Nov 2026)
+
+Highly destructive, so it has several safeties, and the server checks each one again:
+
+- **Archived jobs only.** A job has to be finished, then archived, before Delete shows. It sits in its own **Delete this job** section on the job page, below Finish and Archive.
+- **Owners only:** `projects.delete` has no grants, so only Owners have it unless a custom role is given it.
+- **The business running the job, and nobody else on it.** If another business is on the job it can't be deleted.
+- **Two boxes.** The first lists everything that goes (photos, plan sheets, documents, with their markups, notes and sign-offs, and the size) and what stays (its quotes, no longer linked; the client; the site; the activity log). The second needs the **job number typed exactly** (the name, for a job with no number) and **"I understand"** ticked. The Delete button then waits 3 seconds before it works.
+- **Recently deleted first.** `Project.deletedAt` hides the job straight away, everywhere a job is looked up. Owners see it under **Jobs › Recently deleted** with **Put back**, which makes it an archived job again, until Recently deleted runs out (Storage settings, 30 days by default).
+- **Then removed for good** by the nightly storage clean-up. Every Block's `purgeProject(projectId, companyId)` hook removes its records for the job (dependent Blocks first) and returns its files' ids. The clean-up removes those files and writes "removed for good" to the log.
+  - Photos: photos, notes, comments.
+  - Markups: markups, icon numbers, scales.
+  - Plans: sheets, revisions, layers, tiles.
+  - Documents: job documents and their page pictures and search text, folders, and pins of library documents (the library keeps the document).
+  - Quotes: unlinked, kept.
+  - Sites: last-opened places stop pointing at the job.
+  - Jobs: the job, its areas, references and route code.
+- In dry-run mode the history lists the job ("Deleted job") and nothing goes. Each step is in the activity log: deleted, put back, removed for good.
+
 ### Quoting jobs (decided Nov 2026, built in phase 4c part 2: see the roadmap's "What part 2 built")
 
 A quote that needs plans (for a take-off) before the work is won gets a job to hold them.

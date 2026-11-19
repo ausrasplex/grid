@@ -18,6 +18,9 @@ import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
 import { activeJobCounts, getProject, jobsAt, jobsForClient, recordArea, resumeOnSite, type Area } from "../service";
 import type { PlaceStartPanelProps } from "../index";
 import { CopyLink, FinishJob } from "./JobActions";
+import { DeleteJob, DeletedJobs, type DeletedJobJson } from "./DeleteJob";
+import { deletedProjects } from "../delete";
+import { getStorageSettings } from "@grid/db";
 import { JobRows } from "./JobRows";
 import { JobStorage } from "./JobStorage";
 import { JobsTable } from "./JobsTable";
@@ -375,6 +378,11 @@ async function JobPage({
         {canFinish && (
           <FinishJob jobId={job.id} status={job.status as "ACTIVE" | "COMPLETED"} archived={!!job.archivedAt} archiveBytes={storage?.totals.archiveBytes ?? 0} siteName={site.name} lastActiveHere={finishLeavesSiteEmpty} />
         )}
+
+        {/* Archived jobs only, Owners only: highly destructive (docs/stage-2-projects.md "Deleting a job"). */}
+        {job.isHost && job.archivedAt && can(ctx, "projects.delete") && (
+          <DeleteJob jobId={job.id} jobName={job.name} jobNumber={job.jobNumber} lines={storage?.lines ?? []} deletedDays={(await getStorageSettings()).deletedDays} />
+        )}
       </Stack>
       </div>
     </>
@@ -411,13 +419,19 @@ export const pages: BlockPages = {
     if (!jobId) {
       if (!can(ctx, "projects.view")) return <Alert variant="error">You don't have permission to see jobs.</Alert>;
       const table = await jobsTable(ctx);
+      const deleted = can(ctx, "projects.delete") ? await deletedProjects(ctx) : [];
       return (
-        <JobsTable
-          rows={table.rows.map((row) => ({ ...row, startedAt: row.startedAt.toISOString(), archived: !!row.archivedAt }))}
-          columns={table.columns}
-          showStorage={table.showStorage}
-          canCreate={can(ctx, "projects.create")}
-        />
+        <>
+          <JobsTable
+            rows={table.rows.map((row) => ({ ...row, startedAt: row.startedAt.toISOString(), archived: !!row.archivedAt }))}
+            columns={table.columns}
+            showStorage={table.showStorage}
+            canCreate={can(ctx, "projects.create")}
+          />
+          <div className="mt-4">
+            <DeletedJobs initial={JSON.parse(JSON.stringify(deleted)) as DeletedJobJson[]} />
+          </div>
+        </>
       );
     }
     if (sub === "settings") {

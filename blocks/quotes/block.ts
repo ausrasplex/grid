@@ -29,7 +29,7 @@ export default defineBlock({
   // Recently deleted running out (none here), and deleting a whole business.
   cleanup: async () => {
     const purge = await import("./purge");
-    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany, purgeProject: purge.purgeProject };
   },
   // The customer's private link (/q/<token>): view, sign or decline.
   publicRoutes: async () => (await import("./public")).publicRoutes,

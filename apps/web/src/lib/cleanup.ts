@@ -5,6 +5,9 @@
 //      each Block with a `cleanup` hook purges its own records.
 //      Also: archived jobs' copies drawn again for a quick look and not
 //      opened for `archivedCopyDays` (each Block's dropArchivedCopies).
+//      Also: jobs deleted (archived jobs only) before that, through every
+//      Block's purgeProject hook, then the files they return
+//      (docs/stage-2-projects.md "Deleting a job").
 //   3. Businesses deleted before that (docs/roadmap.md "Deleting a business"):
 //      every Block's purgeCompany hook, then all their files (not people's
 //      Wallet photos, which belong to the person), route codes and log.
@@ -15,6 +18,7 @@
 
 import "server-only";
 import { companiesToPurge, companyUsage, purgeCompanyRecords } from "@grid/block-companies";
+import { jobsToPurge } from "@grid/block-projects";
 import {
   audit,
   db,
@@ -88,6 +92,36 @@ export async function runCleanup(options: { trigger: "schedule" | "manual"; user
       if (hook.purgeDeleted) items.push(...(await hook.purgeDeleted({ before: new Date(now - settings.deletedDays * DAY), dryRun })));
       // Archived jobs: copies drawn again for a quick look, not opened since (phase 2e).
       if (hook.dropArchivedCopies) items.push(...(await hook.dropArchivedCopies({ openedBefore: new Date(now - settings.archivedCopyDays * DAY), dryRun })));
+    }
+
+    // 2b. Jobs deleted before Recently deleted ran out: removed for good.
+    for (const job of await jobsToPurge(new Date(now - settings.deletedDays * DAY))) {
+      // The size, from each Block's job storage (what the Storage section shows).
+      let bytes = 0;
+      for (const block of registry.blocks) {
+        if (!block.jobStorage) continue;
+        for (const line of await (await block.jobStorage())(job.hostCompanyId, [job.id])) bytes += line.originalBytes + line.copyBytes + line.deletedBytes;
+      }
+      items.push({
+        companyId: job.hostCompanyId,
+        kind: "deleted-job",
+        label: `Job ${[job.jobNumber, job.name].filter(Boolean).join(" ")}, deleted ${day(job.deletedAt!)}`,
+        refId: job.id,
+        bytes,
+      });
+      if (dryRun) continue;
+      // Dependent Blocks first (markups before plans before jobs).
+      const fileIds: string[] = [];
+      for (const block of [...registry.blocks].reverse()) {
+        if (!block.cleanup) continue;
+        const hook = await block.cleanup();
+        if (hook.purgeProject) fileIds.push(...(await hook.purgeProject(job.id, job.hostCompanyId)));
+      }
+      const files = await db.storedFile.findMany({ where: { id: { in: [...new Set(fileIds)] }, companyId: job.hostCompanyId, purgedAt: null }, select: { id: true } });
+      for (const file of files) await db.$transaction((tx) => purgeStoredFile(tx, file.id));
+      await db.$transaction((tx) =>
+        audit(tx, { blockId: "projects", actorId: options.userId ?? null, companyId: job.hostCompanyId, entityType: "Project", entityId: job.id, action: "removed_for_good", diff: { name: job.name, jobNumber: job.jobNumber } }),
+      );
     }
 
     // 3. Businesses deleted before Recently deleted ran out: removed for good.

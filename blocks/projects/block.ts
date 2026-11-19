@@ -14,6 +14,8 @@ export default defineBlock({
     { key: "projects.create", label: "Start jobs" },
     { key: "projects.edit", label: "Change job details and what a job covers" },
     { key: "projects.complete", label: "Finish, reopen and archive jobs, and see what they store" },
+    // Highly destructive: Owners only (no grants). docs/stage-2-projects.md "Deleting a job".
+    { key: "projects.delete", label: "Delete archived jobs", description: "Photos, plans and documents go for good once Recently deleted runs out" },
   ],
   grants: {
     FOREMAN: ["projects.view", "projects.create", "projects.edit", "projects.complete"],
@@ -29,7 +31,7 @@ export default defineBlock({
   // Recently deleted running out (none here), and deleting a whole business.
   cleanup: async () => {
     const purge = await import("./purge");
-    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany };
+    return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany, purgeProject: purge.purgeProject };
   },
   routeTargets: {
     Project: (id) => `/jobs/${id}`,

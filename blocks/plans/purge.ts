@@ -17,3 +17,16 @@ export async function purgeCompany(companyId: string): Promise<void> {
   // Revisions go with each sheet (cascade).
   await db.planSheet.deleteMany({ where: { companyId } });
 }
+
+/** A deleted job, for good: its sheets, revisions, layers and tiles; the uploaded files go after. */
+export async function purgeProject(projectId: string): Promise<string[]> {
+  const sheets = await db.planSheet.findMany({ where: { projectId }, select: { id: true, versions: { select: { id: true, fileId: true } } } });
+  for (const sheet of sheets) for (const version of sheet.versions) await removeTiles(version.id);
+  const sheetIds = sheets.map((sheet) => sheet.id);
+  await db.$transaction(async (tx) => {
+    await tx.planLayer.deleteMany({ where: { sheetId: { in: sheetIds } } });
+    // Revisions go with each sheet (cascade).
+    await tx.planSheet.deleteMany({ where: { projectId } });
+  });
+  return [...new Set(sheets.flatMap((sheet) => sheet.versions.map((version) => version.fileId)))];
+}

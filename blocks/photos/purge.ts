@@ -24,3 +24,14 @@ export async function purgeCompany(companyId: string): Promise<void> {
     await tx.jobNote.deleteMany({ where: { companyId } });
   });
 }
+
+/** A deleted job, for good: its photos, notes and comments; the photos' files go after. */
+export async function purgeProject(projectId: string): Promise<string[]> {
+  const photos = await db.jobPhoto.findMany({ where: { projectId }, select: { fileId: true } });
+  await db.$transaction(async (tx) => {
+    await tx.photoComment.deleteMany({ where: { projectId } });
+    await tx.jobPhoto.deleteMany({ where: { projectId } });
+    await tx.jobNote.deleteMany({ where: { projectId } });
+  });
+  return photos.map((photo) => photo.fileId);
+}

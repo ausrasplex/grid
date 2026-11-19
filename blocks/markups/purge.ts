@@ -18,3 +18,14 @@ export async function purgeCompany(companyId: string): Promise<void> {
     await tx.customIcon.deleteMany({ where: { companyId } });
   });
 }
+
+/** A deleted job, for good: its markups, icons' numbers and sheet scales. No files. */
+export async function purgeProject(projectId: string): Promise<string[]> {
+  const sheetIds = (await db.planSheet.findMany({ where: { projectId }, select: { id: true } })).map((sheet) => sheet.id);
+  await db.$transaction(async (tx) => {
+    await tx.planMarkup.deleteMany({ where: { projectId } });
+    await tx.planScale.deleteMany({ where: { sheetId: { in: sheetIds } } });
+    await tx.jobIconVersion.deleteMany({ where: { projectId } });
+  });
+  return [];
+}

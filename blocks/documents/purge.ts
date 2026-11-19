@@ -46,3 +46,23 @@ export async function purgeCompany(companyId: string): Promise<void> {
     await tx.documentSettings.deleteMany({ where: { companyId } });
   });
 }
+
+/**
+ * A deleted job, for good: its job documents (versions, page pictures,
+ * search text), folders, and library documents pinned to it (only the pin;
+ * the library keeps them). The job documents' files go after.
+ */
+export async function purgeProject(projectId: string): Promise<string[]> {
+  const documents = await db.libraryDocument.findMany({ where: { projectId }, select: { id: true, versions: { select: { id: true, fileId: true } } } });
+  for (const document of documents) for (const version of document.versions) await removePages(version.id);
+  const documentIds = documents.map((document) => document.id);
+  await db.$transaction(async (tx) => {
+    await tx.documentPage.deleteMany({ where: { documentId: { in: documentIds } } });
+    await tx.iconDocumentLink.deleteMany({ where: { documentId: { in: documentIds } } });
+    // Versions go with each document (cascade); sign-offs on them are tidied by the signoffs clean-up.
+    await tx.libraryDocument.deleteMany({ where: { id: { in: documentIds } } });
+    await tx.documentLink.deleteMany({ where: { projectId } });
+    await tx.jobDocumentFolder.deleteMany({ where: { projectId } });
+  });
+  return [...new Set(documents.flatMap((document) => document.versions.map((version) => version.fileId)))];
+}

@@ -1,4 +1,5 @@
 // Public API for blocks that depend on "projects" (photos, plans, quotes…).
+export { jobsToPurge } from "./delete";
 export {
   getProject,
   createProject,
