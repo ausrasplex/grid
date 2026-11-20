@@ -79,7 +79,7 @@ export const linkItemSchema = z.object({ iconKey: z.string().max(80).refine(anyI
 /** Switch placed icons to another number. */
 export const renumberSchema = z.object({ ids: z.array(z.uuid()).min(1).max(2000), iconNumber }).strict();
 
-/** Settings › Custom icons. */
+/** Settings › Icons. */
 export const customIconSchema = z
   .object({
     trade: z.string().max(40),

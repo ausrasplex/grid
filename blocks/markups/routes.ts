@@ -24,7 +24,7 @@ export const routes: Routes = {
   "DELETE /icon-versions/:id": { permission: "markups.add", handler: (ctx, request) => icons.deleteIconVersion(ctx, request.params.id!) },
   "POST /icons/renumber": { permission: "markups.add", handler: (ctx, request) => icons.renumberIcons(ctx, renumberSchema.parse(request.body)) },
 
-  // Settings › Custom icons (phase 4c part 3).
+  // Settings › Icons (phase 4c part 3).
   "GET /custom-icons": { permission: "markups.view", handler: (ctx) => custom.customIcons(ctx) },
   "POST /custom-icons": { permission: "markups.manage", handler: (ctx, request) => custom.saveCustomIcon(ctx, null, customIconSchema.parse(request.body)) },
   "PUT /custom-icons/:id": { permission: "markups.manage", handler: (ctx, request) => custom.saveCustomIcon(ctx, request.params.id!, customIconSchema.parse(request.body)) },

@@ -1,4 +1,4 @@
-// SVG icons (Settings › Custom icons): a business can upload an SVG as an
+// SVG icons (Settings › Icons): a business can upload an SVG as an
 // icon. Nothing from the upload is kept as-is: it's read tag by tag and
 // rebuilt from an allowlist of drawing elements and attributes, so scripts,
 // event handlers, links, embedded pictures, styles sheets, external

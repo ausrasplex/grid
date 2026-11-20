@@ -1,5 +1,5 @@
 // Markups pages and panels.
-//   /markups/icons        Settings › Custom icons: the business's own icons (phase 4c part 3)
+//   /markups/icons        Settings › Icons: the business's own icons (phase 4c part 3)
 //   slot "plans.viewer"   the markup layer and tools over a plan sheet, and
 //                         the trade icon layer (library, placing, counts; phase 4c)
 //   slot "quote.takeoff"  a quote's Take-off section: icon counts into quote lines (phase 4c)

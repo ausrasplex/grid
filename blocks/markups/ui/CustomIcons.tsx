@@ -1,6 +1,6 @@
 "use client";
 
-// Settings › Custom icons (phase 4c part 3): the business's own icons for
+// Settings › Icons (phase 4c part 3): the business's own icons for
 // plans, built like the built-in ones (an outline and up to 3 letters, in a
 // trade's colour) or uploaded as an SVG (made safe on the server). Below
 // them, every built-in icon by trade: each can be given your own look
@@ -39,7 +39,7 @@ export function CustomIcons({ initial, canManage }: { initial: CustomIconRow[]; 
   return (
     <>
       <PageHeader
-        title="Custom icons"
+        title="Icons"
         subtitle="Your own symbols for plans, and your own look for the built-in ones. They're counted and priced in take-offs like any other icon."
         actions={canManage && <ActionButton icon={<Plus />} label="New icon" onClick={() => setEditing({ row: null, builtIn: null, tradeId: CUSTOM_TRADE.id })} />}
       />

@@ -95,7 +95,7 @@ prisma/        base, core and auth schemas; migrations
   **Phase 5b part 4** (search inside documents: PDF text by pdftotext and spreadsheet cell text into PostgreSQL full-text search, Inside documents results opening at the page, find on page in the PDF viewer) is done too, which finishes Phase 5b; see "What 5b part 4 built" in `docs/documents-block.md`.
   **Phase 4c part 1** (trade icon library by trade with search, placing icons on plans as ICON markups, numbered versions per job, counts per sheet, level and job, trade layers) is done too; see "What part 1 built" under Phase 4c in `docs/roadmap.md`.
   **Phase 4c part 2** (the quote's Take-off section through the `quote.takeoff` slot, a price book item per icon number, Add to quote and "Take-off changed", Quoting jobs moved along by quote events) is done too; see "What part 2 built" under Phase 4c in `docs/roadmap.md`.
-  **Phase 4c part 3** (custom icons built from a shape and letters in Settings › Custom icons, and manuals linked to an icon type at `/documents/icon/<key>`) is done too, which finishes Phase 4c.
+  **Phase 4c part 3** (custom icons built from a shape and letters in Settings › Icons, and manuals linked to an icon type at `/documents/icon/<key>`) is done too, which finishes Phase 4c.
 - Next: **Phase 5c** (Assets, `docs/assets-block.md`). OCR, product scanning and the product catalogue are later.
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.

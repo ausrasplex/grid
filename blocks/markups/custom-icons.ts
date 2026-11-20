@@ -1,4 +1,4 @@
-// A business's own icons (phase 4c part 3): Settings › Custom icons, and in
+// A business's own icons (phase 4c part 3): Settings › Icons, and in
 // the plan viewer's icon library beside the built-in ones. An icon is built
 // from a shape and letters, or is an uploaded SVG (made safe by svg.ts here,
 // on the server, whatever the browser sent). A row with `replacesKey` gives a

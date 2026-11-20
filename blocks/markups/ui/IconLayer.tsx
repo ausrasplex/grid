@@ -113,7 +113,7 @@ export function IconLayer({
   canAdd: boolean;
   /** The business's own icons (phase 4c part 3), deleted ones too so placed ones still draw. */
   customIcons: CustomIconRow[];
-  /** May add custom icons (Settings › Custom icons). */
+  /** May add custom icons (Settings › Icons). */
   canManageIcons: boolean;
   /** Documents is on: a placed icon offers the manuals linked to its type. */
   documentsOn: boolean;
@@ -492,10 +492,10 @@ function IconLibrary({ lookup, onPick, canManage }: { lookup: IconLookup; onPick
   return (
     <div className="flex flex-col gap-3 px-4 pb-4">
       <SearchInput label="Search icons" placeholder="Search icons, e.g. power point" value={query} onChange={(event) => setQuery(event.target.value)} />
-      {searching && !groups.length && <p className="text-sm text-muted-foreground">No icons match.{canManage ? " You can make your own in Custom icons." : ""}</p>}
+      {searching && !groups.length && <p className="text-sm text-muted-foreground">No icons match.{canManage ? " You can make your own in Settings › Icons." : ""}</p>}
       {canManage && (
         <a href="/markups/icons" className="flex min-h-touch items-center gap-2 self-start rounded-md px-2 text-sm font-semibold text-primary hover:underline">
-          <Settings2 className="size-4" /> Custom icons: make your own
+          <Settings2 className="size-4" /> Icons: make your own
         </a>
       )}
       {groups.map(({ trade, icons }) => {

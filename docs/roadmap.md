@@ -188,7 +188,7 @@ Built after 5b (Documents) and before 5c (Assets). Trade symbols placed on plans
 - **Custom icons: built, not uploaded (decided while building).** A custom icon is made from the same parts as the built-in ones: a shape (circle, square, triangle, diamond, hexagon), up to 3 letters ("BL"), a name, other words for the search, and a trade.
   - It reads like the rest of the library and stays sharp at any zoom, with no see-through-PNG trouble.
   - `CustomIcon.fileId` is kept for uploaded pictures later.
-- **Settings › Custom icons** (`/markups/icons`, `markups.manage`) adds, changes and deletes them, with a live preview.
+- **Settings › Icons** (was "Custom icons") (`/markups/icons`, `markups.manage`) adds, changes and deletes them, with a live preview.
   - Each joins its trade's group in the library, in that trade's colour; ones with no trade go in **Custom**, first.
   - The placed key is `custom.<id>`.
   - Deleting takes an icon out of the library; ones already placed keep drawing, counting and pricing.
@@ -202,7 +202,7 @@ Built after 5b (Documents) and before 5c (Assets). Trade symbols placed on plans
   - A custom icon can be an **uploaded SVG** instead of a shape and letters (`CustomIcon.svg`), with **Use the trade's colour** (`tint`) to draw it in one colour like the rest, or its own colours.
   - **Made safe on the server** (`blocks/markups/svg.ts`, unit-tested): the file is read tag by tag and rebuilt from an allowlist of drawing elements (paths, shapes, groups, text, gradients, clip paths, masks) and drawing attributes. Scripts, event handlers, links, `<use>`, embedded pictures, `<style>`, `foreignObject`, animation, editor extras and references outside the icon are dropped; DOCTYPEs, entities and CDATA are refused; colours in `style` become attributes. Up to 200 KB. The browser runs the same check for the preview, but the server never keeps what was sent.
   - It's **only ever drawn as a picture** (a data: URL in SVG `<image>`), which browsers never run scripts in or let load anything: a second guard.
-  - **Every built-in icon, listed by trade** in Settings › Custom icons, can be given the business's own look, from the same creator or an SVG (`CustomIcon.replacesKey`, one per built-in icon). It keeps its key, trade and place in the library, so icons already on plans change look and keep their counts, numbers, price book items and manual links. **Put back the built-in** deletes the replacement.
+  - **Every built-in icon, listed by trade** in Settings › Icons, can be given the business's own look, from the same creator or an SVG (`CustomIcon.replacesKey`, one per built-in icon). It keeps its key, trade and place in the library, so icons already on plans change look and keep their counts, numbers, price book items and manual links. **Put back the built-in** deletes the replacement.
 - **Not yet:**
   - uploaded pictures (PNG, JPG) as icons;
   - manuals linked to a single placed icon (only to the type);

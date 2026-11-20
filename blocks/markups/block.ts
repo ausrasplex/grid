@@ -17,8 +17,8 @@ export default defineBlock({
     VIEWER: ["markups.view"],
   },
   menus: [
-    // Settings › Custom icons (phase 4c part 3).
-    { id: "markups.icons", slot: "settings.company", label: "Custom icons", icon: "pin", href: "/markups/icons", permission: "markups.manage", order: 56 },
+    // Settings › Icons (phase 4c part 3).
+    { id: "markups.icons", slot: "settings.company", label: "Icons", icon: "pin", href: "/markups/icons", permission: "markups.manage", order: 56 },
   ],
   routes: async () => (await import("./routes")).routes,
   // Recently deleted running out (none here), and deleting a whole business.
