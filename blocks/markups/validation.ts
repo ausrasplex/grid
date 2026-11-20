@@ -97,6 +97,9 @@ export const customIconSchema = z
   .refine((icon) => !!icon.svg || icon.label.length > 0, { path: ["label"], message: "Up to 3 letters or numbers, or upload an SVG" });
 export type CustomIconInput = z.infer<typeof customIconSchema>;
 
+/** An icon group's own colour, or null for the usual one. */
+export const groupColourSchema = z.object({ colour: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Pick a colour").nullable() }).strict();
+
 export type CreateMarkupInput = z.infer<typeof createMarkupSchema>;
 export type UpdateMarkupInput = z.infer<typeof updateMarkupSchema>;
 export type SetScaleInput = z.infer<typeof setScaleSchema>;

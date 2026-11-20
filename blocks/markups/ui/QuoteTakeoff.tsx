@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileStack, Loader2 } from "lucide-react";
 import { Alert, Badge, Button, Section, api, useAction, useQuoteTakeoff, type TakeoffLine } from "@grid/ui";
-import { iconLookup, type CustomIconRow } from "../icons";
+import { iconLookup, type CustomIconRow, type GroupColours } from "../icons";
 import { IconGlyph } from "./IconGlyph";
 import type { JobIconsJson } from "./IconLayer";
 
@@ -25,9 +25,9 @@ interface Row {
   priceItemId: string | null;
 }
 
-export function QuoteTakeoff({ initial, canEditIcons, customIcons }: { initial: JobIconsJson | null; canEditIcons: boolean; customIcons: CustomIconRow[] }) {
+export function QuoteTakeoff({ initial, canEditIcons, customIcons, groupColours }: { initial: JobIconsJson | null; canEditIcons: boolean; customIcons: CustomIconRow[]; groupColours: GroupColours }) {
   const takeoff = useQuoteTakeoff();
-  const lookup = useMemo(() => iconLookup(customIcons), [customIcons]);
+  const lookup = useMemo(() => iconLookup(customIcons, groupColours), [customIcons, groupColours]);
   const [job, setJob] = useState(initial);
   const [names, setNames] = useState<Record<string, string>>({});
   const [kept, setKept] = useState(false);

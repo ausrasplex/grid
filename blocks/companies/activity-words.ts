@@ -13,6 +13,7 @@ const THINGS: Record<string, string> = {
   PlanSheet: "plan sheet",
   PlanLayer: "plan layer",
   PlanShare: "plan share link",
+  IconGroupColour: "icon group colour",
   LibraryDocument: "document",
   DocumentLibrary: "document library",
   DocumentSettings: "document settings",

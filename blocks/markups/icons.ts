@@ -253,8 +253,44 @@ export function replacedIcon(builtIn: TradeIcon, row: CustomIconRow): TradeIcon 
   return { ...builtIn, name: row.name || builtIn.name, outline: look.outline, label: look.label, svg: look.svg, tint: look.tint, path: undefined, fill: undefined };
 }
 
-/** Looks up built-in and this business's custom icons together. */
-export function iconLookup(customs: CustomIconRow[]) {
+// ---------------------------------------------------------------------
+// Group colours: a business can give an icon group (a trade, or Custom) its
+// own colour (IconGroupColour). Icons in the group draw in it everywhere.
+// ---------------------------------------------------------------------
+
+/** Trade id → "#rrggbb", only for groups the business has changed. */
+export type GroupColours = Record<string, string>;
+
+export const isHexColour = (colour: string) => /^#[0-9a-f]{6}$/i.test(colour);
+
+/** Colours that read well on a white plan, offered first when picking. */
+export const GROUP_PALETTE = [
+  "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#0d9488", "#0891b2", "#2563eb",
+  "#4f46e5", "#7c3aed", "#c026d3", "#db2777", "#92400e", "#334155", "#111827",
+];
+
+/** How well a colour stands out on white paper (WCAG contrast ratio, 1 to 21). */
+export function contrastOnWhite(colour: string): number {
+  const channel = (start: number) => {
+    const value = parseInt(colour.slice(start, start + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  return 1.05 / (luminance + 0.05);
+}
+
+/** Every icon group (Custom first, then the trades) in the business's colours. */
+export function iconGroups(colours: GroupColours = {}): Trade[] {
+  return [CUSTOM_TRADE, ...TRADES].map((trade) => paintTrade(trade, colours));
+}
+
+const paintTrade = (trade: Trade, colours: GroupColours): Trade => {
+  const colour = colours[trade.id];
+  return colour && isHexColour(colour) && colour.toLowerCase() !== trade.colour ? { ...trade, colour } : trade;
+};
+
+/** Looks up built-in and this business's custom icons together, in its group colours. */
+export function iconLookup(customs: CustomIconRow[], colours: GroupColours = {}) {
   const own = customs.filter((row) => !row.replacesKey);
   const byKey = new Map(own.map((row) => [customKey(row.id), row]));
   // Built-in icons the business has given its own look.
@@ -263,8 +299,12 @@ export function iconLookup(customs: CustomIconRow[]) {
     const row = replaced.get(entry.key);
     return row ? replacedIcon(entry, row) : entry;
   };
-  const tradeById = new Map(TRADES.map((trade) => [trade.id, trade]));
+  const groups = iconGroups(colours);
+  const custom = groups[0]!;
+  const tradeById = new Map(groups.slice(1).map((trade) => [trade.id, trade]));
   return {
+    /** Every group in the business's colours: Custom first, then the trades. */
+    groups,
     icon: (key: string): TradeIcon | null => {
       const row = byKey.get(key);
       if (row) return customIcon(row);
@@ -273,8 +313,9 @@ export function iconLookup(customs: CustomIconRow[]) {
     },
     trade: (key: string): Trade | null => {
       const row = byKey.get(key);
-      if (row) return tradeById.get(row.trade) ?? CUSTOM_TRADE;
-      return tradeOf(key);
+      if (row) return tradeById.get(row.trade) ?? custom;
+      const trade = tradeOf(key);
+      return trade ? tradeById.get(trade.id)! : null;
     },
     label: (key: string, number: number | null, versionName?: string | null, numbered = true) => {
       const row = byKey.get(key);
@@ -285,12 +326,12 @@ export function iconLookup(customs: CustomIconRow[]) {
     /** Library groups: custom icons join their trade's group (or Custom, first), then searched like the rest. */
     search: (query: string): { trade: Trade; icons: TradeIcon[] }[] => {
       const live = own.filter((row) => !row.deleted);
-      const groups = [
-        { ...CUSTOM_TRADE, icons: live.filter((row) => !tradeById.has(row.trade)).map(customIcon) },
-        ...TRADES.map((trade) => ({ ...trade, icons: [...live.filter((row) => row.trade === trade.id).map(customIcon), ...trade.icons.map(builtIn)] })),
+      const library = [
+        { ...custom, icons: live.filter((row) => !tradeById.has(row.trade)).map(customIcon) },
+        ...groups.slice(1).map((trade) => ({ ...trade, icons: [...live.filter((row) => row.trade === trade.id).map(customIcon), ...trade.icons.map(builtIn)] })),
       ];
       const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-      return groups
+      return library
         .map((trade) => ({
           trade,
           icons: words.length ? trade.icons.filter((entry) => words.every((word) => [entry.name, ...entry.words, trade.name, entry.label ?? ""].join(" ").toLowerCase().includes(word))) : trade.icons,

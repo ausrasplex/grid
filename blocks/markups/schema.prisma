@@ -148,3 +148,18 @@ model CustomIcon {
 
   @@index([companyId, deletedAt])
 }
+
+/// A business's own colour for an icon group (a trade, or "custom"): icons in
+/// that group draw in it everywhere (plans, counts, take-offs, PDFs). No row
+/// means the built-in colour (icons.ts).
+model IconGroupColour {
+  companyId   String
+  /// A built-in trade id ("electrical"), or "custom".
+  trade       String
+  /// "#rrggbb"
+  colour      String
+  updatedById String
+  updatedAt   DateTime @updatedAt
+
+  @@id([companyId, trade])
+}

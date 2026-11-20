@@ -6,30 +6,34 @@
 // them, every built-in icon by trade: each can be given your own look
 // (shape and letters, or an SVG); placed ones keep counting and pricing.
 // Deleting takes an icon out of the library; ones already placed stay.
+// Group colours: each group (a trade, or Custom) can have the business's own
+// colour, used everywhere its icons are drawn.
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Plus, Trash2, Upload } from "lucide-react";
+import { Check, ChevronDown, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import { ActionButton, Alert, Badge, Button, EmptyState, Field, FormActions, List, PageHeader, SearchInput, Section, Segmented, SelectField, Sheet, SheetContent, Stack, api, useAction } from "@grid/ui";
-import { CUSTOM_TRADE, ICON_OUTLINES, OUTLINE_NAMES, TRADES, customIcon, iconLookup, replacedIcon, type CustomIconRow, type IconOutline, type TradeIcon } from "../icons";
+import { CUSTOM_TRADE, GROUP_PALETTE, ICON_OUTLINES, OUTLINE_NAMES, TRADES, contrastOnWhite, customIcon, iconLookup, replacedIcon, type CustomIconRow, type GroupColours, type IconOutline, type Trade, type TradeIcon } from "../icons";
 import { SVG_MAX_LENGTH, SvgError, sanitiseSvg } from "../svg";
 import { IconGlyph } from "./IconGlyph";
 
 const tradeOptions = [{ value: CUSTOM_TRADE.id, label: "Custom (its own group)" }, ...TRADES.map((trade) => ({ value: trade.id, label: trade.name }))];
-const colourOf = (tradeId: string) => TRADES.find((trade) => trade.id === tradeId)?.colour ?? CUSTOM_TRADE.colour;
 
 /** What the form is for: a new or existing own icon, or a built-in icon's look. */
 type Editing = { row: CustomIconRow | null; builtIn: TradeIcon | null; tradeId: string };
 
-export function CustomIcons({ initial, canManage }: { initial: CustomIconRow[]; canManage: boolean }) {
+export function CustomIcons({ initial, initialColours, canManage }: { initial: CustomIconRow[]; initialColours: GroupColours; canManage: boolean }) {
   const [rows, setRows] = useState(initial.filter((icon) => !icon.deleted));
+  const [colours, setColours] = useState(initialColours);
+  const [colouring, setColouring] = useState<Trade | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [query, setQuery] = useState("");
   const [openTrades, setOpenTrades] = useState<Set<string>>(new Set());
   const own = rows.filter((row) => !row.replacesKey);
   const replacements = useMemo(() => new Map(rows.filter((row) => row.replacesKey).map((row) => [row.replacesKey!, row])), [rows]);
-  const lookup = useMemo(() => iconLookup(rows), [rows]);
+  const lookup = useMemo(() => iconLookup(rows, colours), [rows, colours]);
+  const colourOf = (tradeId: string) => (lookup.groups.find((trade) => trade.id === tradeId) ?? lookup.groups[0]!).colour;
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const builtInGroups = TRADES.map((trade) => ({
+  const builtInGroups = lookup.groups.slice(1).map((trade) => ({
     trade,
     icons: trade.icons.filter((entry) => !words.length || words.every((word) => [entry.name, ...entry.words, trade.name, entry.label ?? ""].join(" ").toLowerCase().includes(word))),
   })).filter((group) => group.icons.length > 0);
@@ -66,6 +70,31 @@ export function CustomIcons({ initial, canManage }: { initial: CustomIconRow[]; 
               ))}
             </List>
           )}
+        </Section>
+
+        <Section title="Group colours" description="The colour each group's icons are drawn in, on plans, counts, take-offs, shared links and PDFs." flush>
+          <ul className="grid grid-cols-1 gap-1 px-3 pb-3 sm:grid-cols-2 sm:px-5 lg:grid-cols-3">
+            {lookup.groups.map((trade) => {
+              const changed = !!colours[trade.id];
+              return (
+                <li key={trade.id}>
+                  <button
+                    type="button"
+                    disabled={!canManage}
+                    onClick={() => setColouring(trade)}
+                    className="flex min-h-touch w-full items-center gap-3 rounded-md px-2 text-left enabled:hover:bg-muted"
+                    aria-label={`${trade.name} colour${canManage ? ": change" : ""}`}
+                  >
+                    <span className="paper flex size-9 shrink-0 items-center justify-center rounded bg-white">
+                      <span className="size-5 rounded-full" style={{ background: trade.colour }} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{trade.name}</span>
+                    {changed && <Badge variant="secondary">Yours</Badge>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </Section>
 
         <Section title="Built-in icons" description="Tap one to give it your own look, built here or from an SVG. Icons already on plans change too, and keep their counts, numbers and prices." flush>
@@ -123,8 +152,26 @@ export function CustomIcons({ initial, canManage }: { initial: CustomIconRow[]; 
           </div>
         </Section>
       </Stack>
+      {colouring && (
+        <ColourForm
+          trade={colouring}
+          usual={([CUSTOM_TRADE, ...TRADES].find((trade) => trade.id === colouring.id) ?? CUSTOM_TRADE).colour}
+          sample={lookup.search("").find((group) => group.trade.id === colouring.id)?.icons[0] ?? null}
+          onClose={() => setColouring(null)}
+          onSaved={(colour) => {
+            setColours((current) => {
+              const next = { ...current };
+              if (colour) next[colouring.id] = colour;
+              else delete next[colouring.id];
+              return next;
+            });
+            setColouring(null);
+          }}
+        />
+      )}
       {editing && (
         <IconForm
+          colourOf={colourOf}
           editing={editing}
           onClose={() => setEditing(null)}
           onSaved={(row) => {
@@ -143,7 +190,73 @@ export function CustomIcons({ initial, canManage }: { initial: CustomIconRow[]; 
 
 type Look = "shape" | "svg";
 
-function IconForm({ editing, onClose, onSaved, onDeleted }: { editing: Editing; onClose: () => void; onSaved: (icon: CustomIconRow) => void; onDeleted: (id: string) => void }) {
+/** Pick an icon group's colour: one of the palette, any colour, or the usual one back. */
+function ColourForm({ trade, usual, sample, onClose, onSaved }: { trade: Trade; usual: string; sample: TradeIcon | null; onClose: () => void; onSaved: (colour: string | null) => void }) {
+  const [colour, setColour] = useState(trade.colour.toLowerCase());
+  const action = useAction();
+  const palette = GROUP_PALETTE.includes(usual) ? GROUP_PALETTE : [usual, ...GROUP_PALETTE];
+  const faint = contrastOnWhite(colour) < 3;
+  return (
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent title={`${trade.name} colour`} description="Icons in this group draw in this colour everywhere, including ones already on plans." desktop="dialog">
+        <form
+          className="flex flex-col gap-4 px-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void action.run(async () => {
+              const saved = await api<{ colour: string | null }>(`/markups/group-colours/${trade.id}`, { method: "PUT", body: { colour: colour === usual ? null : colour } });
+              onSaved(saved.colour);
+            });
+          }}
+        >
+          <div className="paper flex items-center gap-3 rounded-lg bg-white p-3">
+            {sample && <IconGlyph icon={sample} colour={colour} className="size-10" />}
+            <span className="font-semibold" style={{ color: colour }}>
+              {trade.name}
+            </span>
+          </div>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-sm font-medium">Colour</legend>
+            <div className="flex flex-wrap gap-1">
+              {palette.map((swatch) => (
+                <button
+                  key={swatch}
+                  type="button"
+                  onClick={() => setColour(swatch)}
+                  aria-label={swatch === usual ? `${swatch} (the usual colour)` : swatch}
+                  aria-pressed={colour === swatch}
+                  className="flex size-11 items-center justify-center rounded-md hover:bg-muted"
+                >
+                  <span className={`flex size-8 items-center justify-center rounded-full ring-foreground ring-offset-2 ring-offset-background ${colour === swatch ? "ring-2" : ""}`} style={{ background: swatch }}>
+                    {colour === swatch && <Check className="size-4 text-white" />}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <label className="flex min-h-touch cursor-pointer items-center gap-3 text-sm">
+              <input type="color" className="h-11 w-14 cursor-pointer rounded-md border border-input bg-transparent" value={colour} onChange={(event) => setColour(event.target.value.toLowerCase())} />
+              <span>Any other colour</span>
+            </label>
+          </fieldset>
+          {faint && <Alert>That colour is hard to see on a white plan. A darker one reads better on site.</Alert>}
+          <Alert variant="error">{action.error}</Alert>
+          <FormActions>
+            {colour !== usual && (
+              <Button type="button" variant="outline" disabled={action.busy} onClick={() => setColour(usual)}>
+                <RotateCcw /> Usual colour
+              </Button>
+            )}
+            <Button type="submit" disabled={action.busy}>
+              {action.busy ? "Saving…" : "Save"}
+            </Button>
+          </FormActions>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function IconForm({ colourOf, editing, onClose, onSaved, onDeleted }: { colourOf: (tradeId: string) => string; editing: Editing; onClose: () => void; onSaved: (icon: CustomIconRow) => void; onDeleted: (id: string) => void }) {
   const { row: initial, builtIn } = editing;
   const [form, setForm] = useState({
     name: initial?.name ?? builtIn?.name ?? "",

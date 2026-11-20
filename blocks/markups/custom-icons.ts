@@ -7,7 +7,7 @@
 import "server-only";
 import { badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { audit, db } from "@grid/db";
-import { TRADES, iconByKey, isCustomKey, tradeOf, type CustomIconRow } from "./icons";
+import { CUSTOM_TRADE, TRADES, iconByKey, isCustomKey, tradeOf, type CustomIconRow, type GroupColours } from "./icons";
 import { SvgError, sanitiseSvg } from "./svg";
 import type { CustomIconInput } from "./validation";
 
@@ -107,6 +107,40 @@ export async function deleteCustomIcon(ctx: RequestContext, id: string) {
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "CustomIcon", entityId: id, action: "deleted", diff: { name: icon.name } });
   });
   return { id, deleted: true };
+}
+
+/** The business's own icon group colours (only the changed ones). */
+export async function groupColours(ctx: RequestContext): Promise<GroupColours> {
+  return groupColoursOf(requireCompany(ctx));
+}
+
+export async function groupColoursOf(companyId: string): Promise<GroupColours> {
+  const rows = await db.iconGroupColour.findMany({ where: { companyId }, select: { trade: true, colour: true } });
+  return Object.fromEntries(rows.map((row) => [row.trade, row.colour]));
+}
+
+/** Give an icon group its own colour, or null to put the usual one back. */
+export async function setGroupColour(ctx: RequestContext, trade: string, colour: string | null) {
+  const companyId = requireCompany(ctx);
+  const group = trade === CUSTOM_TRADE.id ? CUSTOM_TRADE : TRADES.find((entry) => entry.id === trade);
+  if (!group) throw notFound("That icon group isn't there");
+  const next = colour && colour.toLowerCase() !== group.colour ? colour.toLowerCase() : null;
+  await db.$transaction(async (tx) => {
+    const before = await tx.iconGroupColour.findUnique({ where: { companyId_trade: { companyId, trade } } });
+    if ((before?.colour ?? null) === next) return;
+    if (next) await tx.iconGroupColour.upsert({ where: { companyId_trade: { companyId, trade } }, create: { companyId, trade, colour: next, updatedById: ctx.userId }, update: { colour: next, updatedById: ctx.userId } });
+    else await tx.iconGroupColour.delete({ where: { companyId_trade: { companyId, trade } } });
+    await audit(tx, {
+      blockId: MOD,
+      actorId: ctx.userId,
+      companyId,
+      entityType: "IconGroupColour",
+      entityId: trade,
+      action: "updated",
+      diff: { group: group.name, before: before?.colour ?? group.colour, after: next ?? group.colour },
+    });
+  });
+  return { trade, colour: next };
 }
 
 /** Placing a custom icon: it must be this business's, and still in the library. */

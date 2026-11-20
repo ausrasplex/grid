@@ -32,7 +32,7 @@ import {
   usePlanPointer,
   type PlanPointer,
 } from "@grid/ui";
-import { CUSTOM_TRADE, TRADES, iconLookup, type CustomIconRow, type IconLookup, type Trade, type TradeIcon } from "../icons";
+import { iconLookup, type CustomIconRow, type GroupColours, type IconLookup, type TradeIcon } from "../icons";
 import { distance, showsOn, type Point } from "../geometry";
 import { IconGlyph } from "./IconGlyph";
 import { LayerPick } from "./MarkupLayer";
@@ -102,6 +102,7 @@ export function IconLayer({
   initialJob,
   canAdd,
   customIcons,
+  groupColours,
   canManageIcons,
   documentsOn,
 }: {
@@ -113,12 +114,14 @@ export function IconLayer({
   canAdd: boolean;
   /** The business's own icons (phase 4c part 3), deleted ones too so placed ones still draw. */
   customIcons: CustomIconRow[];
+  /** The business's own icon group colours (Settings › Icons). */
+  groupColours: GroupColours;
   /** May add custom icons (Settings › Icons). */
   canManageIcons: boolean;
   /** Documents is on: a placed icon offers the manuals linked to its type. */
   documentsOn: boolean;
 }) {
-  const lookup = useMemo(() => iconLookup(customIcons), [customIcons]);
+  const lookup = useMemo(() => iconLookup(customIcons, groupColours), [customIcons, groupColours]);
   const overlay = usePlanOverlay();
   const { view, version, versions, isCurrent, hidden, setTool } = overlay;
   const placing = overlay.tool === "markups.icon";
@@ -566,7 +569,7 @@ function CountsPanel({
     totals.set(entry.iconKey, numbers);
   }
   // Group by trade (custom icons in theirs, or Custom), in the library's order.
-  const tradeOrder: Trade[] = [CUSTOM_TRADE, ...TRADES];
+  const tradeOrder = lookup.groups;
   const groupsFor = (keys: string[]) =>
     tradeOrder
       .map((trade) => ({ trade, keys: keys.filter((key) => lookup.trade(key)?.id === trade.id).sort((first, second) => (lookup.icon(first)?.name ?? "").localeCompare(lookup.icon(second)?.name ?? "")) }))

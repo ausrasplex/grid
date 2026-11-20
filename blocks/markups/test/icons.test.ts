@@ -64,3 +64,18 @@ test("a built-in icon can be given the business's own look", async () => {
   assert.equal(lookup.icon("electrical.gpo-single")?.svg, undefined);
   assert.equal(lookup.icon("electrical.gpo-single")?.name, "Single GPO");
 });
+
+test("a business's group colours reach every icon in the group", async () => {
+  const { iconLookup, iconGroups, contrastOnWhite, customKey } = await import("../icons.ts");
+  const id = "4d6e4a3c-6b1e-4f3a-9c55-3f2b8f0d1a22";
+  const lookup = iconLookup([{ id, trade: "custom", name: "Bollard", words: [], outline: "circle", label: "B", svg: null, tint: false, replacesKey: null, deleted: false }], { electrical: "#111827", custom: "#0d9488", plumbing: "not a colour" });
+  assert.equal(lookup.trade("electrical.gpo-double")?.colour, "#111827");
+  assert.equal(lookup.trade(customKey(id))?.colour, "#0d9488");
+  assert.equal(lookup.search("").find((group) => group.trade.id === "electrical")?.trade.colour, "#111827");
+  assert.equal(lookup.groups[0]!.id, "custom");
+  // A bad colour is ignored: the usual one stays.
+  assert.equal(lookup.trade("plumbing.tap")?.colour ?? iconGroups().find((trade) => trade.id === "plumbing")!.colour, iconGroups().find((trade) => trade.id === "plumbing")!.colour);
+  // Nothing changed: the built-in colours.
+  assert.equal(iconLookup([]).trade("electrical.gpo-double")?.colour, "#dc2626");
+  assert.ok(contrastOnWhite("#111827") > 15 && contrastOnWhite("#ffff00") < 3);
+});

@@ -17,7 +17,7 @@ export async function planDrawing(input: PlanDrawingInput): Promise<string> {
   if (input.viewer && !input.viewer.permissions.has("markups.view")) return "";
   const layerFilter = [...(input.layerIds.length ? [{ layerId: { in: input.layerIds } }] : []), ...(input.withDefault ? [{ layerId: null }] : [])];
   if (!layerFilter.length) return "";
-  const [rows, scales, customs, numbers] = await Promise.all([
+  const [rows, scales, customs, colours, numbers] = await Promise.all([
     db.planMarkup.findMany({
       where: { companyId: input.companyId, sheetId: input.sheetId, deletedAt: null, visibility: { not: "JUST_ME" }, OR: layerFilter },
       orderBy: { createdAt: "asc" },
@@ -25,6 +25,7 @@ export async function planDrawing(input: PlanDrawingInput): Promise<string> {
     }),
     db.planScale.findMany({ where: { companyId: input.companyId, sheetId: input.sheetId } }),
     db.customIcon.findMany({ where: { companyId: input.companyId } }),
+    db.iconGroupColour.findMany({ where: { companyId: input.companyId }, select: { trade: true, colour: true } }),
     db.jobIconVersion.groupBy({ by: ["iconKey"], where: { companyId: input.companyId, projectId: input.projectId }, _count: { _all: true } }),
   ]);
   const markups = showsOn(
@@ -49,6 +50,7 @@ export async function planDrawing(input: PlanDrawingInput): Promise<string> {
         deleted: !!row.deletedAt,
       }),
     ),
+    Object.fromEntries(colours.map((row) => [row.trade, row.colour])),
   );
   // An icon shows its number once the job has two or more of it.
   const numbered = new Set(numbers.filter((group) => group._count._all >= 2).map((group) => group.iconKey));

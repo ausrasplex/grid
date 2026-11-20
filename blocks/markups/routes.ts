@@ -3,7 +3,7 @@ import type { Routes } from "@grid/core";
 import * as svc from "./service";
 import * as icons from "./icon-versions";
 import * as custom from "./custom-icons";
-import { addIconVersionSchema, customIconSchema, linkItemSchema, createMarkupSchema, renumberSchema, setScaleSchema, updateIconVersionSchema, updateMarkupSchema } from "./validation";
+import { addIconVersionSchema, customIconSchema, groupColourSchema, linkItemSchema, createMarkupSchema, renumberSchema, setScaleSchema, updateIconVersionSchema, updateMarkupSchema } from "./validation";
 
 export const routes: Routes = {
   "GET /sheet/:sheetId": { permission: "markups.view", handler: (ctx, request) => svc.sheetMarkups(ctx, request.params.sheetId!) },
@@ -29,6 +29,8 @@ export const routes: Routes = {
   "POST /custom-icons": { permission: "markups.manage", handler: (ctx, request) => custom.saveCustomIcon(ctx, null, customIconSchema.parse(request.body)) },
   "PUT /custom-icons/:id": { permission: "markups.manage", handler: (ctx, request) => custom.saveCustomIcon(ctx, request.params.id!, customIconSchema.parse(request.body)) },
   "DELETE /custom-icons/:id": { permission: "markups.manage", handler: (ctx, request) => custom.deleteCustomIcon(ctx, request.params.id!) },
+  "GET /group-colours": { permission: "markups.view", handler: (ctx) => custom.groupColours(ctx) },
+  "PUT /group-colours/:trade": { permission: "markups.manage", handler: (ctx, request) => custom.setGroupColour(ctx, request.params.trade!, groupColourSchema.parse(request.body).colour) },
 
   "POST /": { permission: "markups.add", handler: (ctx, request) => svc.createMarkup(ctx, createMarkupSchema.parse(request.body)) },
   "PATCH /:id": { permission: "markups.add", handler: (ctx, request) => svc.updateMarkup(ctx, request.params.id!, updateMarkupSchema.parse(request.body)) },

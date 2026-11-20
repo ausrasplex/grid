@@ -16,6 +16,7 @@ export async function purgeCompany(companyId: string): Promise<void> {
     await tx.planScale.deleteMany({ where: { companyId } });
     await tx.jobIconVersion.deleteMany({ where: { companyId } });
     await tx.customIcon.deleteMany({ where: { companyId } });
+    await tx.iconGroupColour.deleteMany({ where: { companyId } });
   });
 }
 
