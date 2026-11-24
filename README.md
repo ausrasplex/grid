@@ -128,7 +128,7 @@ switches with trade presets, company switcher, audit log.
 - **Phase 2b-lite — Photos & notes (done):** per-area photos and notes, before/after, viewer, printable photo report, offline outbox, Take a photo centre button. **Design: `docs/photos-block.md`.**
 - **Phase 2c — Storage clean-up (done):** unfiled uploads and Recently deleted cleaned up on a schedule, with restore, Delete now and a history in Settings › Storage. **Design: `docs/photos-block.md`.**
 - **Phase 2d — Backups (done):** database and/or media, scheduled or one-click, keep the latest N, download any backup; restore script for the Unraid terminal. **Design: `docs/backups.md`.**
-- **Phase 3a — Quotes (done):** tax & currency settings, clients, price book, quick quotes on the phone, branded PDF, email or send yourself, revisions, accept → job. Branding under Settings. **Designs: `docs/quotations-block.md`, `docs/templates-block.md`.**
+- **Phase 3a — Quotes (done):** tax & currency settings, clients, price list, quick quotes on the phone, branded PDF, email or send yourself, revisions, accept → job. Branding under Settings. **Designs: `docs/quotations-block.md`, `docs/templates-block.md`.**
 - **Phase 4a — Plans (done):** upload PDFs (one per sheet or a whole set) or images, Grid reads sheet numbers, titles and revisions for you to check, every revision kept, fast deep-zoom viewer on phone and tablet. **Design: `docs/plans-block.md`.**
 - **Phase 4b — Markups, photo pins, measuring.**
 - **Phase 3b — Customer signing (done):** private quote link, extras, one-time code, drawn or typed signature, sealed signed PDF with certificate page, verify page, decline online.

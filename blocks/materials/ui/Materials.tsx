@@ -45,7 +45,7 @@ export function Materials({ initial, initialBrands, canManage }: { initial: Mate
     <>
       <PageHeader
         title="Materials"
-        subtitle="The things you install, kept once with their photo, brand and finish. The price book adds your prices; handover sheets list them per room."
+        subtitle="The things you install, kept once with their photo, brand and finish. The price list adds your prices; handover sheets list them per room."
         meta={`${rows.length} ${rows.length === 1 ? "material" : "materials"}`}
         actions={canManage && <ActionButton icon={<Plus />} label="Add material" onClick={() => setAdding({ name: query.trim() })} />}
       />

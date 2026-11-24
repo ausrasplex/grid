@@ -1,6 +1,6 @@
 // Public service API of the materials block (core, docs/materials-block.md §1):
 // the business's own list of the things it installs, their brands and families.
-// Quotes' price book items point at a material and add the money; the Handover
+// Quotes' price list items point at a material and add the money; the Handover
 // Block lists materials per job.
 
 import { app, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
@@ -27,12 +27,12 @@ export interface MaterialRow {
   photoFileId: string | null;
   swatch: string | null;
   notes: string | null;
-  /** Removed from the list (kept for the price book and jobs that use it). */
+  /** Removed from the list (kept for the price list and jobs that use it). */
   removed: boolean;
 }
 
 /**
- * Payload of "materials.changed": the price book keeps each material item's
+ * Payload of "materials.changed": the price list keeps each material item's
  * name ("Iconic double switch, White") in step with its material.
  */
 export interface MaterialChangedEvent {
@@ -110,7 +110,7 @@ export async function listMaterials(ctx: RequestContext, options: ListQuery = {}
   return rows.map(toRow);
 }
 
-/** One material, removed ones too (a price book item or job may still name it). */
+/** One material, removed ones too (a price list item or job may still name it). */
 export async function getMaterial(ctx: RequestContext, id: string): Promise<MaterialRow> {
   const companyId = requireCompany(ctx);
   const row = await db.material.findFirst({ where: { id, companyId }, include });
@@ -245,7 +245,7 @@ export async function saveMaterial(ctx: RequestContext, id: string | null, input
 }
 
 /**
- * Removes a material from the list. It's kept (with its photo) for price book
+ * Removes a material from the list. It's kept (with its photo) for price list
  * items, quotes and jobs that already use it.
  */
 export async function deleteMaterial(ctx: RequestContext, id: string) {

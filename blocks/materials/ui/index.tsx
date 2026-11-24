@@ -43,7 +43,7 @@ async function MaterialPage({ ctx, materialId }: { ctx: RequestContext; material
       />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <Stack>
-          {material.removed && <Alert>This material was removed from the list. Price book items and jobs that use it keep it.</Alert>}
+          {material.removed && <Alert>This material was removed from the list. Price list items and jobs that use it keep it.</Alert>}
           <Section title="Details" flush>
             <dl className="divide-y">
               {details

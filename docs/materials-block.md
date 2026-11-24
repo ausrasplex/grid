@@ -19,7 +19,7 @@ Two parts:
 - **Fields:**
   - **name**, the full product description ("Masson Accent Minitrim Adjustable LED Dimmable Downlight");
   - **item type**, the short word the client knows ("Downlight", "Wash light", "Step light", "Double GPO"; suggested from types already used, any words fine);
-  - **brand** (the business's Brands list, moved here from the price book) and **model** / manufacturer code;
+  - **brand** (the business's Brands list, moved here from the price list) and **model** / manufacturer code;
   - **colour / finish** ("White with warm white bulb", "Matt black"; suggested from finishes already used) and **size** ("90 mm cut-out"), both optional;
   - **link**, the product's web page (spec sheet, the maker's page);
   - **trade**, **family**;
@@ -27,18 +27,18 @@ Two parts:
   - **notes** (shown on the handover sheet when wanted, e.g. "IP44");
   - `deletedAt`.
 - **Trade** uses the same trades as the plan icons (Electrical, Data & comms, Plumbing, HVAC, Fire, Security, Gas, Solar & batteries) plus **Other**. It decides the material's group on the handover sheet.
-- **Where it lives:** Settings › Materials (`/materials`), a list with search, a trade filter and a brand filter, like the price book. Add or edit a material in a sheet; take or pick the photo there.
-- **Adding on the fly:** anywhere a material is picked (price book, a job's handover list), "Add a new material…" opens the same sheet with the typed name filled in.
+- **Where it lives:** Settings › Materials (`/materials`), a list with search, a trade filter and a brand filter, like the price list. Add or edit a material in a sheet; take or pick the photo there.
+- **Adding on the fly:** anywhere a material is picked (price list, a job's handover list), "Add a new material…" opens the same sheet with the typed name filled in.
 - **Unique:** Grid warns when a new material has the same brand, model and finish as one already in the list ("Already in Materials: open it?"), but doesn't block it.
 - **Permissions:** `materials.view`, `materials.manage`. Owner and Foreman: both. Employee and Viewer: view.
 - **Stored for later now:** `catalogueModelId?`, the link to the server-wide product catalogue planned in `documents-block.md` (Manufacturer → Family → Model). Unused until that's built.
 
-### The price book adds the money
+### The price list adds the money
 
-- A price book **material** item now points at a material (`PriceItem.materialId`) and takes its name, brand and photo from it. The price book keeps what's about buying and selling: cost, sell, markup, unit, tax code, supplier and supplier code.
-- **Labour** items stay in the price book only (labour isn't a material).
+- A price list **material** item now points at a material (`PriceItem.materialId`) and takes its name, brand and photo from it. The price list keeps what's about buying and selling: cost, sell, markup, unit, tax code, supplier and supplier code.
+- **Labour** items stay in the price list only (labour isn't a material).
 - **Moving existing data:** the migration makes a material for each existing material item (name, brand) and links them. `PriceBrand` becomes the Materials Brands list (same ids, so nothing is lost). Quotes already sent keep their own copies of line text, as now.
-- In the price book, adding a material item starts from "Pick a material" (or "Add a new material…").
+- In the price list, adding a material item starts from "Pick a material" (or "Add a new material…").
 
 ## 2. The job's handover list (Handover Block)
 
@@ -50,8 +50,8 @@ Two parts:
 - **Cover:** a switch, the title for this job, and the cover picture (one of the job's photos, or upload one).
 - **Where lines come from (a mix):**
   - **Pick from Materials** (search, or by trade and brand), or "Add a new material…".
-  - **Bring in from plans:** plan icon numbers whose price book item is linked to a material come in with their counts per level. Room is left blank to fill in. Running it again shows what changed ("Plans now have 26, the list has 24: Update?") and never overwrites lines changed by hand.
-  - **Bring in from the accepted quote:** quote lines from price book items linked to a material.
+  - **Bring in from plans:** plan icon numbers whose price list item is linked to a material come in with their counts per level. Room is left blank to fill in. Running it again shows what changed ("Plans now have 26, the list has 24: Update?") and never overwrites lines changed by hand.
+  - **Bring in from the accepted quote:** quote lines from price list items linked to a material.
 - **Sort:** trades in the fixed order above; rooms in the order you drag them (first used first, by default); items by name within a room.
 - **Permissions:** `handover.view`, `handover.edit`, `handover.share`. Owner and Foreman: all three. Employee: view and edit. Viewer: view. While solo, it's just you.
 - Every change writes the audit log (entity `HandoverItem`, `HandoverSettings`).
@@ -114,7 +114,7 @@ Clients can open and download their handover sheet themselves, without Grid: a p
 
 ## 5. Build order
 
-1. **Materials core:** the list, brands and families, photos; the price book moved onto materials, with the data migration. **Done**, see "What part 1 built".
+1. **Materials core:** the list, brands and families, photos; the price list moved onto materials, with the data migration. **Done**, see "What part 1 built".
 2. **Handover Block:** the job's list (pick, rooms, quantities switch, swap finish), the landscape PDF, and the client's link.
 3. **Bring in from plans and from the accepted quote.**
 
@@ -122,8 +122,8 @@ Clients can open and download their handover sheet themselves, without Grid: a p
 
 - **The `materials` Block** (`blocks/materials`, core): Settings › Materials at `/materials` (icon `package`), with search (name, type, brand, model, finish, family), trade chips (only trades in use) and brand chips with **Edit brands**. Each material has its own page, `/materials/<id>`, with its details, picture and **Other finishes** (the rest of its family).
 - **The material form** (`MaterialSheet`): Photo or Colour (a colour picker plus a typed code), name, item type, trade (starting with the business's own trade, `tradeForCompany`), brand (with "Add a new brand…"), model, colour / finish, size, family, link (typed without `https://` is fine) and notes. Item types, finishes and families are suggested from what's already used. A family is found by name or made. Saving a material that has the same brand, model (or name, without one) and finish as another shows "Already in Materials" with **Open it** and **Save anyway**.
-- **Removing a material** hides it from the list and pickers; it keeps its photo for price book items and jobs that use it. Its photo is readable by anyone in the business with `materials.view`.
+- **Removing a material** hides it from the list and pickers; it keeps its photo for price list items and jobs that use it. Its photo is readable by anyone in the business with `materials.view`.
 - **Routes** at `/api/materials`: list (`q`, `trade`, `brand`, `family`), `suggestions`, `same`, `brands` (moved from `/api/quotes/brands`), and a material by id. Events: `materials.changed` (`MaterialChangedEvent`) when a material is saved.
 - **For other Blocks:** `@grid/block-materials` (`listMaterials`, `materialsById`, `materialIdsMatching`, `requireMaterial`, `listBrands`, trades and words) and `@grid/block-materials/components` (`MaterialPicker`, `MaterialSheet`, `MaterialPicture`, `BrandChips`).
-- **The price book:** a material item picks its material (**Pick a material**, with "Add a new material…" for anyone with `materials.manage`) and shows its photo; its name follows the material ("Iconic double switch, White"), kept in step through `materials.changed`. Labour is unchanged. The price book's brand chips filter by the material's brand; brands are edited in Materials. Quotes now depends on Materials.
+- **The price list:** a material item picks its material (**Pick a material**, with "Add a new material…" for anyone with `materials.manage`) and shows its photo; its name follows the material ("Iconic double switch, White"), kept in step through `materials.changed`. Labour is unchanged. The price list's brand chips filter by the material's brand; brands are edited in Materials. Quotes now depends on Materials.
 - **The migration** (`20261124090000_materials`) copied `PriceBrand` into `MaterialBrand` (same ids), made a material for every material item (same id as the item, its name and brand, in the business's trade; removed items became removed materials), linked them, then dropped `PriceItem.brandId` and `PriceBrand`.

@@ -1,7 +1,7 @@
 "use client";
 
 // The quote screen. A draft is edited in place on the phone: tap a line to
-// change it, add from the price book, totals update as you type, and it
+// change it, add from the price list, totals update as you type, and it
 // saves itself. Once sent it's read-only: revisions, PDF, accept/decline.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -318,10 +318,10 @@ export function QuoteEditor({
   });
 
   // --- take-off from plans (the "quote.takeoff" slot) --------------------
-  /** Waiting for the price book picker to choose an item for a take-off number. */
+  /** Waiting for the price list picker to choose an item for a take-off number. */
   const chooser = useRef<((item: { id: string; name: string } | null) => void) | null>(null);
   const priceOf = (item: PriceItemJson) => {
-    // Price book prices are ex tax; convert when this quote is typed incl.
+    // Price list prices are ex tax; convert when this quote is typed incl.
     const rate = settings.codes.find((code) => code.id === item.taxCodeId)?.rate ?? 0;
     return form.pricesIncludeTax ? Math.round(item.sell * (1 + rate) * 100) / 100 : item.sell;
   };
@@ -628,7 +628,7 @@ export function QuoteEditor({
             setPicking(false);
             return;
           }
-          // Price book prices are ex tax; convert when this quote is typed incl.
+          // Price list prices are ex tax; convert when this quote is typed incl.
           const rate = settings.codes.find((code) => code.id === item.taxCodeId)?.rate ?? 0;
           const sell = form.pricesIncludeTax ? Math.round(item.sell * (1 + rate) * 100) / 100 : item.sell;
           // Tapping the same item again adds one more rather than a second line.
@@ -1047,11 +1047,11 @@ function SectionSheet({ line, sections, onPick, onClose }: { line: LineJson; sec
   );
 }
 
-/** The + on Prices: add from the price book, or type a custom line. */
+/** The + on Prices: add from the price list, or type a custom line. */
 function AddLineSheet({ open, onOpenChange, onPriceBook, onCustom }: { open: boolean; onOpenChange: (open: boolean) => void; onPriceBook: () => void; onCustom: () => void }) {
   const choices = [
-    { label: "Price book", description: "Labour and materials you've saved, at your prices", icon: Star, onClick: onPriceBook },
-    { label: "Custom line", description: "Type in anything that isn't in the price book", icon: Plus, onClick: onCustom },
+    { label: "Price list", description: "Labour and materials you've saved, at your prices", icon: Star, onClick: onPriceBook },
+    { label: "Custom line", description: "Type in anything that isn't in the price list", icon: Plus, onClick: onCustom },
   ];
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -1121,9 +1121,9 @@ function PriceBookPicker({
   };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent title={choosing ? "Pick the item" : "Add from price book"} description={choosing ? "What this icon number is priced as on the quote." : "Tap to add. Change the quantity after."}>
+      <SheetContent title={choosing ? "Pick the item" : "Add from price list"} description={choosing ? "What this icon number is priced as on the quote." : "Tap to add. Change the quantity after."}>
         <div className="flex flex-col gap-3 px-2">
-          <SearchInput label="Search the price book" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <SearchInput label="Search the price list" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} />
           <Segmented
             label="Kind"
             value={kind}
@@ -1155,7 +1155,7 @@ function PriceBookPicker({
             ))}
             {items?.length === 0 && (
               <li className="px-3 py-4 text-sm text-muted-foreground">
-                {query ? "Nothing matches." : "Your price book is empty."} <a className="font-semibold underline" href="/quotes/price-book">Set up your price book</a>
+                {query ? "Nothing matches." : "Your price list is empty."} <a className="font-semibold underline" href="/quotes/price-list">Set up your price list</a>
               </li>
             )}
           </ul>

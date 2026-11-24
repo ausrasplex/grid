@@ -4,14 +4,14 @@ export default defineBlock({
   id: "quotes",
   name: "Quotes",
   version: "1.0.0",
-  description: "Quick quotes from your phone with a price book, your logo on a proper PDF, emailed to the client. Accepted quotes become jobs.",
+  description: "Quick quotes from your phone with a price list, your logo on a proper PDF, emailed to the client. Accepted quotes become jobs.",
   dependsOn: ["clients", "materials", "sites", "projects", "templates", "signatures"],
   permissions: [
     { key: "quotes.view", label: "See quotes" },
     { key: "quotes.create", label: "Write quotes", description: "Draft and change quotes" },
     { key: "quotes.send", label: "Send quotes", description: "Email quotes to clients and mark them accepted or declined" },
-    { key: "quotes.costs.view", label: "See costs and margins", description: "Buy prices in the price book and the margin on each quote" },
-    { key: "quotes.pricebook.manage", label: "Change the price book" },
+    { key: "quotes.costs.view", label: "See costs and margins", description: "Buy prices in the price list and the margin on each quote" },
+    { key: "quotes.pricebook.manage", label: "Change the price list" },
     { key: "quotes.settings.manage", label: "Change tax and currency settings" },
   ],
   // The Owner gets everything. Estimators and foreman drafts come with teams.
@@ -20,7 +20,7 @@ export default defineBlock({
   },
   menus: [
     { id: "quotes.list", slot: "sidebar.main", label: "Quotes", icon: "dollar", href: "/quotes", permission: "quotes.view", prominence: "main", order: 30 },
-    { id: "quotes.pricebook", slot: "settings.company", label: "Price book", icon: "clipboard", href: "/quotes/price-book", permission: "quotes.view", order: 50 },
+    { id: "quotes.pricebook", slot: "settings.company", label: "Price list", icon: "clipboard", href: "/quotes/price-list", permission: "quotes.view", order: 50 },
     { id: "quotes.tax", slot: "settings.company", label: "Tax & currency", icon: "dollar", href: "/quotes/settings", permission: "quotes.settings.manage", order: 52 },
     // Each person's own (Settings › You); shown while the Quotes Block is on.
     { id: "quotes.me", slot: "settings.user", label: "Quote screen", icon: "dollar", href: "/quotes/me", permission: "quotes.view", order: 30 },

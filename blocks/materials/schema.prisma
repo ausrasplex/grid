@@ -1,5 +1,5 @@
 // Materials block (docs/materials-block.md §1), core. The business's own list
-// of the things it installs. Quotes' price book items point at a material
+// of the things it installs. Quotes' price list items point at a material
 // (PriceItem.materialId) and add the money; the Handover Block lists them per job.
 
 /// A make you buy (Clipsal, HPM, Beacon Lighting…). Moved here from the price

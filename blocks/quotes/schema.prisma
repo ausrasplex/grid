@@ -1,5 +1,5 @@
 // Quotes block (docs/quotations-block.md). Phase 3a: tax settings, clients,
-// price book, quick quotes, revisions, accept → job. Signing comes in 3b.
+// price list, quick quotes, revisions, accept → job. Signing comes in 3b.
 // Money is Decimal(12,2) in dollars; maths happens in cents (money.ts).
 
 enum QuoteStatus {
@@ -90,7 +90,7 @@ model PriceItem {
   supplier     String?
   supplierCode String?
   /// A material item's material (materials block, core): its name, brand,
-  /// photo and finish live there; the price book adds the money. The name
+  /// photo and finish live there; the price list adds the money. The name
   /// above is kept in step ("materials.changed"). Null for labour.
   materialId   String?
   /// Shown first when adding to a quote on the phone.
@@ -171,7 +171,7 @@ model QuoteLine {
   sort        Int
   section     String?
   priceItemId String?
-  /// Labour or material (from the price book item, or picked); null is Other.
+  /// Labour or material (from the price list item, or picked); null is Other.
   /// The materials markup only prices MATERIAL lines.
   kind        PriceItemKind?
   description String

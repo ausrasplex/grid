@@ -171,7 +171,7 @@ function CodeSheet({ code, others, onClose, onSaved }: { code: Partial<Code>; ot
   const action = useAction();
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent desktop="dialog" title={code.id ? "Tax rate" : "New tax rate"} description="Deleting a rate moves your price book items and draft quotes onto another one. Sent quotes keep it.">
+      <SheetContent desktop="dialog" title={code.id ? "Tax rate" : "New tax rate"} description="Deleting a rate moves your price list items and draft quotes onto another one. Sent quotes keep it.">
         <form
           className="flex flex-col gap-3 px-2"
           onSubmit={async (event) => {
@@ -218,7 +218,7 @@ function DeleteRate({ id, others, busy, onDeleted }: { id: string; others: Code[
       </div>
     );
   }
-  const used = [usage.priceItems && `${usage.priceItems} price book ${usage.priceItems === 1 ? "item" : "items"}`, usage.draftQuotes && `${usage.draftQuotes} draft ${usage.draftQuotes === 1 ? "quote" : "quotes"}`].filter(Boolean) as string[];
+  const used = [usage.priceItems && `${usage.priceItems} price list ${usage.priceItems === 1 ? "item" : "items"}`, usage.draftQuotes && `${usage.draftQuotes} draft ${usage.draftQuotes === 1 ? "quote" : "quotes"}`].filter(Boolean) as string[];
   const said = [used.length ? `It's used by ${used.join(" and ")}.` : "", usage.isDefault ? "It's the default for new lines." : ""].filter(Boolean).join(" ");
   const moving = used.length > 0 || usage.isDefault;
   return (

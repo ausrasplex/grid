@@ -27,7 +27,7 @@ export const tradeName = (id: string) => MATERIAL_TRADES.find((trade) => trade.i
 /**
  * A business's own trade (Company.tradeProfile, blocks/companies/trades.ts)
  * as a material trade: the starting trade for its new materials.
- * The same table is in the migration that moved the price book onto materials.
+ * The same table is in the migration that moved the price list onto materials.
  */
 const FROM_COMPANY: Record<string, string> = {
   ELECTRICAL: "electrical",

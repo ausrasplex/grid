@@ -1,6 +1,6 @@
 "use client";
 
-// Small pieces the materials screens (and the price book) share.
+// Small pieces the materials screens (and the price list) share.
 import { Package } from "lucide-react";
 import { cn } from "@grid/ui";
 

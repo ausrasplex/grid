@@ -14,7 +14,7 @@ export interface QuoteTakeoffPanelProps {
   quote: { id: string; number: string; title: string; projectId: string | null };
 }
 
-/** One line a take-off wants on the quote: a count of an icon and number, priced from its price book item. */
+/** One line a take-off wants on the quote: a count of an icon and number, priced from its price list item. */
 export interface TakeoffLine {
   /** "<icon key>#<number>": how the quote recognises the line later. */
   takeoffKey: string;
@@ -33,9 +33,9 @@ export interface QuoteTakeoffValue {
   start: () => Promise<string>;
   /** Adds each line (or updates the quantity of the one already there), priced from its item. */
   addLines: (lines: TakeoffLine[]) => Promise<void>;
-  /** The quote's price book picker; resolves with the item picked, or null if closed. */
+  /** The quote's price list picker; resolves with the item picked, or null if closed. */
   chooseItem: () => Promise<{ id: string; name: string } | null>;
-  /** Names of price book items, for showing what each number is linked to. */
+  /** Names of price list items, for showing what each number is linked to. */
   itemNames: (ids: string[]) => Promise<Record<string, string>>;
 }
 

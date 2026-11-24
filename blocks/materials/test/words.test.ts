@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { cleanLink, cleanSwatch, materialMeta, priceBookName } from "../words.ts";
 import { MATERIAL_TRADES, tradeForCompany, tradeName } from "../trades.ts";
 
-test("a material's price book name carries its finish", () => {
+test("a material's price list name carries its finish", () => {
   assert.equal(priceBookName({ name: "Iconic double switch", finish: "White" }), "Iconic double switch, White");
   assert.equal(priceBookName({ name: "Double GPO, white", finish: null }), "Double GPO, white");
 });

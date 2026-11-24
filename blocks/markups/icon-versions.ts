@@ -112,7 +112,7 @@ async function ownVersion(ctx: RequestContext, id: string) {
   return version;
 }
 
-/** A number's short name, and (from the quote's Take-off, part 2) its price book item. */
+/** A number's short name, and (from the quote's Take-off, part 2) its price list item. */
 export async function updateIconVersion(ctx: RequestContext, id: string, input: { name?: string | null; priceItemId?: string | null }) {
   const version = await ownVersion(ctx, id);
   await db.$transaction(async (tx) => {
@@ -141,7 +141,7 @@ export async function deleteIconVersion(ctx: RequestContext, id: string) {
   await db.$transaction(async (tx) => {
     await tx.jobIconVersion.delete({ where: { id } });
     // One number left: the icon goes back to unnumbered (its icons were all that number). It becomes
-    // number 1, keeping its name and price book item.
+    // number 1, keeping its name and price list item.
     const left = await tx.jobIconVersion.findMany({ where: { companyId: version.companyId, projectId: version.projectId, iconKey: version.iconKey } });
     if (left.length === 1) {
       if (left[0]!.number !== 1) await tx.jobIconVersion.update({ where: { id: left[0]!.id }, data: { number: 1 } });
@@ -187,7 +187,7 @@ export async function renumberIcons(ctx: RequestContext, input: { ids: string[];
 }
 
 /**
- * The price book item an icon (and number) becomes on a quote: set from the
+ * The price list item an icon (and number) becomes on a quote: set from the
  * quote's Take-off. An unnumbered icon gets a row for number 1 (it stays
  * unnumbered: numbers show from two rows up).
  */

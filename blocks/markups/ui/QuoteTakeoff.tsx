@@ -5,7 +5,7 @@
 // "quote.takeoff" slot:
 //   - no job yet: Start a take-off makes a Quoting job and opens its plans
 //   - the job's icon counts (whole job), split by number, each with the
-//     price book item it becomes (Pick an item)
+//     price list item it becomes (Pick an item)
 //   - Add to quote turns counts into lines; when the plans change, "Take-off
 //     changed" lists the differences to update or keep
 
@@ -185,7 +185,7 @@ export function QuoteTakeoff({ initial, canEditIcons, customIcons, groupColours 
                       <span className="block truncate font-medium">
                         {row.label} <span className="tabular-nums">× {row.count}</span>
                       </span>
-                      <span className="block truncate text-sm text-muted-foreground">{row.priceItemId ? (names[row.priceItemId] ?? "Linked item") : "No price book item yet"}</span>
+                      <span className="block truncate text-sm text-muted-foreground">{row.priceItemId ? (names[row.priceItemId] ?? "Linked item") : "No price list item yet"}</span>
                     </span>
                     {onQuote !== undefined && onQuote === row.count && <Badge variant="success">On the quote</Badge>}
                     {takeoff.editable && canEditIcons && (
@@ -216,7 +216,7 @@ export function QuoteTakeoff({ initial, canEditIcons, customIcons, groupColours 
               <Button disabled={action.busy || !toAdd.length} onClick={() => void action.run(() => takeoff.addLines(toAdd.map(lineFor)))}>
                 {toAdd.length ? `Add ${toAdd.length} to the quote` : "Everything with an item is on the quote"}
               </Button>
-              {rows.some((row) => !row.priceItemId) && <p className="text-xs text-muted-foreground">Icons without a price book item can&apos;t be added until you pick one.</p>}
+              {rows.some((row) => !row.priceItemId) && <p className="text-xs text-muted-foreground">Icons without a price list item can&apos;t be added until you pick one.</p>}
               <Alert variant="error">{action.error}</Alert>
             </div>
           )}

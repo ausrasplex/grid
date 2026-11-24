@@ -1,7 +1,7 @@
 "use client";
 
 // Brands (Clipsal, HPM, Beacon Lighting…): chips to filter by, and a sheet to
-// add, rename and remove them. Moved here from the price book; the price book
+// add, rename and remove them. Moved here from the price list; the price list
 // uses the chips too.
 import { useState } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";

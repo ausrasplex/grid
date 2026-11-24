@@ -223,7 +223,7 @@ The catalogue is filled **as people work**, so a company only holds the products
 
 - **While uploading:** if the manufacturer or model typed doesn't exist, "Add RT-200 as a new model?" creates it. The person picks a family, creates one, or leaves it **Unsorted**.
 - **While scanning:** "No match" offers **Add this product?** with the model number already filled in (see Scan the product).
-- **From the quotes price book:** price book items carry supplier codes. Supplier CSV imports (quotations spec) can create models and link them, so products the company buys appear automatically.
+- **From the quotes price list:** price list items carry supplier codes. Supplier CSV imports (quotations spec) can create models and link them, so products the company buys appear automatically.
 - **Starter list:** new companies get a list of common manufacturer **names** to pick from. Divisions, families and models are added as needed.
 - **Tidying (`documents.products.manage`, Owners and Foremen by default):**
   - move models between families and merge duplicates (e.g. "RT200" and "RT-200"); merging keeps every document link, note and install record;

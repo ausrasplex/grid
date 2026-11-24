@@ -2,7 +2,7 @@ import { defineBlock } from "@grid/core";
 
 // Materials (docs/materials-block.md §1): the business's own list of the
 // things it installs, with a photo or colour swatch, brand, model, finish,
-// trade and family. Core, so Quotes (the price book adds the money) and the
+// trade and family. Core, so Quotes (the price list adds the money) and the
 // Handover Block can both rely on it.
 export default defineBlock({
   id: "materials",

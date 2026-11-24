@@ -137,7 +137,7 @@ export async function saveTaxCode(ctx: RequestContext, id: string | null, input:
   return taxSettings(companyId);
 }
 
-/** What uses a tax rate, for the Delete box: price book items, draft quotes, and whether it's the default. */
+/** What uses a tax rate, for the Delete box: price list items, draft quotes, and whether it's the default. */
 export async function taxCodeUsage(ctx: RequestContext, id: string) {
   const companyId = requireCompany(ctx);
   const settings = await taxSettings(companyId);
@@ -150,7 +150,7 @@ export async function taxCodeUsage(ctx: RequestContext, id: string) {
 }
 
 /**
- * Deletes a tax rate. Price book items and draft quotes using it move to
+ * Deletes a tax rate. Price list items and draft quotes using it move to
  * `moveTo` (another rate, or null for no tax), and so does the default.
  * Sent quotes keep it: their PDFs are frozen, and the rate is only hidden.
  */
@@ -180,14 +180,14 @@ export async function deleteTaxCode(ctx: RequestContext, id: string, moveTo: str
 }
 
 // ---------------------------------------------------------------------
-// Price book
+// Price list
 // ---------------------------------------------------------------------
 
 type PriceItemRecord = Prisma.PriceItemGetPayload<object>;
 
 /**
- * A price book item as lists show it. A material item takes its name, brand,
- * photo and finish from its material (materials block); the price book holds
+ * A price list item as lists show it. A material item takes its name, brand,
+ * photo and finish from its material (materials block); the price list holds
  * the money.
  */
 function priceItemView(item: PriceItemRecord, material: MaterialRow | undefined, showCost: boolean) {
@@ -263,7 +263,7 @@ export async function savePriceItem(ctx: RequestContext, id: string | null, inpu
     let item;
     if (id) {
       const result = await tx.priceItem.updateMany({ where: { id, companyId, deletedAt: null }, data });
-      if (!result.count) throw notFound("Price book item not found");
+      if (!result.count) throw notFound("Price list item not found");
       item = await tx.priceItem.findUniqueOrThrow({ where: { id } });
     } else {
       item = await tx.priceItem.create({ data: { companyId, ...data } });
@@ -277,7 +277,7 @@ export async function savePriceItem(ctx: RequestContext, id: string | null, inpu
 export async function deletePriceItem(ctx: RequestContext, id: string) {
   const companyId = requireCompany(ctx);
   const result = await db.priceItem.updateMany({ where: { id, companyId, deletedAt: null }, data: { deletedAt: new Date() } });
-  if (!result.count) throw notFound("Price book item not found");
+  if (!result.count) throw notFound("Price list item not found");
   return { id, deleted: true };
 }
 
@@ -526,7 +526,7 @@ export async function updateQuote(ctx: RequestContext, id: string, input: Update
     }
     if (lines) {
       // Without permission to see costs, keep the costs that were there, and
-      // take a new price book line's cost from its item (the markup needs it).
+      // take a new price list line's cost from its item (the markup needs it).
       const keepCosts = !showCost;
       const oldCost = new Map(quote.lines.map((line) => [line.priceItemId ?? line.description, line.cost]));
       const newItemIds = keepCosts ? lines.flatMap((line) => (line.priceItemId && !oldCost.has(line.priceItemId) ? [line.priceItemId] : [])) : [];

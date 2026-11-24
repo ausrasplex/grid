@@ -1,10 +1,10 @@
 "use client";
 
-// The price book: labour rates and materials you quote often. Prices here
+// The price list: labour rates and materials you quote often. Prices here
 // are ex tax; a quote typed incl. tax converts them when you add a line.
 // A material item points at a material (Materials, core), which holds its
-// name, brand, photo and finish; the price book adds the money
-// (docs/materials-block.md "The price book adds the money").
+// name, brand, photo and finish; the price list adds the money
+// (docs/materials-block.md "The price list adds the money").
 import { useEffect, useState } from "react";
 import { Plus, Star } from "lucide-react";
 import { BrandChips, MaterialPicker, MaterialPicture, type BrandFilter, type BrandJson, type MaterialJson } from "@grid/block-materials/components";
@@ -100,7 +100,7 @@ export function PriceBook({
   return (
     <>
       <PageHeader
-        title="Price book"
+        title="Price list"
         subtitle={`Labour rates and the prices of your materials. Prices are ex ${taxName}. Starred items come first. Photos, brands and finishes are kept in Settings › Materials.`}
         actions={canManage && <ActionButton icon={<Plus />} label="Add item" onClick={() => setEditing({ kind: kind === "MATERIAL" ? "MATERIAL" : "LABOUR" })} />}
       />
@@ -116,12 +116,12 @@ export function PriceBook({
               { value: "MATERIAL", label: "Materials" },
             ]}
           />
-          <SearchInput label="Search the price book" placeholder="Name, brand, model, supplier or code" value={query} onChange={(event) => setQuery(event.target.value)} className="flex-1" />
+          <SearchInput label="Search the price list" placeholder="Name, brand, model, supplier or code" value={query} onChange={(event) => setQuery(event.target.value)} className="flex-1" />
         </div>
         <BrandChips brands={initialBrands} value={brand} onChange={setBrand} counts={false} />
         <Section flush>
           {rows.length === 0 ? (
-            <EmptyState title={query || brand !== "ALL" ? "Nothing matches" : "Your price book is empty"}>
+            <EmptyState title={query || brand !== "ALL" ? "Nothing matches" : "Your price list is empty"}>
               {!query && brand === "ALL" && canManage && "Add your hourly rate and the materials you use most, then add them to quotes with a tap."}
             </EmptyState>
           ) : (
@@ -225,7 +225,7 @@ function ItemSheet({
   }
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent desktop="dialog" title={item.id ? "Price book item" : "New price book item"}>
+      <SheetContent desktop="dialog" title={item.id ? "Price list item" : "New price list item"}>
         <form
           className="flex flex-col gap-3 px-2"
           onSubmit={async (event) => {

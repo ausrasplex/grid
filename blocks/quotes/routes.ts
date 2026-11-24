@@ -40,14 +40,14 @@ export const routes: Routes = {
   "POST /settings/codes": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.saveTaxCode(ctx, null, taxCodeSchema.parse(request.body)) },
   "PUT /settings/codes/:id": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.saveTaxCode(ctx, request.params.id!, taxCodeSchema.parse(request.body)) },
   "GET /settings/codes/:id/usage": { permission: "quotes.settings.manage", handler: (ctx, request) => svc.taxCodeUsage(ctx, request.params.id!) },
-  // ?moveTo=<rate id> moves price book items, draft quotes and the default onto it; left out means no tax.
+  // ?moveTo=<rate id> moves price list items, draft quotes and the default onto it; left out means no tax.
   "DELETE /settings/codes/:id": {
     permission: "quotes.settings.manage",
     handler: (ctx, request) => svc.deleteTaxCode(ctx, request.params.id!, z.string().uuid().nullable().parse(request.query.get("moveTo") || null)),
   },
 
 
-  // Price book
+  // Price list
   "GET /items": { permission: "quotes.view", handler: (ctx, request) => svc.listPriceItems(ctx, itemsQuery.parse(queryParams(request))) },
   "POST /items": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.savePriceItem(ctx, null, priceItemSchema.parse(request.body)) },
   "PUT /items/:id": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.savePriceItem(ctx, request.params.id!, priceItemSchema.parse(request.body)) },

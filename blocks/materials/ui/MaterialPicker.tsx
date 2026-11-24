@@ -1,6 +1,6 @@
 "use client";
 
-// Pick a material from the list (the price book's material items, later the
+// Pick a material from the list (the price list's material items, later the
 // job's handover list). "Add a new material…" opens the material form with
 // what was typed.
 import { useEffect, useState } from "react";

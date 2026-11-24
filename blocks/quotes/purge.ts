@@ -1,4 +1,4 @@
-// Deleting a business (docs/roadmap.md "Deleting a business"): quotes, the price book and tax settings.
+// Deleting a business (docs/roadmap.md "Deleting a business"): quotes, the price list and tax settings.
 // companyUsage is shown before someone deletes it; purgeCompany runs in the
 // storage clean-up once Recently deleted has run out. Files go afterwards
 // (the clean-up removes every StoredFile of the business), so only rows here.
@@ -14,7 +14,7 @@ export async function companyUsage(companyId: string): Promise<LevelUsage[]> {
   ]);
   return [
     { count: quotes, one: "quote", many: "quotes" },
-    { count: items, one: "price book item", many: "price book items" },
+    { count: items, one: "price list item", many: "price list items" },
   ];
 }
 

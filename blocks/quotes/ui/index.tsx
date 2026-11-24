@@ -4,7 +4,7 @@
 //   /quotes/<id>            the quote: editor while draft, outcome once sent
 //   /quotes/<id>/pdf[/rev/<revision> | /signed]  its PDF, inside Grid
 //   /quotes/me              Settings › You › Quote screen (your own swipes)
-//   /quotes/price-book      labour and materials
+//   /quotes/price-list      labour and materials (/quotes/price-book forwards here)
 //   /quotes/clients         → /clients (one list for jobs and quotes)
 //   /quotes/settings        tax & currency
 //   /q/<token>                the customer's page (public; rewrites to /p/quotes/q/<token>)
@@ -97,7 +97,10 @@ export const pages: BlockPages = {
     return <UploadQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} canPickSite={can(ctx, "sites.view")} />;
   },
 
-  "price-book": async ({ ctx }) => {
+  // Was /quotes/price-book; old links and bookmarks still land here.
+  "price-book": async () => redirect("/quotes/price-list"),
+
+  "price-list": async ({ ctx }) => {
     const [items, brands, settings] = await Promise.all([listPriceItems(ctx), listBrands(ctx), getTaxSettings(ctx)]);
     return (
       <PriceBook

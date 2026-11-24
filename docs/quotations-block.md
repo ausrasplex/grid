@@ -1,18 +1,18 @@
 # Quotations block: agreed design
 
-Status: **3a built** (November 2026): tax & currency settings, clients, price book, quick quote on the phone, PDF with your branding, send by email or by hand, revisions (Rev A, B…), accept → job, decline, withdraw. **3b built** (November 2026): customer link, one-time code, drawn/typed signature, chosen extras, sealed signed PDF with a certificate page, verify page, decline online. Block id `quotes`, depends on `projects`, `templates` and `signatures`.
+Status: **3a built** (November 2026): tax & currency settings, clients, price list, quick quote on the phone, PDF with your branding, send by email or by hand, revisions (Rev A, B…), accept → job, decline, withdraw. **3b built** (November 2026): customer link, one-time code, drawn/typed signature, chosen extras, sealed signed PDF with a certificate page, verify page, decline online. Block id `quotes`, depends on `projects`, `templates` and `signatures`.
 
 ### What 3a built (and decided)
 
-- **Money** is whole cents in `blocks/quotes/money.ts` (`calculate`, `groupBySection`, `formatMoney`), unit-tested and shared by the server and the editor for live totals. Quantities to 3 decimals. Tax rounding per line or per total (setting). Price book prices are always ex tax; picking one on a quote typed incl. tax converts it.
+- **Money** is whole cents in `blocks/quotes/money.ts` (`calculate`, `groupBySection`, `formatMoney`), unit-tested and shared by the server and the editor for live totals. Quantities to 3 decimals. Tax rounding per line or per total (setting). Price list prices are always ex tax; picking one on a quote typed incl. tax converts it.
 - **Statuses now:** `DRAFT → SENT → ACCEPTED | DECLINED | WITHDRAWN` (`EXPIRED` is stored-ready; the list flags "Past valid date"). Foreman review (`SUBMITTED`…) waits for teams.
 - **Revisions:** sending freezes the quote into a `QuoteRevision` with a JSON snapshot (lines, client, totals, tax settings, ABN, who prepared it) and its PDF (`StoredFile`, block `quotes`). The PDF is only ever rendered from the snapshot, so later changes to settings or branding never change a sent quote. **Edit** on a sent quote reopens it as a draft; the next send is Rev B.
 - **Sending:** "Email it" (needs Settings › Email; PDF attached, Reply-To is the person who sent it) or "I'll send it" (marks sent; download the PDF). A draft's PDF preview carries a DRAFT watermark.
 - **Accepted** is recorded by staff ("Customer accepted", with how). It makes the job at the quote's site address with references `Job no.` and `Quote = Q-1001`, unless the quote was for an existing job. The job page shows the quote (panel `job.area`).
-- **Costs and margin** only reach people with `quotes.costs.view` (stripped server-side). Repeated taps on the same price-book item add to its quantity.
+- **Costs and margin** only reach people with `quotes.costs.view` (stripped server-side). Repeated taps on the same price-list item add to its quantity.
 - **Sections** group lines on screen and on the PDF in the order each section first appears ("Other" for lines without one). Optional extras are listed separately and are never in the total.
 - **Permissions:** `quotes.view`, `.create`, `.send`, `.costs.view`, `.pricebook.manage`, `.clients.manage`, `.settings.manage`. Owner has all; Foreman gets view/create for now.
-- **Pages:** `/quotes` (list), `/quotes/new[/<jobId>]`, `/quotes/<id>`, `/quotes/price-book`, `/quotes/settings`. Clients are the shared list at `/clients` (`/quotes/clients` forwards there). API at `/api/quotes/...` (see `routes.ts`).
+- **Pages:** `/quotes` (list), `/quotes/new[/<jobId>]`, `/quotes/<id>`, `/quotes/price-list`, `/quotes/settings`. Clients are the shared list at `/clients` (`/quotes/clients` forwards there). API at `/api/quotes/...` (see `routes.ts`).
 Requires: `templates` (core block, PDFs and online quote view). Uses (when on): `projects` (accepted quotes create/join projects), plans + markups + measurement (take-offs), `variations` (accepted quote is the baseline), `documents` (attachments), stage 6 email/notifications.
 Suggested placement: after stage 4 (markups), so take-offs work; quick quotes don't need plans and can ship earlier.
 
@@ -62,11 +62,13 @@ Suggested placement: after stage 4 (markups), so take-offs work; quick quotes do
   - Later: placeholders `{client_role}` and `{client_business_name}` when templates get placeholders.
 - Clients on the app receive quotes in-app; external clients receive a secure link + PDF.
 
-## 2. Price book
+## 2. Price list
+
+Called the "price book" until November 2026. The screens say **Price list** (Settings › Price list, `/quotes/price-list`; `/quotes/price-book` forwards there). The code keeps its names (`PriceItem`, `PriceBook.tsx`, the `quotes.pricebook.manage` permission), the same way the screens say "job" and the code says "project".
 
 - **Labour rates:** standard, overtime, apprentice, after-hours call-out; per hour.
-- **Materials:** cost price, supplier, unit, sell price or markup %, supplier code, brand. (Decided Nov 2026: a material item will point at a material in the core Materials list, which holds its name, brand, photo and finish; the price book keeps the money side. See `materials-block.md`.)
-- **Brands** (built November 2026, moved to Materials the same month): each business keeps its own list of makes (Clipsal, HPM, Schneider…). They now belong to materials, not price book items: see `materials-block.md` "What part 1 built". The price book still filters by brand (through each item's material) but brands are added, renamed and removed in Settings › Materials.
+- **Materials:** cost price, supplier, unit, sell price or markup %, supplier code, brand. (Decided Nov 2026: a material item will point at a material in the core Materials list, which holds its name, brand, photo and finish; the price list keeps the money side. See `materials-block.md`.)
+- **Brands** (built November 2026, moved to Materials the same month): each business keeps its own list of makes (Clipsal, HPM, Schneider…). They now belong to materials, not price list items: see `materials-block.md` "What part 1 built". The price list still filters by brand (through each item's material) but brands are added, renamed and removed in Settings › Materials.
 - **Assemblies (kits):** priced bundles of materials + labour, e.g. "Double GPO installed" = GPO + mounting block + 3 m cable allowance + 0.5 h labour. Nested assemblies allowed.
 - **Supplier price list import (CSV):** map columns once per supplier; bulk-update costs. Assemblies recalculate; quotes in Draft can opt to refresh prices, sent quotes keep their prices.
 - **Price history** per item, so you can see when and how costs changed.
@@ -82,11 +84,11 @@ Suggested placement: after stage 4 (markups), so take-offs work; quick quotes do
 ### Structure
 
 - **Sections:** e.g. Lighting, Power, Data, Switchboards, or by level.
-- **Line items:** price book items, assemblies or one-off lines; quantity, unit, cost, sell, labour hours.
+- **Line items:** price list items, assemblies or one-off lines; quantity, unit, cost, sell, labour hours.
 - **Options / alternates:** optional lines the client can tick on acceptance (e.g. "Add 6 downlights to alfresco").
 - **Totals:** markup or margin per line, section or overall; discount; **tax per the company's tax settings (§3a)**; subtotals per section.
-- **Materials markup (built):** a switch and a % on each quote (`Quote.materialsMarkup`, `materialsMarkupPct`), off by default, with no company-wide default. When it's on, every material line with a cost is priced at cost + the %, plus tax when the quote's prices include tax. The line's own price is ignored but kept, so switching the markup off brings it back. A material line with no cost keeps its own price, and the editor says "No cost, so not marked up". Each line is Labour, Material or Other (`QuoteLine.kind`): price book lines take their item's kind, and typed lines start as Other. The client never sees the markup, only the prices; sent revisions freeze the marked-up prices in the snapshot. Only people with `quotes.costs.view` see or change the switch and %. Everyone else sees the prices the server works out, and a new price book line they add takes its cost from the item so it can be marked up. Changing the markup is written to the activity log. The maths is `markedUpUnitCents()` in `money.ts`.
-- **Adding lines (built):** a **+** at the top right of Prices opens "Add a line": **Price book** or **Custom line**.
+- **Materials markup (built):** a switch and a % on each quote (`Quote.materialsMarkup`, `materialsMarkupPct`), off by default, with no company-wide default. When it's on, every material line with a cost is priced at cost + the %, plus tax when the quote's prices include tax. The line's own price is ignored but kept, so switching the markup off brings it back. A material line with no cost keeps its own price, and the editor says "No cost, so not marked up". Each line is Labour, Material or Other (`QuoteLine.kind`): price list lines take their item's kind, and typed lines start as Other. The client never sees the markup, only the prices; sent revisions freeze the marked-up prices in the snapshot. Only people with `quotes.costs.view` see or change the switch and %. Everyone else sees the prices the server works out, and a new price list line they add takes its cost from the item so it can be marked up. Changing the markup is written to the activity log. The maths is `markedUpUnitCents()` in `money.ts`.
+- **Adding lines (built):** a **+** at the top right of Prices opens "Add a line": **Price list** or **Custom line**.
 - **Swiping a line (built, decided Nov 2026):** on a draft, swipe a line left or right and let go past the mark (a third of the width, at most 160 px) to act on it; tapping still opens it, and up/down still scrolls. What each direction does is **each person's own setting**, in **Settings › You › Quote screen** (`/quotes/me`; the menu item is the Quotes Block's, so it comes and goes with the Block). Stored per person per business in `QuoteUserSettings` (`companyId` + `userId`; list in `swipe.ts`); changes go in the activity log; deleting a business removes them: Nothing, **Delete** (the line goes at once, with an **Undo** bar for 6 seconds), Duplicate (a copy straight under it), Optional extra on/off, Move to section… (the quote's sections, No section, or a new one) and Quantity +1. Out of the box: left Delete, right Duplicate. Everything a swipe does can also be done from the line's sheet (Remove and Duplicate are there too) for keyboards and screen readers.
 - **The PDF opens inside Grid (built, Nov 2026):** Preview PDF, a revision's PDF, the signed copy and an uploaded quote's PDF all open on their own page, `/quotes/<id>/pdf` (`/rev/<revision>`, `/signed`), instead of a browser tab or the phone's PDF app (which left the installed app). The server turns the PDF into page pictures (shared `renderPdfPages` in `@grid/db`, at the server's **Quote PDFs** level in Settings › Plans & PDFs: Low 150, Medium 200, High 250 dpi; changing it redraws each quote the next time it's opened, since the level is part of the cache key) shown in the shared `PageViewer` (`@grid/ui`, also used by Documents), with **Download** for the file. Pictures are kept in `<files>/.cache/quotes/pdf/<quoteId>/<fingerprint>`: an unchanged PDF reuses them, a changed draft gets new ones, and only the newest 4 per quote are kept. The draft preview saves what's on screen first. The client's own pages (`/q/<token>`) still open the PDF normally.
 - **Text sections from templates:** inclusions, exclusions, assumptions, payment terms, validity period (default 30 days).
@@ -101,7 +103,7 @@ Owners set their own tax naming and rules in company settings; nothing is hard-c
   - Australia: `GST 10%`, `GST-free 0%`
   - UK: `VAT standard 20%`, `VAT reduced 5%`, `Zero-rated 0%`, `Exempt`
 - **Default tax code** for new lines; each **price item, assembly and quote line can carry its own tax code** (e.g. GST-free items).
-- **Deleting a tax rate** (built November 2026): the rate's sheet has **Delete**, which first shows what uses it (price book items, draft quotes, the default). Those move to another rate you pick, or to No tax. The rate is then hidden (`TaxCode.deletedAt`) but kept, so quotes already sent with it still add up; their PDFs never change anyway. "In use" off still just hides a rate from the pickers. Routes: `GET /api/quotes/settings/codes/:id/usage`, `DELETE /api/quotes/settings/codes/:id?moveTo=<rate id>` (left out means No tax).
+- **Deleting a tax rate** (built November 2026): the rate's sheet has **Delete**, which first shows what uses it (price list items, draft quotes, the default). Those move to another rate you pick, or to No tax. The rate is then hidden (`TaxCode.deletedAt`) but kept, so quotes already sent with it still add up; their PDFs never change anyway. "In use" off still just hides a rate from the pickers. Routes: `GET /api/quotes/settings/codes/:id/usage`, `DELETE /api/quotes/settings/codes/:id?moveTo=<rate id>` (left out means No tax).
 - **Prices entered as tax-exclusive or tax-inclusive** (company default, overridable per quote, e.g. inclusive for homeowners, exclusive for builders).
 - **Business registration label and number** printed on quotes: e.g. "ABN", "VAT No.", "GST No.", "EIN".
 - **Currency and number format:** currency code/symbol and locale (e.g. AUD `$1,234.56`, GBP `£1,234.56`, EUR `1.234,56 €`).
@@ -117,7 +119,7 @@ Owners set their own tax naming and rules in company settings; nothing is hard-c
 - **Planned for phase 4c** (`docs/roadmap.md`, "Phase 4c"): the trade icon library (an accordion per trade, with search), placing icons on plans, counts.
 - **The flow:** on the quote, **Take-off** opens the job's plans. A quote that isn't for a job yet gets a **Quoting job** first (`docs/stage-2-projects.md`, "Quoting jobs"), so plans can be uploaded before the work is won. Upload plans, place icons, then come back to the quote's **Take-off** section and tap **Add to quote**.
 - When the job's plans are in the app, **quantities come from markup icons and measurements**: e.g. 42 "Double GPO" icons on Level 2 → 42 × "Double GPO installed"; cable run measurements → metres.
-- **Numbered versions, set per job** (`docs/roadmap.md`, "Numbered versions of an icon"): the same icon can be DGPO 1 (standard) and DGPO 2 (expensive) on one job. Each number links to its own price book item (later an assembly) through `JobIconVersion`, and becomes its own quote line. Nothing carries over between jobs. A number with no item yet shows **Pick an item** in the Take-off section.
+- **Numbered versions, set per job** (`docs/roadmap.md`, "Numbered versions of an icon"): the same icon can be DGPO 1 (standard) and DGPO 2 (expensive) on one job. Each number links to its own price list item (later an assembly) through `JobIconVersion`, and becomes its own quote line. Nothing carries over between jobs. A number with no item yet shows **Pick an item** in the Take-off section.
 - Take-off lines remember their source (sheet, revision, icon type, layer).
 - **When a plan revision changes the counts**, the quote shows a "Take-off changed" banner with the differences, and you choose to update or keep.
 - **Built (phase 4c part 2, Nov 2026):** the Take-off section, Quoting jobs and "Take-off changed"; see "What part 2 built" under Phase 4c in `roadmap.md`. Lengths into metres and per-sheet sources come later.
@@ -154,7 +156,7 @@ Also available without Foremen: an Estimator draft can require Owner approval be
 
 - **Client is a company on the app with a project:** you're proposed into their project's contract chain under them, with the agreed scope and value (they confirm, per the stage 2 placement rules).
 - **Otherwise:** a new project is created from the quote (client, site address, scope, accepted value).
-- The accepted quote becomes the **contract baseline**: variations (stage 8) are priced from the same price book and linked back to it.
+- The accepted quote becomes the **contract baseline**: variations (stage 8) are priced from the same price list and linked back to it.
 - Accepted value and selected options are locked; any later change is a variation.
 
 ## 6a. Editable PDF templates
@@ -267,7 +269,7 @@ The client can **decline** instead, with an optional reason. The quote becomes `
 - `quotes.review`: review, edit, return or approve submitted drafts (Owner, Estimator)
 - `quotes.send`: send to clients, withdraw (Owner, Estimator)
 - `quotes.costs.view`: see cost and margin (Owner, Estimator; off for Foremen by default)
-- `quotes.pricebook.manage`: price book, assemblies, supplier imports, templates (Owner, Estimator)
+- `quotes.pricebook.manage`: price list, assemblies, supplier imports, templates (Owner, Estimator)
 - Client records: `clients.manage` in the clients Block (Owner; Estimator later)
 - `quotes.reports.view`
 
@@ -278,7 +280,7 @@ The client can **decline** instead, with an optional reason. The quote becomes `
 - `sidebar.main`: "Quotes" (shown only with `quotes.view` or `quotes.draft`)
 - `header.actions` (phone): "New quick quote" for Foremen
 - `home.widgets`: "Quotes to review", "Awaiting client", "Expiring soon"
-- `settings.company`: "Price book", "Tax & currency" (branding and templates live in the Document Templates block's settings)
+- `settings.company`: "Price list", "Tax & currency" (branding and templates live in the Document Templates block's settings)
 - `project.tabs`: "Quote" on projects created from or linked to a quote (financial permission required)
 
 ## 11. Data model sketch
@@ -307,7 +309,7 @@ Money as `Decimal(12,2)`; all tables UUID + `updatedAt` + soft delete per sync c
 
 ## 12. Build order
 
-1. Tax & currency settings; clients, price book (labour, materials), quick quotes, PDF.
+1. Tax & currency settings; clients, price list (labour, materials), quick quotes, PDF.
 2. Foreman draft → review → send workflow.
 3. Assemblies and supplier CSV import.
 4. Sections, options, revisions and compare; secure link; signed acceptance through the `signatures` service (one-time code, drawn or typed signature, audit trail, sealed PDF with certificate page, verify page). Later in this step: in-person signing, multiple signers, recorded acceptance.

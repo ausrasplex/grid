@@ -1,7 +1,7 @@
 // Deleting a business (docs/roadmap.md "Deleting a business"): its materials,
 // brands and families. Photos go afterwards (the clean-up removes every
 // StoredFile of the business), so only rows here. Quotes' purge runs first
-// (it depends on this Block), so no price book item still points here.
+// (it depends on this Block), so no price list item still points here.
 
 import type { LevelUsage } from "@grid/core";
 import { db } from "@grid/db";

@@ -106,7 +106,7 @@ model JobIconVersion {
   number      Int
   /// A short name shown on the chips and in the counts ("Standard", "Iconic").
   name        String?
-  /// The price book item this number becomes on a quote (the quotes Block; phase 4c part 2).
+  /// The price list item this number becomes on a quote (the quotes Block; phase 4c part 2).
   priceItemId String?
   createdById String
   createdAt   DateTime @default(now())

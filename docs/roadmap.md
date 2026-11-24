@@ -13,7 +13,7 @@ Status: **agreed.** Build for a **sole trader first** and expand to teams, then 
 | **2c. Storage clean-up (done)** (core) | Scheduled-jobs runner (pg-boss); unused uploads removed after 7 days and Recently deleted kept 30 days (both changeable in the app); Settings › Storage with restore, Delete now and the clean-up history | The server doesn't fill up with junk, and a mis-tapped delete can be undone | Same runner renders PDFs for the templates Block (phase 3) |
 | **2d. Backups (done)** (core) | Choose database and/or media; daily or weekly; keep the latest N (oldest replaced); Back up now; history with Download per backup | A dead disk or a bad upgrade isn't the end of the business | Off-site copies, encryption, Restore button |
 | **2e. Job storage, the Jobs table and archiving** (parts 1–2 done Nov 2026; Export moved to later) (`projects` + every Block with files) | Storage card on each job (originals and viewing copies per Block); a searchable Jobs table with counts and sizes; Archive job (drops the viewing copies, redrawn for 24 hours when opened) | See what's filling the server and win the space back from finished jobs without losing anything; a handover pack for the client | Maybe later: Export job as a ZIP (handover pack), Import, moving archived originals to a second disk; see `stage-2-projects.md` "Job storage" |
-| **3. Quotes + signing (done: 3a, 3b)** (`templates` basics, `quotes`, `signatures`) | Clients, price book, quick quote on the phone, branded PDF, online client signing with one-time code, signed PDF; an accepted quote creates the job | Quote on site, client signs on their phone, job appears | Estimators, Foreman drafts with Owner review, full estimates with take-offs, signing in person and several signers |
+| **3. Quotes + signing (done: 3a, 3b)** (`templates` basics, `quotes`, `signatures`) | Clients, price list, quick quote on the phone, branded PDF, online client signing with one-time code, signed PDF; an accepted quote creates the job | Quote on site, client signs on their phone, job appears | Estimators, Foreman drafts with Owner review, full estimates with take-offs, signing in person and several signers |
 | **4. Plans, markups, photo pins, measure (done: 4a, 4b)** (`plans`, `markups`) | Upload, tiled viewer, revisions, own markup layer, photo pins, calibrated measuring | Mark up and measure plans on the tablet | Company layers with visibility, plan update requests linked to RFIs |
 | **4c. Trade icons and take-offs** (done: icons on plans, numbers, counts, take-offs into quotes, Quoting jobs, custom icons, manuals on icons) (`markups`, `quotes`, `projects`, `documents`) | A symbol library for every trade (accordion per trade, with search) placed on plans; counts per sheet, level and job; take-offs into quotes; Quoting jobs so a quote can have plans before it's won; a manual linked to an icon type opens from a placed icon | Count 42 GPOs off the drawings and have them priced on the quote; the same icons become the install plan when the job is won | Assemblies behind icons, custom icon artwork, trades sharing plans with their own icon layers (phase 8) |
 | **5a. My tickets & licences (the wallet, first part) (done)** | Your own tickets and licences (White Card, electrical licence, EWP…) with card photos, numbers and expiry dates; reminders before they run out | Every ticket on your phone; never caught out by an expired licence | Sharing with a business, inductions, site requirements and the employer-only section (phase 9) |
@@ -111,24 +111,24 @@ Built after 5b (Documents) and before 5c (Assets). Trade symbols placed on plans
 - **Counts** per icon for the sheet, the level and the whole job, in a panel beside the plan.
 
 **Numbered versions of an icon (decided Nov 2026)**
-- The same symbol can stand for different things on a job: **DGPO 1** a standard double power point, **DGPO 2** an expensive one. Each number is its own version, with its own price book item.
+- The same symbol can stand for different things on a job: **DGPO 1** a standard double power point, **DGPO 2** an expensive one. Each number is its own version, with its own price list item.
 - **Set per job only.** Each job sets up its own numbers; nothing carries over from other jobs or the business. On the same job, the plans and the quote share them (a Quoting job's numbers carry on when it's won).
 - **Placing:** after picking an icon, a row of chips shows its numbers for this job (**1 · 2 · 3 · +**). The picked number is used for every icon you place until you change it. An icon with only one version shows no chips and no number.
 - **On the plan:** each placed icon shows its number small beside the symbol, so two versions can't be confused.
-- **Each number has** a price book item (later an assembly) and an optional short name ("Standard", "Iconic", "Weatherproof") shown on the chips and in the counts. **+** adds the next number and asks for its item; it can also be set up from the quote's Take-off section.
+- **Each number has** a price list item (later an assembly) and an optional short name ("Standard", "Iconic", "Weatherproof") shown on the chips and in the counts. **+** adds the next number and asks for its item; it can also be set up from the quote's Take-off section.
 - **Counts split by number** (DGPO 1 × 38, DGPO 2 × 4), and each becomes its own quote line.
 - **Changing a placed icon's number:** select one or more placed icons and switch them to another number; counts and the take-off follow.
 - A number can't be removed while icons on the plans use it.
 
 **Take-offs into quotes** (`docs/quotations-block.md` §3, "Take-off from plans")
 - On a quote, **Take-off** opens the job's plans. A quote that isn't for a job yet gets a **Quoting job** (`docs/stage-2-projects.md`, "Quoting jobs"), so plans can be uploaded before the work is won.
-- Back on the quote, the **Take-off** section lists the counts by icon and number. Each number links to a price book item (later an assembly) for this job. A number with no item yet shows **Pick an item** before it can be added. **Add to quote** turns the counts into lines; measured lengths come in as metres the same way.
+- Back on the quote, the **Take-off** section lists the counts by icon and number. Each number links to a price list item (later an assembly) for this job. A number with no item yet shows **Pick an item** before it can be added. **Add to quote** turns the counts into lines; measured lengths come in as metres the same way.
 - When a new plan revision changes the counts, the quote shows "Take-off changed" with the differences, and you choose to update or keep.
 - When the quote is won, the Quoting job becomes the real job, so the plans and every placed icon are already there for the install.
 
 **Split into three parts (Nov 2026):**
 1. **The icon library, placing, numbers and counts.** **Done**, see below.
-2. **Take-offs into quotes and Quoting jobs:** the quote's Take-off section, a price book item per number, Add to quote, "Take-off changed", `QUOTING` / `NOT_WON` jobs. **Done**, see "What part 2 built".
+2. **Take-offs into quotes and Quoting jobs:** the quote's Take-off section, a price list item per number, Add to quote, "Take-off changed", `QUOTING` / `NOT_WON` jobs. **Done**, see "What part 2 built".
 3. **Custom icons and manuals linked to an icon type:** `CustomIcon` per business, and tapping a placed icon offers its documents. **Done**, see "What part 3 built".
 
 **What part 1 built (Nov 2026):**
@@ -162,13 +162,13 @@ Built after 5b (Documents) and before 5c (Assets). Trade symbols placed on plans
 
 **What part 2 built (Nov 2026):**
 - **The quote's Take-off section** comes from the Markups Block through a new slot, `quote.takeoff` (`packages/ui/src/quote-slot.tsx`). The quote editor provides it:
-  - the job, the take-off lines on the quote, Start (make the Quoting job), Add lines, and Choose an item (the quote's own price book picker, in a "Pick the item" mode);
+  - the job, the take-off lines on the quote, Start (make the Quoting job), Add lines, and Choose an item (the quote's own price list picker, in a "Pick the item" mode);
   - Quotes knows nothing about plans, and Markups doesn't depend on Quotes.
   - It shows when Markups is on and the person has `markups.view`.
 - **No job yet:** **Start a take-off** saves the quote, makes a Quoting job at the quote's site or address (`POST /api/quotes/<id>/takeoff`, "Add the site address first" otherwise), and opens its plans.
-- **With a job**, it lists every placed icon on the job's plans, by icon and number ("Double GPO 2 (Iconic) × 4"), each with the price book item it becomes.
+- **With a job**, it lists every placed icon on the job's plans, by icon and number ("Double GPO 2 (Iconic) × 4"), each with the price list item it becomes.
   - **Pick an item / Change** is stored on `JobIconVersion.priceItemId` (`PUT /api/markups/job/<id>/icon-item`). An unnumbered icon gets a number 1 row and stays unnumbered.
-  - **Add N to the quote** adds a line per counted icon with an item, priced from the price book, in a "Take-off" section. Each line remembers `QuoteLine.takeoffKey` ("electrical.gpo-double#2"). Duplicating a line drops the key.
+  - **Add N to the quote** adds a line per counted icon with an item, priced from the price list, in a "Take-off" section. Each line remembers `QuoteLine.takeoffKey` ("electrical.gpo-double#2"). Duplicating a line drops the key.
   - **Take-off changed:** when the plans' count differs from the quote's (checked again when you come back to the tab), it lists the differences. **Update the quote** sets the quantities: a count gone from the plans goes to 0 for you to delete. **Keep the quote as it is** hides it.
   - Icons without an item can't be added.
 - **Quoting jobs** (`ProjectStatus` `QUOTING` and `NOT_WON`, see `stage-2-projects.md` "Quoting jobs"):
@@ -203,7 +203,7 @@ Built after 5b (Documents) and before 5c (Assets). Trade symbols placed on plans
   - A custom icon can be an **uploaded SVG** instead of a shape and letters (`CustomIcon.svg`), with **Use the trade's colour** (`tint`) to draw it in one colour like the rest, or its own colours.
   - **Made safe on the server** (`blocks/markups/svg.ts`, unit-tested): the file is read tag by tag and rebuilt from an allowlist of drawing elements (paths, shapes, groups, text, gradients, clip paths, masks) and drawing attributes. Scripts, event handlers, links, `<use>`, embedded pictures, `<style>`, `foreignObject`, animation, editor extras and references outside the icon are dropped; DOCTYPEs, entities and CDATA are refused; colours in `style` become attributes. Up to 200 KB. The browser runs the same check for the preview, but the server never keeps what was sent.
   - It's **only ever drawn as a picture** (a data: URL in SVG `<image>`), which browsers never run scripts in or let load anything: a second guard.
-  - **Every built-in icon, listed by trade** in Settings › Icons, can be given the business's own look, from the same creator or an SVG (`CustomIcon.replacesKey`, one per built-in icon). It keeps its key, trade and place in the library, so icons already on plans change look and keep their counts, numbers, price book items and manual links. **Put back the built-in** deletes the replacement.
+  - **Every built-in icon, listed by trade** in Settings › Icons, can be given the business's own look, from the same creator or an SVG (`CustomIcon.replacesKey`, one per built-in icon). It keeps its key, trade and place in the library, so icons already on plans change look and keep their counts, numbers, price list items and manual links. **Put back the built-in** deletes the replacement.
 - **Group colours (decided and built Nov 2026):** each icon group (every trade, and Custom) can have the business's own colour, in Settings › Icons › Group colours (`markups.manage`). Stored as `IconGroupColour` (one row per changed group; no row = the built-in colour in `icons.ts`), and applied by `iconLookup(customs, colours)`, so icons in that group, including ones already placed, draw in it everywhere: the plan viewer, library, counts, the quote's Take-off, shared links and plan PDFs. Pick from a palette that reads well on white, or any colour; a colour too faint on white paper (contrast under 3:1) gets a warning but is allowed. **Usual colour** puts the built-in one back. Colours are per business, not per job or per person. `PUT /api/markups/group-colours/<trade>` with `{ colour: "#rrggbb" | null }`.
 - **Not yet:**
   - uploaded pictures (PNG, JPG) as icons;
@@ -343,7 +343,7 @@ Two separate things, set by different people:
    - Like every role, a business can copy it into a custom role and change it.
 2. **Their apprenticeship details: entered by the apprentice.** Year, RTO, training contract and classification sit in the person's own private wallet (`inductions-credentials.md` §11), entered by them and shared only with their employer, only if they choose. The year the business sets (1) and the one in their wallet are separate: the business's is what Grid uses.
 
-Related but separate: the **apprentice labour rate** in the price book (`quotations-block.md` §2) is a price, not a person.
+Related but separate: the **apprentice labour rate** in the price list (`quotations-block.md` §2) is a price, not a person.
 
 ## Later: AI features and a GPU (noted Nov 2026, not scheduled)
 

@@ -8,7 +8,7 @@ export interface MaterialWords {
   model?: string | null;
 }
 
-/** What a price book item and a quote line call it: "Iconic double switch, White". */
+/** What a price list item and a quote line call it: "Iconic double switch, White". */
 export const priceBookName = (material: MaterialWords) => (material.finish ? `${material.name}, ${material.finish}` : material.name);
 
 /** One line under the name in lists: "Clipsal · 3042 · White". */

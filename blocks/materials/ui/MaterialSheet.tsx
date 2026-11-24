@@ -207,7 +207,7 @@ export function MaterialSheet({
                 className="text-destructive"
                 disabled={action.busy}
                 onClick={async () => {
-                  if (!confirm(`Remove ${material.name} from Materials? Price book items and jobs that use it keep it.`)) return;
+                  if (!confirm(`Remove ${material.name} from Materials? Price list items and jobs that use it keep it.`)) return;
                   const result = await action.run(() => api(`/materials/${material.id}`, { method: "DELETE" }));
                   if (result) onSaved({ ...(material as MaterialJson), removed: true });
                 }}
