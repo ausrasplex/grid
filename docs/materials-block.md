@@ -115,7 +115,7 @@ Clients can open and download their handover sheet themselves, without Grid: a p
 ## 5. Build order
 
 1. **Materials core:** the list, brands and families, photos; the price list moved onto materials, with the data migration. **Done**, see "What part 1 built".
-2. **Handover Block:** the job's list (pick, rooms, quantities switch, swap finish), the landscape PDF, and the client's link.
+2. **Handover Block:** the job's list (pick, rooms, quantities switch, swap finish), the landscape PDF, and the client's link. **Done**, see "What part 2 built".
 3. **Bring in from plans and from the accepted quote.**
 
 ### What part 1 built (Nov 2026)
@@ -127,3 +127,21 @@ Clients can open and download their handover sheet themselves, without Grid: a p
 - **For other Blocks:** `@grid/block-materials` (`listMaterials`, `materialsById`, `materialIdsMatching`, `requireMaterial`, `listBrands`, trades and words) and `@grid/block-materials/components` (`MaterialPicker`, `MaterialSheet`, `MaterialPicture`, `BrandChips`).
 - **The price list:** a material item picks its material (**Pick a material**, with "Add a new material…" for anyone with `materials.manage`) and shows its photo; its name follows the material ("Iconic double switch, White"), kept in step through `materials.changed`. Labour is unchanged. The price list's brand chips filter by the material's brand; brands are edited in Materials. Quotes now depends on Materials.
 - **The migration** (`20261124090000_materials`) copied `PriceBrand` into `MaterialBrand` (same ids), made a material for every material item (same id as the item, its name and brand, in the business's trade; removed items became removed materials), linked them, then dropped `PriceItem.brandId` and `PriceBrand`.
+
+### What part 2 built (Nov 2026)
+
+- **The `handover` Block** (`blocks/handover`, optional; depends on jobs, materials, clients, templates and signatures). Permissions `handover.view`, `handover.edit`, `handover.share` as above, plus **`handover.settings`** (Settings › Handover; Owners only by default).
+- **On the job page**, a Handover card ("12 lines", or "Start the list") on the whole job, not on each level. It opens **`/handover/<job>`**:
+  - grouped by trade (a heading only when there's more than one), then room, General first; each room has **Add**;
+  - **Add a material** picks from Materials (or "Add a new material…"), then asks for the room (typed, with the job's rooms suggested), quantity (blank prints TBC) and a note;
+  - tapping a line opens the same sheet, with the **Finish** choices from its family (swap White for Black) and **Remove**;
+  - **Rooms**: the print order (up and down) and **Rename**, which moves every line in it (blank moves them to General). Rooms typed differently ("kitchen", "Kitchen ") are the same room;
+  - **Sheet settings**: Show quantities, Each room on its own page, Cover page, this job's title, and the cover picture (uploaded; picking one of the job's photos comes later);
+  - **PDF** opens `/handover/<job>/pdf` (page pictures inside Grid, with Download).
+- **The PDF** (`pdf.ts`, `document.tsx`, `columns.ts`, `schedule.ts`): landscape A4 (`renderPdf(..., { landscape: true })` in templates), as §3. Each trade is one table whose JOB / SECTION rows and column headings repeat on every page; a room's divider always stays with its first line. With **Each room on its own page**, each room is its own table and its name repeats with the headings when it runs over. With rooms following on, a room that runs over doesn't repeat its name ("KITCHEN (continued)" isn't printed yet). The footer on every page (the cover too) is the business name and phone, and page x of y. **Date prepared** is the day that PDF was made. Pictures go in as the small copies (about 480 px, plenty for the 40 mm box) and the cover as the display copy.
+- **Kept until the list changes:** `<files>/.cache/handover/<job>/<fingerprint>/` holds the PDF and its page pictures. The fingerprint covers everything that prints (lines, materials, switches, settings, branding), so any change makes a new one and the old one is removed. Archiving a job drops it (made again when asked for). It shows in the job's Storage section as Handover.
+- **Settings › Handover** (`/handover/settings`): the cover title, and per trade its printed name and whether **Link** and **Notes** print.
+- **The client's link:** one at a time per job, made from the Handover page (No end, 30 days, 90 days or 1 year), with Copy, **Email to client** (to the job's client's email, changeable; makes a link first if there isn't one; the PDF is attached) and **Turn off**. It shows how often and when it was last opened. `/h/<token>` shows the business (logo, phone, email, website), the title, job and address, when the list last changed, **Download PDF**, and the list by trade and room with photos (tap for a bigger one), finishes, quantities when shown, notes and **Product page** links. Public API at `/api/public/handover/h/<token>/` (`pdf`, `logo`, `picture/<file>`): only pictures of materials on that job's list, or its cover. `h` is a reserved address.
+- **Data:** `HandoverItem`, `HandoverSettings`, `HandoverCompanySettings`, `HandoverShare` as §4 (migration `20261125090000_handover`). Activity log entries: lines added, changed and removed, sheet settings, rooms renamed, settings, links made, turned off and emailed. Clean-up: `purgeProject` (returns the cover picture), `purgeCompany`, `companyUsage`, `jobStorage`.
+- **Materials** gained `materialsForCompany` (for the PDF and the link, where nobody is signed in), and `@grid/block-materials/trades` and `uploadPhoto` for screens.
+- **Not yet:** bring in from plans and the accepted quote (part 3; `source`, `sourceRef` and `editedByHand` are stored and set already), a cover picture picked from the job's photos, "(continued)" on a room that runs over, and the QR code.

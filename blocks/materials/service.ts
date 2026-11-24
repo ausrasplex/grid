@@ -126,6 +126,16 @@ export async function materialsById(ctx: RequestContext, ids: string[]): Promise
   return new Map(rows.map((row) => [row.id, toRow(row)]));
 }
 
+/**
+ * A business's materials by id without a signed-in person: the handover
+ * PDF made in the background and the client's handover link.
+ */
+export async function materialsForCompany(companyId: string, ids: string[]): Promise<Map<string, MaterialRow>> {
+  if (!ids.length) return new Map();
+  const rows = await db.material.findMany({ where: { companyId, id: { in: [...new Set(ids)] } }, include });
+  return new Map(rows.map((row) => [row.id, toRow(row)]));
+}
+
 /** Ids of the business's materials matching a search or a brand, for other Blocks' filters. */
 export async function materialIdsMatching(ctx: RequestContext, options: { q?: string; brand?: string }): Promise<string[]> {
   const companyId = requireCompany(ctx);

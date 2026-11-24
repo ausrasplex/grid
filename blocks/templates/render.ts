@@ -43,6 +43,8 @@ export interface PdfOptions {
    * markups, docs/plans-block.md "Sharing plans"). Replaces A4 and the footer.
    */
   page?: { widthIn: number; heightIn: number };
+  /** A4 on its side (the handover schedule). */
+  landscape?: boolean;
 }
 
 export async function renderPdf(html: string, options: PdfOptions = {}): Promise<Buffer> {
@@ -66,6 +68,7 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
         })
       : await page.pdf({
       format: "A4",
+      landscape: !!options.landscape,
       printBackground: true,
       margin: { top: "16mm", bottom: "18mm", left: "14mm", right: "14mm" },
       displayHeaderFooter: true,

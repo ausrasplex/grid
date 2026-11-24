@@ -13,6 +13,7 @@
     "@grid/block-materials": "workspace:*",
     "@grid/block-credentials": "workspace:*",
     "@grid/block-documents": "workspace:*",
+    "@grid/block-handover": "workspace:*",
     "@grid/block-companies": "workspace:*",
     "@grid/block-markups": "workspace:*",
     "@grid/block-signoffs": "workspace:*",

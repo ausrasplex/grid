@@ -3,6 +3,7 @@ export {
   listMaterials,
   getMaterial,
   materialsById,
+  materialsForCompany,
   materialIdsMatching,
   requireMaterial,
   listBrands,

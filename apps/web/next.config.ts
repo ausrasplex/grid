@@ -22,6 +22,7 @@ const config: NextConfig = {
     "@grid/block-signoffs",
     "@grid/block-quotes",
     "@grid/block-documents",
+    "@grid/block-handover",
   ],
   // Loaded from node_modules at run time rather than bundled.
   serverExternalPackages: ["pg-boss", "sharp", "puppeteer-core", "@signpdf/signpdf", "@signpdf/signer-p12", "@signpdf/placeholder-pdf-lib", "node-forge", "pdf-lib"],
@@ -30,6 +31,7 @@ const config: NextConfig = {
     return [
       { source: "/q/:token", destination: "/p/quotes/q/:token" },
       { source: "/s/:token", destination: "/p/plans/s/:token" },
+      { source: "/h/:token", destination: "/p/handover/h/:token" },
       { source: "/verify", destination: "/p/signatures/verify" },
       { source: "/verify/:code", destination: "/p/signatures/verify/:code" },
       // A site's pages (site, building, level) are drawn by the jobs Block
@@ -60,6 +62,7 @@ const config: NextConfig = {
     return [
       { source: "/q/:path*", headers: privateHeaders },
       { source: "/s/:path*", headers: privateHeaders },
+      { source: "/h/:path*", headers: privateHeaders },
       { source: "/p/:path*", headers: privateHeaders },
       { source: "/verify/:path*", headers: privateHeaders },
       { source: "/api/public/:path*", headers: privateHeaders },

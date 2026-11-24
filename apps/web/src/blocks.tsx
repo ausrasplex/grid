@@ -25,8 +25,9 @@ import plans from "@grid/block-plans/block";
 import markups from "@grid/block-markups/block";
 import documents from "@grid/block-documents/block";
 import signoffs from "@grid/block-signoffs/block";
+import handover from "@grid/block-handover/block";
 
-const definitions = [users, companies, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs];
+const definitions = [users, companies, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, handover];
 
 /** Lazy page loaders, keyed by block id. */
 export const blockPages: Record<string, () => Promise<BlockPages>> = {
@@ -43,6 +44,7 @@ export const blockPages: Record<string, () => Promise<BlockPages>> = {
   plans: async () => (await import("@grid/block-plans/ui")).pages,
   documents: async () => (await import("@grid/block-documents/ui")).pages,
   markups: async () => (await import("@grid/block-markups/ui")).pages,
+  handover: async () => (await import("@grid/block-handover/ui")).pages,
 };
 
 /** Lazy loaders for pages people see without signing in (/p/<block>/...). */
@@ -50,6 +52,7 @@ export const blockPublicPages: Record<string, () => Promise<PublicPages>> = {
   signatures: async () => (await import("@grid/block-signatures/ui")).publicPages,
   quotes: async () => (await import("@grid/block-quotes/ui")).publicPages,
   plans: async () => (await import("@grid/block-plans/ui")).publicPages,
+  handover: async () => (await import("@grid/block-handover/ui")).publicPages,
 };
 
 /** Lazy panel loaders (pieces a block shows on other blocks' pages), keyed by block id. */
@@ -62,6 +65,7 @@ export const blockPanels: Record<string, () => Promise<BlockPanels>> = {
   quotes: async () => (await import("@grid/block-quotes/ui")).panels,
   documents: async () => (await import("@grid/block-documents/ui")).panels,
   signoffs: async () => (await import("@grid/block-signoffs/ui")).panels,
+  handover: async () => (await import("@grid/block-handover/ui")).panels,
 };
 
 /** Renders the panels every switched-on block offers for a slot, in block order. */

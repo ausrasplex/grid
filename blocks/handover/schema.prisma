@@ -1,0 +1,88 @@
+// Handover Block (docs/materials-block.md §2–§3): what's installed on a job,
+// by trade and room, for the client's handover sheet (the landscape
+// "Fixtures & Finishes Schedule" PDF and the client's /h/<token> link).
+// Materials themselves (photo, brand, finish) live in the core materials Block.
+
+enum HandoverSource {
+  MANUAL
+  PLANS
+  QUOTE
+}
+
+/// One line on a job's handover list: a material in a room.
+model HandoverItem {
+  id           String         @id @default(uuid())
+  companyId    String
+  projectId    String
+  /// Material (materials Block).
+  materialId   String
+  /// Copied from the material when added, so a builder's combined schedule can group it later.
+  trade        String
+  /// Typed per line ("Kitchen", "Ensuite"); null is General.
+  room         String?
+  qty          Decimal?       @db.Decimal(12, 3)
+  /// For this job ("Dimmer on the left").
+  note         String?
+  source       HandoverSource @default(MANUAL)
+  /// The icon number or quote line it came from (part 3).
+  sourceRef    String?
+  /// Changed by hand after it was brought in: bringing in again leaves it alone.
+  editedByHand Boolean        @default(false)
+  sort         Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([projectId])
+  @@index([companyId, materialId])
+}
+
+/// A job's handover switches and cover.
+model HandoverSettings {
+  projectId   String   @id
+  companyId   String
+  showQty     Boolean  @default(true)
+  roomPerPage Boolean  @default(false)
+  /// Room names in the order they print; rooms not listed follow, first used first.
+  roomOrder   String[] @default([])
+  cover       Boolean  @default(true)
+  /// Blank uses the business's title.
+  title       String?
+  /// The cover picture (a StoredFile uploaded here).
+  coverFileId String?
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+/// The business's handover settings (Settings › Handover).
+model HandoverCompanySettings {
+  companyId    String   @id
+  title        String   @default("Fixtures & Finishes Schedule")
+  /// Printed name per trade id: { "electrical": "Lighting & Electrical" }.
+  tradeNames   Json     @default("{}")
+  /// Optional columns hidden per trade: { "electrical": ["link"] }.
+  tradeColumns Json     @default("{}")
+  updatedAt    DateTime @updatedAt
+}
+
+/// The client's private link to a job's handover sheet (/h/<token>).
+model HandoverShare {
+  id           String    @id @default(uuid())
+  companyId    String
+  projectId    String
+  /// The token is in the link; stored hashed (to find it) and encrypted (to show the link again).
+  tokenHash    String    @unique
+  tokenEnc     String
+  clientId     String?
+  /// Null: never runs out.
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  revokedById  String?
+  lastOpenedAt DateTime?
+  openCount    Int       @default(0)
+  createdById  String
+  createdAt    DateTime  @default(now())
+
+  @@index([projectId, revokedAt])
+  @@index([companyId])
+}

@@ -8,7 +8,8 @@
     "./block": "./block.ts",
     "./ui": "./ui/index.tsx",
     "./components": "./ui/components.ts",
-    "./words": "./words.ts"
+    "./words": "./words.ts",
+    "./trades": "./trades.ts"
   },
   "dependencies": {
     "@grid/core": "workspace:*",
