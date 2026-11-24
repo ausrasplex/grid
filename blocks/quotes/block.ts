@@ -5,7 +5,7 @@ export default defineBlock({
   name: "Quotes",
   version: "1.0.0",
   description: "Quick quotes from your phone with a price book, your logo on a proper PDF, emailed to the client. Accepted quotes become jobs.",
-  dependsOn: ["clients", "sites", "projects", "templates", "signatures"],
+  dependsOn: ["clients", "materials", "sites", "projects", "templates", "signatures"],
   permissions: [
     { key: "quotes.view", label: "See quotes" },
     { key: "quotes.create", label: "Write quotes", description: "Draft and change quotes" },
@@ -37,5 +37,9 @@ export default defineBlock({
     Quote: (id) => `/quotes/${id}`,
   },
   fileAccess: async () => (await import("./service")).canReadQuoteFile,
+  on: {
+    // A material item's name follows its material (Materials, core).
+    "materials.changed": async (payload) => (await import("./service")).materialChanged(payload),
+  },
   emits: ["quotes.created", "quotes.sent", "quotes.accepted", "quotes.declined", "quotes.withdrawn", "quotes.reopened"],
 });

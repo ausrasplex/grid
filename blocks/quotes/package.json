@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@grid/block-clients": "workspace:*",
+    "@grid/block-materials": "workspace:*",
     "@grid/block-projects": "workspace:*",
     "@grid/block-sites": "workspace:*",
     "@grid/block-signatures": "workspace:*",

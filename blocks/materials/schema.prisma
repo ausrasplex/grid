@@ -1,0 +1,70 @@
+// Materials block (docs/materials-block.md §1), core. The business's own list
+// of the things it installs. Quotes' price book items point at a material
+// (PriceItem.materialId) and add the money; the Handover Block lists them per job.
+
+/// A make you buy (Clipsal, HPM, Beacon Lighting…). Moved here from the price
+/// book (it was PriceBrand; the ids were kept). Removing a brand leaves its
+/// materials without one.
+model MaterialBrand {
+  id        String     @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  materials Material[]
+
+  @@index([companyId])
+}
+
+/// Materials that are the same item in different finishes ("Iconic double
+/// switch": White, Black, Brushed). Optional.
+model MaterialFamily {
+  id        String     @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  materials Material[]
+
+  @@index([companyId, name])
+}
+
+/// One thing you can point at: "Iconic double switch, White" and the Black
+/// one are two materials, each with its own photo and model number.
+model Material {
+  id               String          @id @default(uuid())
+  companyId        String
+  /// The full product description: "Masson Accent Minitrim Adjustable LED Dimmable Downlight".
+  name             String
+  /// The short word the client knows: "Downlight", "Double GPO".
+  itemType         String?
+  brandId          String?
+  brand            MaterialBrand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  familyId         String?
+  family           MaterialFamily? @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  /// Model / manufacturer code.
+  model            String?
+  /// Colour / finish: "White with warm white bulb", "Matt black".
+  finish           String?
+  size             String?
+  /// The product's web page (spec sheet, the maker's page).
+  link             String?
+  /// A trade id from trades.ts ("electrical", "data"… "other"). Text, so new trades need no migration.
+  trade            String
+  /// The picture: a photo (StoredFile, block materials) or a colour swatch ("#1f2937").
+  photoFileId      String?
+  swatch           String?
+  /// Shown on the handover sheet when wanted ("IP44").
+  notes            String?
+  /// Later: the server-wide product catalogue's model (docs/documents-block.md).
+  catalogueModelId String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+
+  @@index([companyId, trade])
+  @@index([brandId])
+  @@index([familyId])
+}

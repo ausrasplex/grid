@@ -24,7 +24,6 @@ export async function purgeCompany(companyId: string): Promise<void> {
     // Lines, revisions and events go with each quote (cascade).
     await tx.quote.deleteMany({ where: { companyId } });
     await tx.priceItem.deleteMany({ where: { companyId } });
-    await tx.priceBrand.deleteMany({ where: { companyId } });
     await tx.taxSettings.deleteMany({ where: { companyId } });
     await tx.taxCode.deleteMany({ where: { companyId } });
     await tx.quoteUserSettings.deleteMany({ where: { companyId } });

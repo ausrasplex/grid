@@ -46,19 +46,20 @@ export const taxCodeSchema = z
 export const priceItemSchema = z
   .object({
     kind: z.enum(["LABOUR", "MATERIAL"]),
-    name: z.string().trim().min(1).max(200),
+    /** Labour's name; a material item takes its material's name. */
+    name: z.string().trim().max(200).default(""),
     unit: z.string().trim().min(1).max(20),
     cost: money.nullable(),
     sell: money,
     taxCodeId: uuid.nullable(),
     supplier: optText(100),
     supplierCode: optText(100),
-    brandId: uuid.nullable().default(null),
+    /** A material item's material (materials block). */
+    materialId: uuid.nullable().default(null),
     favourite: z.boolean().default(false),
   })
   .strict();
 
-export const brandSchema = z.object({ name: z.string().trim().min(1).max(60) }).strict();
 
 export const createQuoteSchema = z
   .object({
@@ -157,7 +158,6 @@ export const declineSchema = z.object({ reason: z.string().trim().max(2000).opti
 export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
 export type TaxCodeInput = z.infer<typeof taxCodeSchema>;
 export type PriceItemInput = z.infer<typeof priceItemSchema>;
-export type BrandInput = z.infer<typeof brandSchema>;
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export type UploadQuoteInput = z.infer<typeof uploadQuoteSchema>;
 export type UpdateQuoteInput = z.infer<typeof updateQuoteSchema>;

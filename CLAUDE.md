@@ -7,7 +7,7 @@ The owner is a worker electrician, not a full-time developer. Explain changes in
 ## Words
 
 - **Grid**: the app. **Block**: a feature package in `blocks/` (was "module"; never use that word). **Store**: where a business adds/removes Blocks (`/business/store`).
-- **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Clients**, **Sites & Jobs**, **Materials** (not built yet, `docs/materials-block.md`), and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
+- **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Clients**, **Sites & Jobs**, **Materials** (`docs/materials-block.md`), and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
 
 ## Naming (project rule)
 
@@ -97,7 +97,8 @@ prisma/        base, core and auth schemas; migrations
   **Phase 4c part 1** (trade icon library by trade with search, placing icons on plans as ICON markups, numbered versions per job, counts per sheet, level and job, trade layers) is done too; see "What part 1 built" under Phase 4c in `docs/roadmap.md`.
   **Phase 4c part 2** (the quote's Take-off section through the `quote.takeoff` slot, a price book item per icon number, Add to quote and "Take-off changed", Quoting jobs moved along by quote events) is done too; see "What part 2 built" under Phase 4c in `docs/roadmap.md`.
   **Phase 4c part 3** (custom icons built from a shape and letters in Settings › Icons, and manuals linked to an icon type at `/documents/icon/<key>`) is done too, which finishes Phase 4c.
-- Next: **Phase 5c** (Assets, `docs/assets-block.md`). OCR, product scanning and the product catalogue are later.
+  **Materials part 1** (the core `materials` Block: Settings › Materials with photos or colour swatches, brands, families and trades; the price book's material items now point at a material and brands moved there) is done too; see "What part 1 built" in `docs/materials-block.md`.
+- Next: **the Handover Block** (part 2 of `docs/materials-block.md`: the job's list room by room, the landscape Fixtures & Finishes Schedule PDF, the client's link), then **Phase 5c** (Assets, `docs/assets-block.md`). OCR, product scanning and the product catalogue are later.
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.
 - PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. To show a PDF inside the app (never a new tab: it leaves the installed app), turn it into page pictures with `renderPdfPages()` from `@grid/db` (into `cacheRoot()`) and show them with `PageViewer` from `@grid/ui`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.

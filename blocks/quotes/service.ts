@@ -17,12 +17,12 @@ import { createProject, createQuotingJob, getProject } from "@grid/block-project
 import { getSite } from "@grid/block-sites";
 import { clientIdsNamed, clientsById, quoteDetails, requireClient, type ClientRow } from "@grid/block-clients";
 import { createSignRequest, latestSignRequest, maskEmail, revokeSignRequests } from "@grid/block-signatures";
+import { materialIdsMatching, materialsById, priceBookName, requireMaterial, type MaterialChangedEvent, type MaterialRow } from "@grid/block-materials";
 import { calculate, formatMoney, type LineInput, type Settings as MathSettings, type TaxRate } from "./money";
 import { totalsFor, type QuoteSnapshot } from "./snapshot";
 
 export type { QuoteSnapshot } from "./snapshot";
 import type {
-  BrandInput,
   CreateQuoteInput,
   PriceItemInput,
   SendInput,
@@ -183,17 +183,18 @@ export async function deleteTaxCode(ctx: RequestContext, id: string, moveTo: str
 // Price book
 // ---------------------------------------------------------------------
 
-type PriceItemWithBrand = Prisma.PriceItemGetPayload<{ include: { brand: { select: { name: true; deletedAt: true } } } }>;
-const withBrand = { brand: { select: { name: true, deletedAt: true } } } as const;
+type PriceItemRecord = Prisma.PriceItemGetPayload<object>;
 
-function priceItemView(item: PriceItemWithBrand, showCost: boolean) {
-  const brand = item.brand && !item.brand.deletedAt ? item.brand : null;
+/**
+ * A price book item as lists show it. A material item takes its name, brand,
+ * photo and finish from its material (materials block); the price book holds
+ * the money.
+ */
+function priceItemView(item: PriceItemRecord, material: MaterialRow | undefined, showCost: boolean) {
   return {
-    brandId: brand ? item.brandId : null,
-    brand: brand?.name ?? null,
     id: item.id,
     kind: item.kind,
-    name: item.name,
+    name: material ? priceBookName(material) : item.name,
     unit: item.unit,
     cost: showCost ? (item.cost == null ? null : Number(item.cost)) : null,
     sell: Number(item.sell),
@@ -201,56 +202,76 @@ function priceItemView(item: PriceItemWithBrand, showCost: boolean) {
     supplier: item.supplier,
     supplierCode: item.supplierCode,
     favourite: item.favourite,
+    materialId: item.materialId,
+    brand: material?.brand ?? null,
+    model: material?.model ?? null,
+    photoFileId: material?.photoFileId ?? null,
+    swatch: material?.swatch ?? null,
   };
+}
+
+export type PriceItemView = ReturnType<typeof priceItemView>;
+
+async function priceItemViews(ctx: RequestContext, rows: PriceItemRecord[], showCost: boolean) {
+  const materials = await materialsById(ctx, rows.flatMap((row) => (row.materialId ? [row.materialId] : [])));
+  return rows.map((row) => priceItemView(row, row.materialId ? materials.get(row.materialId) : undefined, showCost));
 }
 
 export async function listPriceItems(ctx: RequestContext, options: { q?: string; kind?: "LABOUR" | "MATERIAL"; brand?: string; ids?: string[] } = {}) {
   const companyId = requireCompany(ctx);
   const words = (options.q ?? "").trim().split(/\s+/).filter(Boolean).slice(0, 5);
+  // Brands and the rest of a material's details live in Materials: find the
+  // matching materials there first.
+  const byBrand = options.brand ? await materialIdsMatching(ctx, { brand: options.brand }) : null;
+  const byWord = await Promise.all(words.map((word) => materialIdsMatching(ctx, { q: word })));
   const rows = await db.priceItem.findMany({
     where: {
       companyId,
       deletedAt: null,
       ...(options.ids ? { id: { in: options.ids } } : {}),
       ...(options.kind ? { kind: options.kind } : {}),
-      ...(options.brand === "none"
-        ? { OR: [{ brandId: null }, { brand: { deletedAt: { not: null } } }] }
-        : options.brand
-          ? { brandId: options.brand, brand: { deletedAt: null } }
-          : {}),
-      AND: words.map((word) => ({
+      ...(byBrand ? { kind: "MATERIAL" as const, materialId: { in: byBrand } } : {}),
+      AND: words.map((word, index) => ({
         OR: [
           { name: { contains: word, mode: "insensitive" as const } },
           { supplierCode: { contains: word, mode: "insensitive" as const } },
           { supplier: { contains: word, mode: "insensitive" as const } },
-          { brand: { name: { contains: word, mode: "insensitive" as const }, deletedAt: null } },
+          { materialId: { in: byWord[index]! } },
         ],
       })),
     },
-    include: withBrand,
     orderBy: [{ favourite: "desc" }, { name: "asc" }],
     take: 300,
   });
-  const showCost = ctx.permissions.has("quotes.costs.view");
-  return rows.map((row) => priceItemView(row, showCost));
+  return priceItemViews(ctx, rows, ctx.permissions.has("quotes.costs.view"));
 }
 
 export async function savePriceItem(ctx: RequestContext, id: string | null, input: PriceItemInput) {
   const companyId = requireCompany(ctx);
-  return db.$transaction(async (tx) => {
-    // The brand must be one of this business's own.
-    if (input.brandId && !(await tx.priceBrand.count({ where: { id: input.brandId, companyId, deletedAt: null } }))) throw notFound("Brand not found");
+  const saved = await db.$transaction(async (tx) => {
+    // A material item is one of this business's materials, and takes its name.
+    let name = input.name;
+    let materialId: string | null = null;
+    if (input.kind === "MATERIAL") {
+      if (!input.materialId) throw badRequest("Pick a material for this item");
+      const material = await requireMaterial(ctx, input.materialId, tx);
+      materialId = material.id;
+      name = priceBookName(material);
+    }
+    if (!name) throw badRequest("Give the item a name");
+    const data = { ...input, name, materialId };
     let item;
     if (id) {
-      const result = await tx.priceItem.updateMany({ where: { id, companyId, deletedAt: null }, data: input });
+      const result = await tx.priceItem.updateMany({ where: { id, companyId, deletedAt: null }, data });
       if (!result.count) throw notFound("Price book item not found");
-      item = await tx.priceItem.findUniqueOrThrow({ where: { id }, include: withBrand });
+      item = await tx.priceItem.findUniqueOrThrow({ where: { id } });
     } else {
-      item = await tx.priceItem.create({ data: { companyId, ...input }, include: withBrand });
+      item = await tx.priceItem.create({ data: { companyId, ...data } });
     }
-    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "PriceItem", entityId: item.id, action: id ? "updated" : "created", diff: input as Prisma.InputJsonValue });
-    return priceItemView(item, true);
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "PriceItem", entityId: item.id, action: id ? "updated" : "created", diff: data as Prisma.InputJsonValue });
+    return item;
   });
+  return (await priceItemViews(ctx, [saved], true))[0]!;
 }
 
 export async function deletePriceItem(ctx: RequestContext, id: string) {
@@ -260,48 +281,9 @@ export async function deletePriceItem(ctx: RequestContext, id: string) {
   return { id, deleted: true };
 }
 
-// Brands (Clipsal, HPM…): a list per business that price book items pick from.
-
-/** The business's brands, A–Z, with how many price book items use each. */
-export async function listBrands(ctx: RequestContext) {
-  const companyId = requireCompany(ctx);
-  const brands = await db.priceBrand.findMany({
-    where: { companyId, deletedAt: null },
-    select: { id: true, name: true, _count: { select: { items: { where: { deletedAt: null } } } } },
-    orderBy: { name: "asc" },
-  });
-  return brands.map((brand) => ({ id: brand.id, name: brand.name, items: brand._count.items }));
-}
-
-export async function saveBrand(ctx: RequestContext, id: string | null, input: BrandInput) {
-  const companyId = requireCompany(ctx);
-  return db.$transaction(async (tx) => {
-    const same = await tx.priceBrand.findFirst({ where: { companyId, deletedAt: null, name: { equals: input.name, mode: "insensitive" }, ...(id ? { id: { not: id } } : {}) } });
-    if (same) throw conflict(`There's already a brand called ${same.name}.`);
-    let brand;
-    if (id) {
-      const result = await tx.priceBrand.updateMany({ where: { id, companyId, deletedAt: null }, data: { name: input.name } });
-      if (!result.count) throw notFound("Brand not found");
-      brand = await tx.priceBrand.findUniqueOrThrow({ where: { id } });
-    } else {
-      brand = await tx.priceBrand.create({ data: { companyId, name: input.name } });
-    }
-    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "PriceBrand", entityId: brand.id, action: id ? "updated" : "created", diff: { name: input.name } });
-    return { id: brand.id, name: brand.name };
-  });
-}
-
-/** Removes a brand from the list. Its items stay in the price book, without a brand. */
-export async function deleteBrand(ctx: RequestContext, id: string) {
-  const companyId = requireCompany(ctx);
-  return db.$transaction(async (tx) => {
-    const brand = await tx.priceBrand.findFirst({ where: { id, companyId, deletedAt: null } });
-    if (!brand) throw notFound("Brand not found");
-    await tx.priceBrand.update({ where: { id }, data: { deletedAt: new Date() } });
-    const items = await tx.priceItem.updateMany({ where: { brandId: id, companyId }, data: { brandId: null } });
-    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "PriceBrand", entityId: id, action: "deleted", diff: { name: brand.name, items: items.count } });
-    return { id, deleted: true };
-  });
+/** "materials.changed": a material item's name follows its material (search and quote lines use it). */
+export async function materialChanged(payload: MaterialChangedEvent) {
+  await db.priceItem.updateMany({ where: { companyId: payload.companyId, materialId: payload.materialId, name: { not: payload.name } }, data: { name: payload.name } });
 }
 
 // ---------------------------------------------------------------------

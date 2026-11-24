@@ -1,6 +1,6 @@
 # Materials and the handover sheet: design
 
-Status: **decided Nov 2026, not built yet.** The PDF (§3) follows the owner's example: a printed, spiral-bound "Fixtures + Finishes Schedule" (cover page with a drawing of the house, then a ruled table per trade).
+Status: **decided Nov 2026. Part 1 (Materials) built; the Handover Block is next.** The PDF (§3) follows the owner's example: a printed, spiral-bound "Fixtures + Finishes Schedule" (cover page with a drawing of the house, then a ruled table per trade).
 
 **Who makes what.** That example is a **builder's** schedule: every trade on the house in one book, and each trade with its own columns (lighting has Product, Colour/finish/size, Qty; paint has Walls, Trims, Ceiling per room). Grid gets there in two steps:
 
@@ -114,6 +114,16 @@ Clients can open and download their handover sheet themselves, without Grid: a p
 
 ## 5. Build order
 
-1. **Materials core:** the list, brands and families, photos; the price book moved onto materials, with the data migration.
+1. **Materials core:** the list, brands and families, photos; the price book moved onto materials, with the data migration. **Done**, see "What part 1 built".
 2. **Handover Block:** the job's list (pick, rooms, quantities switch, swap finish), the landscape PDF, and the client's link.
 3. **Bring in from plans and from the accepted quote.**
+
+### What part 1 built (Nov 2026)
+
+- **The `materials` Block** (`blocks/materials`, core): Settings › Materials at `/materials` (icon `package`), with search (name, type, brand, model, finish, family), trade chips (only trades in use) and brand chips with **Edit brands**. Each material has its own page, `/materials/<id>`, with its details, picture and **Other finishes** (the rest of its family).
+- **The material form** (`MaterialSheet`): Photo or Colour (a colour picker plus a typed code), name, item type, trade (starting with the business's own trade, `tradeForCompany`), brand (with "Add a new brand…"), model, colour / finish, size, family, link (typed without `https://` is fine) and notes. Item types, finishes and families are suggested from what's already used. A family is found by name or made. Saving a material that has the same brand, model (or name, without one) and finish as another shows "Already in Materials" with **Open it** and **Save anyway**.
+- **Removing a material** hides it from the list and pickers; it keeps its photo for price book items and jobs that use it. Its photo is readable by anyone in the business with `materials.view`.
+- **Routes** at `/api/materials`: list (`q`, `trade`, `brand`, `family`), `suggestions`, `same`, `brands` (moved from `/api/quotes/brands`), and a material by id. Events: `materials.changed` (`MaterialChangedEvent`) when a material is saved.
+- **For other Blocks:** `@grid/block-materials` (`listMaterials`, `materialsById`, `materialIdsMatching`, `requireMaterial`, `listBrands`, trades and words) and `@grid/block-materials/components` (`MaterialPicker`, `MaterialSheet`, `MaterialPicture`, `BrandChips`).
+- **The price book:** a material item picks its material (**Pick a material**, with "Add a new material…" for anyone with `materials.manage`) and shows its photo; its name follows the material ("Iconic double switch, White"), kept in step through `materials.changed`. Labour is unchanged. The price book's brand chips filter by the material's brand; brands are edited in Materials. Quotes now depends on Materials.
+- **The migration** (`20261124090000_materials`) copied `PriceBrand` into `MaterialBrand` (same ids), made a material for every material item (same id as the item, its name and brand, in the business's trade; removed items became removed materials), linked them, then dropped `PriceItem.brandId` and `PriceBrand`.

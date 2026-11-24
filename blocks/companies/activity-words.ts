@@ -27,6 +27,7 @@ const THINGS: Record<string, string> = {
   StoredFile: "file",
   PriceItem: "price book item",
   PriceBrand: "price book brand",
+  MaterialBrand: "brand",
   TaxCode: "tax code",
   SignRequest: "signing link",
   QuoteUserSettings: "quote screen setting",

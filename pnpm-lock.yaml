@@ -44,6 +44,9 @@ importers:
       '@grid/block-markups':
         specifier: workspace:*
         version: link:../../blocks/markups
+      '@grid/block-materials':
+        specifier: workspace:*
+        version: link:../../blocks/materials
       '@grid/block-photos':
         specifier: workspace:*
         version: link:../../blocks/photos
@@ -272,6 +275,31 @@ importers:
         specifier: ^16
         version: 16.4.5(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
+  blocks/materials:
+    dependencies:
+      '@grid/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@grid/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@grid/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: ^0.500
+        version: 0.500.0(react@19.3.1)
+      react:
+        specifier: ^19
+        version: 19.3.1
+      zod:
+        specifier: ^4
+        version: 4.6.7
+    devDependencies:
+      next:
+        specifier: ^16
+        version: 16.4.5(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+
   blocks/photos:
     dependencies:
       '@grid/block-projects':
@@ -385,6 +413,9 @@ importers:
       '@grid/block-clients':
         specifier: workspace:*
         version: link:../clients
+      '@grid/block-materials':
+        specifier: workspace:*
+        version: link:../materials
       '@grid/block-projects':
         specifier: workspace:*
         version: link:../projects

@@ -19,10 +19,11 @@ import { getSite } from "@grid/block-sites";
 import type { PlaceSite } from "@grid/block-sites/components";
 import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
 import { formatMoney } from "../money";
-import { getQuote, getTaxSettings, listBrands, listPriceItems, listQuotes, quoteForJob, userSettings } from "../service";
+import { listBrands } from "@grid/block-materials";
+import { getQuote, getTaxSettings, listPriceItems, listQuotes, quoteForJob, userSettings } from "../service";
 import { CustomerQuote, type CustomerViewJson } from "./CustomerQuote";
 import { NewQuote } from "./NewQuote";
-import { PriceBook, type BrandRow, type PriceItemRow } from "./PriceBook";
+import { PriceBook, type PriceItemRow } from "./PriceBook";
 import { QuoteEditor, type QuoteJson } from "./QuoteEditor";
 import { QuotePdf } from "./QuotePdf";
 import { QuoteScreenSettings, type QuoteScreenSettingsJson } from "./QuoteScreenSettings";
@@ -101,7 +102,7 @@ export const pages: BlockPages = {
     return (
       <PriceBook
         initial={json<PriceItemRow[]>(items)}
-        initialBrands={brands satisfies BrandRow[]}
+        initialBrands={brands}
         codes={settings.codes}
         defaultTaxCodeId={settings.defaultTaxCodeId}
         taxName={settings.taxName}
@@ -109,6 +110,7 @@ export const pages: BlockPages = {
         locale={settings.locale}
         canManage={can(ctx, "quotes.pricebook.manage")}
         canSeeCosts={can(ctx, "quotes.costs.view")}
+        canAddMaterials={can(ctx, "materials.manage")}
       />
     );
   },
