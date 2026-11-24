@@ -35,11 +35,12 @@ The centre button grows with the phases too (`navigation.md` §5a): **Scan** tod
   - sign-in and accounts;
   - the business, team and roles;
   - **Sites & Jobs**;
+  - **Materials** (decided Nov 2026): the business's list of things it installs, shared by Quotes and the Handover Block (`materials-block.md`);
   - the app frame: Home, Settings, the Store, the centre button, Jump to search and notifications.
 
   Everything else is an optional Block. In the code, Sites & Jobs is still written as a Block (`blocks/sites`, `blocks/projects`) but marked `required: true`. Other Blocks can rely on it always being there. Making it optional later would mean changing that one flag and letting screens cope without it.
 
-Detailed designs: `photos-block.md`, `backups.md`, `stage-2-projects.md`, `quotations-block.md`, `templates-block.md`, `documents-block.md`, `assets-block.md`, `inductions-credentials.md`, `navigation.md`, `visual-style.md`, `deployment-modes.md`.
+Detailed designs: `materials-block.md`, `photos-block.md`, `backups.md`, `stage-2-projects.md`, `quotations-block.md`, `templates-block.md`, `documents-block.md`, `assets-block.md`, `inductions-credentials.md`, `navigation.md`, `visual-style.md`, `deployment-modes.md`.
 
 ## Phase 1: solo core and real sign-in
 

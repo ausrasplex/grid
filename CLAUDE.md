@@ -7,7 +7,7 @@ The owner is a worker electrician, not a full-time developer. Explain changes in
 ## Words
 
 - **Grid**: the app. **Block**: a feature package in `blocks/` (was "module"; never use that word). **Store**: where a business adds/removes Blocks (`/business/store`).
-- **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Clients**, **Sites & Jobs**, and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
+- **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Clients**, **Sites & Jobs**, **Materials** (not built yet, `docs/materials-block.md`), and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
 
 ## Naming (project rule)
 
@@ -27,6 +27,7 @@ Read the relevant doc before building. They are agreed designs, not suggestions.
 | `docs/photos-block.md` | Photos & notes, file storage, the storage clean-up |
 | `docs/backups.md` | Backups and restoring |
 | `docs/unraid.md` | Installing on Unraid with the templates; every setting |
+| `docs/materials-block.md` | Materials (core) and the Handover Block: job materials by trade and room, the landscape handover PDF |
 | `docs/quotations-block.md`, `templates-block.md`, `documents-block.md`, `assets-block.md`, `inductions-credentials.md`, `deployment-modes.md` | Later Blocks |
 
 If something isn't covered, ask rather than invent. When a decision is made, write it into the matching doc in the same change.

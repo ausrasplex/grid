@@ -65,7 +65,7 @@ Suggested placement: after stage 4 (markups), so take-offs work; quick quotes do
 ## 2. Price book
 
 - **Labour rates:** standard, overtime, apprentice, after-hours call-out; per hour.
-- **Materials:** cost price, supplier, unit, sell price or markup %, supplier code, brand.
+- **Materials:** cost price, supplier, unit, sell price or markup %, supplier code, brand. (Decided Nov 2026: a material item will point at a material in the core Materials list, which holds its name, brand, photo and finish; the price book keeps the money side. See `materials-block.md`.)
 - **Brands** (built November 2026): each business keeps its own list of makes (Clipsal, HPM, Schneider…), `PriceBrand`. A material picks one (or "Add a new brand…" right there). The price book's **Brands** section shows a chip per brand with its item count (plus All brands and No brand) to filter the list, and **Edit brands** adds, renames and removes them. Removing a brand leaves its items in the price book without one. Search matches brand names, and the quote's "Add from price book" shows the brand. Brands don't print on quotes. Routes: `GET/POST /api/quotes/brands`, `PUT/DELETE /api/quotes/brands/:id` (changes need `quotes.pricebook.manage`).
 - **Assemblies (kits):** priced bundles of materials + labour, e.g. "Double GPO installed" = GPO + mounting block + 3 m cable allowance + 0.5 h labour. Nested assemblies allowed.
 - **Supplier price list import (CSV):** map columns once per supplier; bulk-update costs. Assemblies recalculate; quotes in Draft can opt to refresh prices, sent quotes keep their prices.
