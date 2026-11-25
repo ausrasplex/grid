@@ -80,6 +80,10 @@ export interface AreaJson {
   label: string;
 }
 
+/** How long (ms) a press must stay still to count as a hold. */
+const HOLD_MS = 450;
+/** How far (screen pixels) a finger can wander and still be holding. */
+const HOLD_SLOP = 8;
 const day = (date: string) => new Date(date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
 export function Viewer({
@@ -120,6 +124,8 @@ export function Viewer({
   const toolRef = useRef<string | null>(null);
   // A tap-only tool (icons, pins, point-to-point measuring) leaves dragging to pan the plan.
   const tapsOnlyRef = useRef(false);
+  /** Stops a hold that's waiting, and lets go of the viewer's listeners, when the viewer closes. */
+  const holdCleanup = useRef<(() => void) | null>(null);
   const setTool = useCallback((next: string | null, options?: { tapsOnly?: boolean }) => {
     toolRef.current = next;
     tapsOnlyRef.current = !!next && !!options?.tapsOnly;
@@ -200,10 +206,25 @@ export function Viewer({
       // one-finger drag draws instead of panning (unless the tool only uses
       // taps); two fingers still zoom.
       // With no tool, a press can still be claimed (a corner handle), and
-      // then that drag moves the handle instead of the plan.
+      // then that drag moves the handle instead of the plan. A press that
+      // stays still for a moment is sent as a "hold", which can be claimed
+      // too (press and hold a text markup to move it).
       type CanvasEvent = { position: OpenSeadragonType.Point; preventDefaultAction?: boolean; quick?: boolean };
       let claimed = false;
       let swallowClick = false;
+      let holdTimer: ReturnType<typeof setTimeout> | null = null;
+      let pressedAt: OpenSeadragonType.Point | null = null;
+      const stopHold = () => {
+        if (holdTimer) clearTimeout(holdTimer);
+        holdTimer = null;
+      };
+      // A long press on a phone can open the browser's menu; not while a hold has the touch.
+      const stopMenu = (event: Event) => void (claimed && event.preventDefault());
+      zoomViewer.element.addEventListener("contextmenu", stopMenu);
+      holdCleanup.current = () => {
+        stopHold();
+        zoomViewer.element.removeEventListener("contextmenu", stopMenu);
+      };
       const send = (kind: PlanPointer["kind"], event: CanvasEvent, extra: Partial<PlanPointer> = {}) => {
         const point = zoomViewer.viewport.pointFromPixel(event.position, true);
         for (const listener of listeners.current) listener({ kind, point: [point.x, point.y], screen: [event.position.x, event.position.y], ...extra });
@@ -218,13 +239,28 @@ export function Viewer({
       on("canvas-press", (event) => {
         claimed = false;
         swallowClick = false;
+        stopHold();
         send("press", event as CanvasEvent, { claim: () => void (claimed = true) });
+        if (toolRef.current || claimed) return;
+        const pressPosition = (event as CanvasEvent).position;
+        pressedAt = pressPosition;
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          send("hold", { position: pressPosition }, { claim: () => void (claimed = true) });
+          // A little buzz on phones, so you know it's picked up.
+          if (claimed) navigator.vibrate?.(15);
+        }, HOLD_MS);
       });
-      on("canvas-drag", whileActive("drag", true));
+      on("canvas-drag", (event) => {
+        // Moving the finger before the hold fires means a pan, not a hold.
+        if (holdTimer && pressedAt && pressedAt.distanceTo((event as CanvasEvent).position) > HOLD_SLOP) stopHold();
+        whileActive("drag", true)(event);
+      });
       on("canvas-drag-end", (event) => {
         if (active()) (event as CanvasEvent).preventDefaultAction = true;
       });
       on("canvas-release", (event) => {
+        stopHold();
         whileActive("release", false)(event);
         if (claimed) swallowClick = true;
         claimed = false;
@@ -235,6 +271,7 @@ export function Viewer({
         send("double", event as CanvasEvent);
       });
       on("canvas-pinch", (event) => {
+        stopHold();
         if (!active()) return;
         send("cancel", event as CanvasEvent);
         claimed = false;
@@ -253,6 +290,7 @@ export function Viewer({
     });
     return () => {
       alive = false;
+      holdCleanup.current?.();
       viewer.current?.destroy();
       viewer.current = null;
     };
