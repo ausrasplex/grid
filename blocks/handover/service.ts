@@ -169,7 +169,8 @@ export async function addLine(ctx: RequestContext, projectId: string, input: Lin
 /**
  * Changes a line: its room, quantity, note, or its material (swapping the
  * finish for another in the family). A line brought in from plans or a
- * quote is marked as changed by hand, so bringing in again leaves it alone.
+ * quote whose quantity or material changes is marked as changed by hand,
+ * so bringing in again leaves it alone.
  */
 export async function updateLine(ctx: RequestContext, id: string, input: LineChange): Promise<HandoverLine> {
   const companyId = requireCompany(ctx);
@@ -185,7 +186,10 @@ export async function updateLine(ctx: RequestContext, id: string, input: LineCha
     data.materialId = material.id;
     data.trade = material.trade;
   }
-  if (current.source !== "MANUAL") data.editedByHand = true;
+  // Its count or material changed by hand: Bring in leaves it alone from now on.
+  // The room and note are always yours, so changing them doesn't count.
+  const qtyChanged = input.qty !== undefined && (input.qty ?? null) !== (current.qty === null ? null : Number(current.qty));
+  if (current.source !== "MANUAL" && (qtyChanged || data.materialId)) data.editedByHand = true;
   const line = await db.$transaction(async (tx) => {
     const item = await tx.handoverItem.update({ where: { id }, data });
     const next = toLine(item, material);
@@ -229,7 +233,6 @@ export async function renameRoom(ctx: RequestContext, projectId: string, input: 
   const roomOrder = [...new Set(settings.roomOrder.map((room) => (roomKey(room) === from ? to : room)).filter((room): room is string => !!room))];
   await db.$transaction(async (tx) => {
     await tx.handoverItem.updateMany({ where: { id: { in: ids } }, data: { room: to } });
-    await tx.handoverItem.updateMany({ where: { id: { in: ids }, source: { not: "MANUAL" } }, data: { editedByHand: true } });
     await tx.handoverSettings.upsert({ where: { projectId }, create: { projectId, companyId, roomOrder }, update: { roomOrder } });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, projectId, entityType: "HandoverSettings", entityId: projectId, action: "room_renamed", diff: { from: input.from, to: to ?? "General", lines: ids.length } });
   });

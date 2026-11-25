@@ -28,6 +28,8 @@ export default defineBlock({
   },
   // A shared plan link or a plan PDF: markups and icons on the chosen layers.
   planDrawing: async () => (await import("./drawing")).planDrawing,
+  // The handover list's Bring in: icons counted per level (docs/materials-block.md §2).
+  jobMaterials: async () => (await import("./job-materials")).jobMaterials,
   emits: ["markups.added"],
   on: {
     // A sheet layer was deleted: its markups and icons go back on Default.

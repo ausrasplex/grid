@@ -116,7 +116,7 @@ Clients can open and download their handover sheet themselves, without Grid: a p
 
 1. **Materials core:** the list, brands and families, photos; the price list moved onto materials, with the data migration. **Done**, see "What part 1 built".
 2. **Handover Block:** the job's list (pick, rooms, quantities switch, swap finish), the landscape PDF, and the client's link. **Done**, see "What part 2 built".
-3. **Bring in from plans and from the accepted quote.**
+3. **Bring in from plans and from the accepted quote.** **Done**, see "What part 3 built".
 
 ### What part 1 built (Nov 2026)
 
@@ -144,4 +144,20 @@ Clients can open and download their handover sheet themselves, without Grid: a p
 - **The client's link:** one at a time per job, made from the Handover page (No end, 30 days, 90 days or 1 year), with Copy, **Email to client** (to the job's client's email, changeable; makes a link first if there isn't one; the PDF is attached) and **Turn off**. It shows how often and when it was last opened. `/h/<token>` shows the business (logo, phone, email, website), the title, job and address, when the list last changed, **Download PDF**, and the list by trade and room with photos (tap for a bigger one), finishes, quantities when shown, notes and **Product page** links. Public API at `/api/public/handover/h/<token>/` (`pdf`, `logo`, `picture/<file>`): only pictures of materials on that job's list, or its cover. `h` is a reserved address.
 - **Data:** `HandoverItem`, `HandoverSettings`, `HandoverCompanySettings`, `HandoverShare` as §4 (migration `20261125090000_handover`). Activity log entries: lines added, changed and removed, sheet settings, rooms renamed, settings, links made, turned off and emailed. Clean-up: `purgeProject` (returns the cover picture), `purgeCompany`, `companyUsage`, `jobStorage`.
 - **Materials** gained `materialsForCompany` (for the PDF and the link, where nobody is signed in), and `@grid/block-materials/trades` and `uploadPhoto` for screens.
-- **Not yet:** bring in from plans and the accepted quote (part 3; `source`, `sourceRef` and `editedByHand` are stored and set already), a cover picture picked from the job's photos, "(continued)" on a room that runs over, and the QR code.
+- **Not yet:** bring in from plans and the accepted quote (part 3, below), a cover picture picked from the job's photos, "(continued)" on a room that runs over, and the QR code.
+
+### What part 3 built (Nov 2026)
+
+- **Bring in from plans / quote / plans and quote** on the job's Handover page (with `handover.edit`; shown when Markups or Quotes is on). It opens a sheet listing, each with a tick:
+  - **New**: ticked. "× 8, from Downlight 1, Downlight 2".
+  - **Changed**: ticked. "Plans now have 26, the list has 24. Update?"
+  - **Not there any more**: brought in before, no longer counted. **Not** ticked: taking lines off is your call.
+  - **Changed by hand, left alone**: shown, never touched.
+  - **Not linked to a material**: icon numbers or quote lines with no material, with how to link them (the quote's Take-off links an icon number to a price list item; the Price list links the item to a material).
+  Bring in works the list out again before changing anything, so a stale sheet can't undo newer work.
+- **Plans** (decided Nov 2026): placed icons (not "Just me") are added up into **one line per material per level**. When the icons are on more than one level, the room starts as the level's name ("Ground floor"; with the building's name when the job has more than one building) to rename or split; on one level it's blank, as §2 says. Two icon numbers linked to the same material become one line. `sourceRef` is `<level>:<material>`.
+- **Accepted quotes**: material lines (from a material price list item, or typed as Material) of every accepted quote on the job, optional extras only when the client chose them. One line per material per quote, room blank. `sourceRef` is `<quote>:<material>`. Quote lines the plans take-off made are **left out while Markups is on**: the plans bring the same count in, split by level, so nothing is counted twice.
+- **Changed by hand** now means the **quantity or material** changed (the finish swap counts). Changing the room or note, or renaming a room, doesn't: rooms and notes are always yours and Bring in never changes them. Lines say "From plans" or "From quote" (", changed by hand") under their name.
+- **How Handover gets the counts without needing Markups or Quotes on:** two Block hooks in core (`packages/core/src/block.ts`), like `planDrawing`. `jobMaterials` returns `JobMaterialRow`s (Markups: icon counts per level with the number's price list item; Quotes: accepted quote lines with their material). `priceItemMaterials` (Quotes) gives the material behind a price list item. Handover asks every switched-on Block that has them (`blocks/handover/bring-in.ts`); the adding up and comparing are plain functions in `bring-in-plan.ts`, tested.
+- Activity log: lines **brought in** (with "from plans" or "from quote"), counts updated and lines taken off.
+

@@ -74,3 +74,8 @@ export type JobSettingsInput = z.infer<typeof jobSettingsSchema>;
 export type CompanySettingsInput = z.infer<typeof companySettingsSchema>;
 export type ShareInput = z.infer<typeof shareSchema>;
 export type EmailInput = z.infer<typeof emailSchema>;
+
+/** Bring in: the ticked changes ("add:<key>", "update:<id>", "remove:<id>"). */
+export const bringInSchema = z.object({
+  choices: z.array(z.string().min(1).max(300)).min(1).max(2000),
+});

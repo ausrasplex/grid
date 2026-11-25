@@ -10,6 +10,7 @@ import { can, isHttpError, notFound } from "@grid/core";
 import type { BlockPages, BlockPanels, PublicPages } from "@grid/ui";
 import { getProject, type JobAreaPanelProps } from "@grid/block-projects";
 import { getCompanySettings, handoverFor, lineCount } from "../service";
+import { bringInSources } from "../bring-in";
 import { HandoverList } from "./HandoverList";
 import { HandoverSettings } from "./HandoverSettings";
 import { SchedulePdf } from "./SchedulePdf";
@@ -37,6 +38,7 @@ export const pages: BlockPages = {
         canEdit={can(ctx, "handover.edit")}
         canShare={can(ctx, "handover.share")}
         canAddMaterials={can(ctx, "materials.manage")}
+        bringIn={await bringInSources(ctx)}
       />
     );
   },

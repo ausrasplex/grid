@@ -69,6 +69,7 @@ const VERBS: Record<string, string> = {
   exported: "Downloaded",
   renumbered: "Renumbered",
   converted: "Converted",
+  brought_in: "Brought in",
 };
 
 const words = (value: string) => value.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();

@@ -208,10 +208,39 @@ export interface BlockDefinition {
    */
   planDrawing?: () => Promise<(input: PlanDrawingInput) => Promise<string>>;
   /**
+   * What this block says a job has of each material or price list item:
+   * icons counted on its plans (markups), what an accepted quote agreed
+   * (quotes). The handover list's Bring in adds these up. Asked only when
+   * the business has the block on. Lazy. docs/materials-block.md §2.
+   */
+  jobMaterials?: () => Promise<(input: { companyId: string; projectId: string }) => Promise<JobMaterialRow[]>>;
+  /**
+   * The material behind each price list item (quotes), for rows that only
+   * know the item (plan icons are linked to price list items). Lazy.
+   */
+  priceItemMaterials?: () => Promise<(companyId: string, priceItemIds: string[]) => Promise<Record<string, string>>>;
+  /**
    * Background work this block does, keyed by queue name, which must start
    * with the block id ("plans.render"). Lazy. Queue with app().jobs.send().
    */
   jobs?: () => Promise<Record<string, BlockJob>>;
+}
+
+/** One count of a material on a job, from plans or a quote (jobMaterials). */
+export interface JobMaterialRow {
+  source: "PLANS" | "QUOTE";
+  /** What it is, for the screen: "Double GPO 2 (Iconic)", "Q-1001: Iconic double GPO". */
+  label: string;
+  /** Plans: the level of the sheet it's on, or null when the sheet isn't on a level. */
+  levelId: string | null;
+  /** Quotes: which quote, so each accepted quote brings in its own lines. */
+  groupId: string | null;
+  /** Its material, when the block knows it; otherwise the price list item it's linked to. */
+  materialId: string | null;
+  priceItemId: string | null;
+  qty: number;
+  /** A quote line the plans take-off made (the plans bring it in, split by level). */
+  fromPlans?: boolean;
 }
 
 /** What to draw on a plan sheet for a share link or a plan PDF (planDrawing). */

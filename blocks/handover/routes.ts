@@ -3,7 +3,8 @@ import type { Routes } from "@grid/core";
 import * as svc from "./service";
 import * as pdf from "./pdf";
 import * as share from "./share";
-import { companySettingsSchema, emailSchema, jobSettingsSchema, lineChangeSchema, lineSchema, renameRoomSchema, shareSchema } from "./validation";
+import * as bring from "./bring-in";
+import { bringInSchema, companySettingsSchema, emailSchema, jobSettingsSchema, lineChangeSchema, lineSchema, renameRoomSchema, shareSchema } from "./validation";
 
 export const routes: Routes = {
   // The job's list
@@ -14,6 +15,10 @@ export const routes: Routes = {
   "DELETE /lines/:id": { permission: "handover.edit", handler: (ctx, request) => svc.deleteLine(ctx, request.params.id!) },
   "PUT /job/:projectId/settings": { permission: "handover.edit", handler: (ctx, request) => svc.saveJobSettings(ctx, request.params.projectId!, jobSettingsSchema.parse(request.body)) },
   "POST /job/:projectId/rooms/rename": { permission: "handover.edit", handler: (ctx, request) => svc.renameRoom(ctx, request.params.projectId!, renameRoomSchema.parse(request.body)) },
+
+  // Bring in from plans and the accepted quote: what would change, then the ticked changes
+  "GET /job/:projectId/bring-in": { permission: "handover.edit", handler: (ctx, request) => bring.bringInPreview(ctx, request.params.projectId!) },
+  "POST /job/:projectId/bring-in": { permission: "handover.edit", handler: (ctx, request) => bring.bringIn(ctx, request.params.projectId!, bringInSchema.parse(request.body).choices) },
 
   // The PDF (?download=1), and its pages as pictures for showing it inside Grid
   "GET /job/:projectId/pdf": { permission: "handover.view", handler: (ctx, request) => pdf.schedulePdf(ctx, request.params.projectId!, request.query.get("download") === "1") },

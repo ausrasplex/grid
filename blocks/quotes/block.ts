@@ -37,6 +37,10 @@ export default defineBlock({
     Quote: (id) => `/quotes/${id}`,
   },
   fileAccess: async () => (await import("./service")).canReadQuoteFile,
+  // The handover list's Bring in: what accepted quotes agreed, and the
+  // material behind a price list item (docs/materials-block.md §2).
+  jobMaterials: async () => (await import("./job-materials")).jobMaterials,
+  priceItemMaterials: async () => (await import("./job-materials")).priceItemMaterials,
   on: {
     // A material item's name follows its material (Materials, core).
     "materials.changed": async (payload) => (await import("./service")).materialChanged(payload),
