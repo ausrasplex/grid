@@ -135,6 +135,12 @@ importers:
 
   blocks/clients:
     dependencies:
+      '@grid/block-companies':
+        specifier: workspace:*
+        version: link:../companies
+      '@grid/block-templates':
+        specifier: workspace:*
+        version: link:../templates
       '@grid/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -150,6 +156,9 @@ importers:
       react:
         specifier: ^19
         version: 19.3.1
+      xlsx:
+        specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+        version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
       zod:
         specifier: ^4
         version: 4.6.7

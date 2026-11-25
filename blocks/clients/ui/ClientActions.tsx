@@ -1,15 +1,16 @@
 "use client";
 
 // The Change buttons on a client's and a business's page: the form in a
-// dialog, then the page reloads with the new details. Removing goes back to
-// the list. A business page also adds people at the business.
+// dialog, then the page reloads with the new details. Removing (Owners,
+// clients.manage) goes back to the list. A business page also adds people
+// at the business.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { ActionButton, Icon, Sheet, SheetContent, api } from "@grid/ui";
 import { BusinessForm, ClientForm, type BusinessRowJson, type ClientJson } from "./ClientPicker";
 
-export function ClientActions({ client }: { client: ClientJson }) {
+export function ClientActions({ client, canRemove }: { client: ClientJson; canRemove: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   return (
@@ -23,11 +24,15 @@ export function ClientActions({ client }: { client: ClientJson }) {
               setOpen(false);
               router.refresh();
             }}
-            onDelete={async () => {
-              if (!window.confirm(`Remove ${client.name}? Jobs and quotes that name them keep their details.`)) return;
-              await api(`/clients/${client.id}`, { method: "DELETE" });
-              window.location.href = "/clients";
-            }}
+            onDelete={
+              canRemove
+                ? async () => {
+                    if (!window.confirm(`Remove ${client.name}? Jobs and quotes that name them keep their details.`)) return;
+                    await api(`/clients/${client.id}`, { method: "DELETE" });
+                    window.location.href = "/clients";
+                  }
+                : undefined
+            }
           />
         </SheetContent>
       </Sheet>
@@ -35,7 +40,7 @@ export function ClientActions({ client }: { client: ClientJson }) {
   );
 }
 
-export function BusinessActions({ business, canManage, canAdd }: { business: BusinessRowJson; canManage: boolean; canAdd: boolean }) {
+export function BusinessActions({ business, canEdit, canRemove, canAdd }: { business: BusinessRowJson; canEdit: boolean; canRemove: boolean; canAdd: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState<"change" | "person" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +49,7 @@ export function BusinessActions({ business, canManage, canAdd }: { business: Bus
       {canAdd && (
         <ActionButton variant="outline" icon={<UserPlus />} label="Add a person" onClick={() => setOpen("person")} />
       )}
-      {canManage && (
+      {canEdit && (
         <ActionButton variant="outline" icon={<Icon name="edit" />} label="Change" onClick={() => setOpen("change")} />
       )}
       <Sheet open={!!open} onOpenChange={(next) => !next && (setOpen(null), setError(null))}>
@@ -66,15 +71,19 @@ export function BusinessActions({ business, canManage, canAdd }: { business: Bus
                   setOpen(null);
                   router.refresh();
                 }}
-                onDelete={async () => {
-                  if (!window.confirm(`Remove ${business.name}?`)) return;
-                  try {
-                    await api(`/clients/businesses/${business.id}`, { method: "DELETE" });
-                    window.location.href = "/clients";
-                  } catch (failure) {
-                    setError(failure instanceof Error ? failure.message : String(failure));
-                  }
-                }}
+                onDelete={
+                  canRemove
+                    ? async () => {
+                        if (!window.confirm(`Remove ${business.name}?`)) return;
+                        try {
+                          await api(`/clients/businesses/${business.id}`, { method: "DELETE" });
+                          window.location.href = "/clients";
+                        } catch (failure) {
+                          setError(failure instanceof Error ? failure.message : String(failure));
+                        }
+                      }
+                    : undefined
+                }
               />
             </>
           )}

@@ -4,19 +4,34 @@
 // quotes. Businesses (Honeywell) are listed first, with how many people are
 // at each; then every client, people at a business showing their role there.
 import { useEffect, useState } from "react";
-import { Building2, Plus } from "lucide-react";
+import { ArrowDownUp, Building2, Plus } from "lucide-react";
 import { ActionButton, Avatar, EmptyState, List, PageHeader, SearchInput, Section, Segmented, Sheet, SheetContent, Stack, TapRow, api } from "@grid/ui";
 import { BusinessForm, ClientForm, roleAt, type BusinessRowJson, type ClientJson } from "./ClientPicker";
+import { TransferSheet } from "./ClientTransfer";
 
 type Show = "everyone" | "businesses";
 
-export function Clients({ initial, initialBusinesses, canAdd }: { initial: ClientJson[]; initialBusinesses: BusinessRowJson[]; canAdd: boolean }) {
+export function Clients({
+  initial,
+  initialBusinesses,
+  canAdd,
+  canManage,
+  canSeeTeam,
+}: {
+  initial: ClientJson[];
+  initialBusinesses: BusinessRowJson[];
+  canAdd: boolean;
+  /** Export (and Share our card) is the whole list in one go: Owners. */
+  canManage: boolean;
+  canSeeTeam: boolean;
+}) {
   const [rows, setRows] = useState(initial);
   const [businesses, setBusinesses] = useState(initialBusinesses);
   const [query, setQuery] = useState("");
   const [show, setShow] = useState<Show>("everyone");
   const [editing, setEditing] = useState<Partial<ClientJson> | null>(null);
   const [addingBusiness, setAddingBusiness] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const load = async () => {
     const search = encodeURIComponent(query);
     const [clients, found] = await Promise.all([api<ClientJson[]>(`/clients?q=${search}`), api<BusinessRowJson[]>(`/clients/businesses?q=${search}`)]);
@@ -53,10 +68,15 @@ export function Clients({ initial, initialBusinesses, canAdd }: { initial: Clien
         title="Clients"
         meta={`${rows.length} client${rows.length === 1 ? "" : "s"} · ${businesses.length} business${businesses.length === 1 ? "" : "es"}`}
         actions={
-          canAdd && (
+          (canAdd || canManage) && (
             <>
-              <ActionButton icon={<Building2 />} label="Add business" onClick={() => setAddingBusiness(true)} />
-              <ActionButton icon={<Plus />} label="Add client" onClick={() => setEditing({})} />
+              <ActionButton variant="outline" icon={<ArrowDownUp />} label="Export & import" onClick={() => setTransferOpen(true)} />
+              {canAdd && (
+                <>
+                  <ActionButton icon={<Building2 />} label="Add business" onClick={() => setAddingBusiness(true)} />
+                  <ActionButton icon={<Plus />} label="Add client" onClick={() => setEditing({})} />
+                </>
+              )}
             </>
           )
         }
@@ -109,6 +129,7 @@ export function Clients({ initial, initialBusinesses, canAdd }: { initial: Clien
           </>
         )}
       </Stack>
+      <TransferSheet open={transferOpen} onClose={() => setTransferOpen(false)} canExport={canManage} canImport={canAdd} canSeeTeam={canSeeTeam} />
       {editing && (
         <Sheet open onOpenChange={(open) => !open && setEditing(null)}>
           <SheetContent desktop="dialog" title={editing.id ? (editing.name ?? "Client") : "New client"}>

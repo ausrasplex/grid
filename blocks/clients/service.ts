@@ -85,7 +85,7 @@ export async function listClients(ctx: RequestContext, query = ""): Promise<Clie
   return rows.map(toRow);
 }
 
-async function emitRenamed(ctx: RequestContext, companyId: string, rows: { id: string; label: string }[]) {
+export async function emitRenamed(ctx: RequestContext, companyId: string, rows: { id: string; label: string }[]) {
   for (const row of rows) {
     const payload: ClientRenamedEvent = { clientId: row.id, companyId, name: row.label };
     await app().events.emit("clients.renamed", payload, { emittedBy: MOD, companyId, actorId: ctx.userId });
