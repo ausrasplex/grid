@@ -128,18 +128,20 @@ export function JobFeed({ job, areas, area, initial, canAdd, canManage, userId }
           : undefined
       }
       actions={
-        <a href={`/photos/report/${job.id}`} className="inline-flex h-10 items-center gap-1.5 rounded-md px-3 text-sm font-semibold text-primary hover:bg-muted">
-          <Icon name="file" className="size-4" /> Report
-        </a>
+        <Button variant="outline" asChild>
+          <a href={`/photos/report/${job.id}`}>
+            <Icon name="file" /> Report
+          </a>
+        </Button>
       }
     >
       <div className="flex flex-col gap-4">
         {writable && (
           <div className="grid grid-cols-2 gap-2">
-            <Button size="lg" onClick={() => fileInput.current?.click()}>
+            <Button onClick={() => fileInput.current?.click()}>
               <Icon name="camera" /> Add photos
             </Button>
-            <Button size="lg" variant="outline" onClick={() => setNoteOpen(true)}>
+            <Button variant="outline" onClick={() => setNoteOpen(true)}>
               <Icon name="note" /> Add note
             </Button>
             <input
