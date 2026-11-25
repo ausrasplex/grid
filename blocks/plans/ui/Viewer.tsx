@@ -365,7 +365,7 @@ export function Viewer({
         </div>
       )}
 
-      <main className="relative min-h-0 flex-1">
+      <main className="group/plan relative min-h-0 flex-1">
         {ready ? (
           <>
             <div ref={box} className={cn("absolute inset-0", tool && "cursor-crosshair")} aria-label={`Plan ${sheet.number}`} role="img" />
@@ -401,12 +401,16 @@ export function Viewer({
                 </button>
               ))}
             </div>
-            {/* The layer new things go on, when there's more than Default. */}
+            {/* The layer new things go on, when there's more than Default.
+                Hidden while a card is open at the bottom of the plan (a
+                markup, an icon, or "Pin a photo here", each marked
+                data-plan-card): the chip would sit on top of the card's
+                buttons. Markup and icon cards show their own Layer. */}
             {showOverlays && layerState.layers.length > 0 && (
               <button
                 type="button"
                 onClick={() => setPanel("layers")}
-                className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 flex min-h-11 max-w-[60%] items-center gap-2 rounded-full bg-neutral-900/90 px-3 text-sm shadow-lg hover:bg-neutral-700"
+                className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 flex min-h-11 max-w-[60%] items-center gap-2 rounded-full bg-neutral-900/90 px-3 text-sm shadow-lg group-has-[[data-plan-card]]/plan:hidden hover:bg-neutral-700"
                 aria-label={`Drawing on ${activeLayerName}. Change layer`}
               >
                 <Layers className="size-4 shrink-0 text-primary" />

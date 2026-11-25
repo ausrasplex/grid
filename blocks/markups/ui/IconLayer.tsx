@@ -359,7 +359,7 @@ export function IconLayer({
 
       {/* A placed icon, tapped. */}
       {selected && selectedIcon && !placing && (
-        <div className="pointer-events-auto absolute inset-x-2 bottom-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg">
+        <div data-plan-card="" className="pointer-events-auto absolute right-[4.5rem] bottom-2 left-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg sm:bottom-3">
           <div className="flex items-center gap-2">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-white">
               <IconGlyph icon={selectedIcon} colour={lookup.trade(selected.iconKey)!.colour} className="size-7" />

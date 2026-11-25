@@ -200,7 +200,7 @@ export function PhotoPins({ projectId, jobName, initial, canAdd }: { projectId: 
             className="pointer-events-none absolute size-6 -translate-x-1/2 -translate-y-1/2 animate-pulse rounded-full border-2 border-primary bg-primary/40"
             style={{ left: toScreen(view, spot)[0], top: toScreen(view, spot)[1] }}
           />
-          <div className="pointer-events-auto absolute right-[4.5rem] bottom-2 left-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg">
+          <div data-plan-card="" className="pointer-events-auto absolute right-[4.5rem] bottom-2 left-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg">
             <div className="flex items-center justify-between gap-2">
               <p className="font-semibold">Pin a photo here</p>
               <button type="button" onClick={() => setTool(null)} className="-m-1 flex size-11 items-center justify-center rounded-md hover:bg-muted" aria-label="Cancel">

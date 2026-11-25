@@ -753,7 +753,7 @@ function SelectedCard({
   onDelete: () => void;
 }) {
   return (
-    <div className="pointer-events-auto absolute right-[4.5rem] bottom-2 left-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg sm:bottom-3">
+    <div data-plan-card="" className="pointer-events-auto absolute right-[4.5rem] bottom-2 left-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg sm:bottom-3">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="font-semibold">
