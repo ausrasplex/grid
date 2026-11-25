@@ -6,14 +6,16 @@ export default defineBlock({
   version: "1.0.0",
   description: "The people and businesses you work for: one list for jobs and quotes. Part of the core.",
   required: true,
-  dependsOn: ["companies"],
+  // templates: your own business's phone, email and address for Share our card.
+  dependsOn: ["companies", "templates"],
   permissions: [
     { key: "clients.view", label: "See clients", description: "The client list, with contact details" },
     { key: "clients.add", label: "Add clients", description: "When starting a job or writing a quote" },
-    { key: "clients.manage", label: "Change and remove clients" },
+    { key: "clients.edit", label: "Change client details", description: "Fix names, phones, emails and businesses, and update matches when importing" },
+    { key: "clients.manage", label: "Remove clients and export the list", description: "Remove clients and businesses, download the whole list, share your business card" },
   ],
   grants: {
-    FOREMAN: ["clients.view", "clients.add"],
+    FOREMAN: ["clients.view", "clients.add", "clients.edit"],
   },
   menus: [{ id: "clients.list", slot: "settings.company", label: "Clients", icon: "users", href: "/clients", permission: "clients.view", order: 45 }],
   routes: async () => (await import("./routes")).routes,

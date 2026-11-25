@@ -95,6 +95,7 @@ prisma/        base, core and auth schemas; migrations
   **Phase 4c part 1** (trade icon library by trade with search, placing icons on plans as ICON markups, numbered versions per job, counts per sheet, level and job, trade layers) is done too; see "What part 1 built" under Phase 4c in `docs/roadmap.md`.
   **Phase 4c part 2** (the quote's Take-off section through the `quote.takeoff` slot, a price book item per icon number, Add to quote and "Take-off changed", Quoting jobs moved along by quote events) is done too; see "What part 2 built" under Phase 4c in `docs/roadmap.md`.
   **Phase 4c part 3** (custom icons built from a shape and letters in Settings › Custom icons, and manuals linked to an icon type at `/documents/icon/<key>`) is done too, which finishes Phase 4c.
+  **Clients export and import** (Settings › Clients › Export & import: Excel/CSV export, import with a matching preview, Share our business card; contact cards only, never accounts) is done too; see "Export and import" in `docs/quotations-block.md`. `ClientBusiness.linkedCompanyId` and `Client.linkedUserId` wait for the contract chain.
 - Next: **Phase 5c** (Assets, `docs/assets-block.md`). OCR, product scanning and the product catalogue are later.
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.

@@ -24,6 +24,9 @@ model Client {
   /// Business number (ABN etc.) for business clients.
   abn         String?
   notes       String?
+  /// Later (contract chain): the Grid account this contact card is for,
+  /// matched by email. Stored now, empty and unread until then.
+  linkedUserId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -43,6 +46,9 @@ model ClientBusiness {
   phone     String?
   address   String?
   notes     String?
+  /// Later (contract chain): the Grid business this contact card is for,
+  /// matched by ABN. Stored now, empty and unread until then.
+  linkedCompanyId String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

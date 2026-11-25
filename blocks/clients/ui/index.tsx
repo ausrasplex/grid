@@ -4,6 +4,7 @@
 //                            with them (panel slot "client.page": active jobs, open quotes)
 //   /clients/business/<id>   one business: its details, its people, and everyone's
 //                            jobs and quotes (the same "client.page" panels)
+//   /clients/import          import from a CSV or Excel file, with a preview first
 
 import { can, notFound, type RequestContext } from "@grid/core";
 import { Alert, Avatar, Icon, List, PageHeader, Section, Stack, type BlockPages, type PanelRenderer } from "@grid/ui";
@@ -12,13 +13,26 @@ import { businessPage, clientPage, listBusinesses, listClients } from "../servic
 import type { ClientPagePanelProps } from "../index";
 import { BusinessActions, ClientActions } from "./ClientActions";
 import { Clients } from "./Clients";
+import { ImportClients } from "./ClientTransfer";
 
 export const pages: BlockPages = {
   "": async ({ ctx, params: [first, second], panels }) => {
     if (first === "business" && second) return <BusinessPage ctx={ctx} businessId={second} panels={panels} />;
+    if (first === "import" && !second) {
+      if (!can(ctx, "clients.add")) throw notFound("Page not found");
+      return <ImportClients />;
+    }
     if (first) return <ClientPage ctx={ctx} clientId={first} panels={panels} />;
     const [clients, businesses] = await Promise.all([listClients(ctx), listBusinesses(ctx)]);
-    return <Clients initial={clients} initialBusinesses={businesses} canAdd={can(ctx, "clients.add")} />;
+    return (
+      <Clients
+        initial={clients}
+        initialBusinesses={businesses}
+        canAdd={can(ctx, "clients.add")}
+        canManage={can(ctx, "clients.manage")}
+        canSeeTeam={can(ctx, "companies.members.view")}
+      />
+    );
   },
 };
 
@@ -89,9 +103,9 @@ async function ClientPage({ ctx, clientId, panels }: { ctx: RequestContext; clie
       <PageHeader
         title={client.name}
         meta={[roleLine(client), client.contactName, phone].filter(Boolean).join(" · ") || undefined}
-        actions={!client.removed && can(ctx, "clients.manage") ? <ClientActions client={client} /> : undefined}
+        actions={!client.removed && can(ctx, "clients.edit") ? <ClientActions client={client} canRemove={can(ctx, "clients.manage")} /> : undefined}
       />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <Stack>
           {client.removed && <Alert>This client was removed from the list. Jobs and quotes that name them keep their details.</Alert>}
           {others.length > 0 ? (
@@ -122,9 +136,13 @@ async function BusinessPage({ ctx, businessId, panels }: { ctx: RequestContext; 
       <PageHeader
         title={business.name}
         meta={[business.peopleCount === 1 ? "1 person" : `${business.peopleCount} people`, business.phone].filter(Boolean).join(" · ")}
-        actions={!business.removed && (can(ctx, "clients.manage") || can(ctx, "clients.add")) ? <BusinessActions business={row} canManage={can(ctx, "clients.manage")} canAdd={can(ctx, "clients.add")} /> : undefined}
+        actions={
+          !business.removed && (can(ctx, "clients.edit") || can(ctx, "clients.add")) ? (
+            <BusinessActions business={row} canEdit={can(ctx, "clients.edit")} canRemove={can(ctx, "clients.manage")} canAdd={can(ctx, "clients.add")} />
+          ) : undefined
+        }
       />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <Stack>
           {business.removed && <Alert>This business was removed from the list.</Alert>}
           <Section title="People" description="Quotes and jobs go to a person here. Their own phone and email come first; the business's fill the gaps." flush>

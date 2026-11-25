@@ -51,14 +51,17 @@ export interface PlanView {
  * "release", "double" and "cancel" are sent while a tool is picked, or
  * after a listener claimed the press. A tool picked with `tapsOnly` gets
  * taps ("click", "double") but a one-finger drag still moves the plan.
+ * "hold" is sent, with no tool picked, when a press stays still for a
+ * moment (press and hold); claiming it takes the drag that follows, like
+ * claiming a press.
  */
 export interface PlanPointer {
-  kind: "press" | "drag" | "release" | "click" | "double" | "cancel";
+  kind: "press" | "hold" | "drag" | "release" | "click" | "double" | "cancel";
   point: SheetPoint;
   /** Screen pixels inside the viewer. */
   screen: [number, number];
   /**
-   * On "press" only: take this touch (e.g. it landed on a corner handle).
+   * On "press" and "hold" only: take this touch (e.g. it landed on a corner handle).
    * The drag that follows comes to you instead of panning the plan, and
    * the tap that ends it isn't sent as a "click".
    */
