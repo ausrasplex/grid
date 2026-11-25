@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
-import { Button, Icon, Sheet, SheetContent, api } from "@grid/ui";
+import { ActionButton, Icon, Sheet, SheetContent, api } from "@grid/ui";
 import { BusinessForm, ClientForm, type BusinessRowJson, type ClientJson } from "./ClientPicker";
 
 export function ClientActions({ client }: { client: ClientJson }) {
@@ -14,9 +14,7 @@ export function ClientActions({ client }: { client: ClientJson }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        <Icon name="edit" /> Change
-      </Button>
+      <ActionButton variant="outline" icon={<Icon name="edit" />} label="Change" onClick={() => setOpen(true)} />
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent desktop="dialog" title={client.name}>
           <ClientForm
@@ -44,14 +42,10 @@ export function BusinessActions({ business, canManage, canAdd }: { business: Bus
   return (
     <>
       {canAdd && (
-        <Button variant="outline" onClick={() => setOpen("person")}>
-          <UserPlus /> Add a person
-        </Button>
+        <ActionButton variant="outline" icon={<UserPlus />} label="Add a person" onClick={() => setOpen("person")} />
       )}
       {canManage && (
-        <Button variant="outline" onClick={() => setOpen("change")}>
-          <Icon name="edit" /> Change
-        </Button>
+        <ActionButton variant="outline" icon={<Icon name="edit" />} label="Change" onClick={() => setOpen("change")} />
       )}
       <Sheet open={!!open} onOpenChange={(next) => !next && (setOpen(null), setError(null))}>
         <SheetContent desktop="dialog" title={open === "person" ? `New person at ${business.name}` : business.name}>

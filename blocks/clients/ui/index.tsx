@@ -91,7 +91,7 @@ async function ClientPage({ ctx, clientId, panels }: { ctx: RequestContext; clie
         meta={[roleLine(client), client.contactName, phone].filter(Boolean).join(" · ") || undefined}
         actions={!client.removed && can(ctx, "clients.manage") ? <ClientActions client={client} /> : undefined}
       />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <Stack>
           {client.removed && <Alert>This client was removed from the list. Jobs and quotes that name them keep their details.</Alert>}
           {others.length > 0 ? (
@@ -124,7 +124,7 @@ async function BusinessPage({ ctx, businessId, panels }: { ctx: RequestContext; 
         meta={[business.peopleCount === 1 ? "1 person" : `${business.peopleCount} people`, business.phone].filter(Boolean).join(" · ")}
         actions={!business.removed && (can(ctx, "clients.manage") || can(ctx, "clients.add")) ? <BusinessActions business={row} canManage={can(ctx, "clients.manage")} canAdd={can(ctx, "clients.add")} /> : undefined}
       />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <Stack>
           {business.removed && <Alert>This business was removed from the list.</Alert>}
           <Section title="People" description="Quotes and jobs go to a person here. Their own phone and email come first; the business's fill the gaps." flush>
