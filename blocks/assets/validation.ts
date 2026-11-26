@@ -101,6 +101,32 @@ export const returnSchema = z.object({ where: z.enum(["STORE", "VEHICLE", "PROJE
 
 export const takeOverSchema = z.object({ note: optText(500) }).strict();
 
+export const faultSchema = z
+  .object({
+    type: z.enum(["FAULTY", "DAMAGED", "MISSING_PARTS", "FAILED_TEST", "OTHER"]),
+    doNotUse: z.boolean().default(false),
+    note: optText(2000),
+    photoFileIds: z.array(uuid).max(20).default([]),
+    lat: z.number().min(-90).max(90).nullish(),
+    lng: z.number().min(-180).max(180).nullish(),
+    /** Add to this open report instead of making a new one. */
+    addTo: uuid.nullish(),
+    /** Report a new fault even though one is open. */
+    anyway: z.boolean().default(false),
+  })
+  .strict();
+
+export const faultStepSchema = z.object({ status: z.enum(["ACKNOWLEDGED", "IN_REPAIR", "FIXED", "RETIRED"]).nullish(), note: optText(2000) }).strict();
+
+export const lostSchema = z
+  .object({
+    kind: z.enum(["LOST", "STOLEN"]),
+    lastKnown: optText(500),
+    note: optText(2000),
+    policeReport: optText(60),
+  })
+  .strict();
+
 export type AssetInput = z.infer<typeof assetSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
 export type ListQuery = z.infer<typeof listQuery>;
@@ -108,3 +134,6 @@ export type StickerQuery = z.infer<typeof stickerQuery>;
 export type StickerSettingsInput = z.infer<typeof stickerSettingsSchema>;
 export type CheckOutInput = z.infer<typeof checkOutSchema>;
 export type ReturnInput = z.infer<typeof returnSchema>;
+export type FaultInput = z.infer<typeof faultSchema>;
+export type FaultStepInput = z.infer<typeof faultStepSchema>;
+export type LostInput = z.infer<typeof lostSchema>;

@@ -68,6 +68,7 @@ export const blockPanels: Record<string, () => Promise<BlockPanels>> = {
   documents: async () => (await import("@grid/block-documents/ui")).panels,
   signoffs: async () => (await import("@grid/block-signoffs/ui")).panels,
   handover: async () => (await import("@grid/block-handover/ui")).panels,
+  assets: async () => (await import("@grid/block-assets/ui")).panels,
 };
 
 /** Renders the panels every switched-on block offers for a slot, in block order. */

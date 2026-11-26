@@ -3,8 +3,8 @@ import { defineBlock } from "@grid/core";
 // Assets (docs/assets-block.md): the business's tools and gear with QR tags.
 // Part 1: assets, categories with their own fields, tags and sticker
 // sheets, and scan to open. Part 2: custody (check out, return, take over)
-// and the movement history. Faults, inspections and vehicles come in later
-// parts, with their own permissions (§5).
+// and the movement history. Part 3: faults (Do not use, the repair steps)
+// and lost or stolen. Inspections and vehicles come in later parts.
 export default defineBlock({
   id: "assets",
   name: "Assets",
@@ -15,15 +15,19 @@ export default defineBlock({
     { key: "assets.view", label: "See assets", description: "And scan their tags" },
     { key: "assets.custody", label: "Check gear out and in for yourself", description: "And take over gear someone else has" },
     { key: "assets.assign", label: "Check gear out to others and move it between places" },
+    { key: "assets.faults.report", label: "Report faults and lost gear" },
+    { key: "assets.faults.manage", label: "Look after faults", description: "Acknowledge, repair and close them. Told about faults and lost gear" },
+    { key: "assets.lost.retire", label: "Retire lost gear for good" },
     { key: "assets.manage", label: "Add and change assets", description: "Assets, categories and printing tags" },
   ],
   grants: {
-    FOREMAN: ["assets.view", "assets.custody", "assets.assign", "assets.manage"],
-    EMPLOYEE: ["assets.view", "assets.custody"],
+    FOREMAN: ["assets.view", "assets.custody", "assets.assign", "assets.faults.report", "assets.faults.manage", "assets.manage"],
+    EMPLOYEE: ["assets.view", "assets.custody", "assets.faults.report"],
     VIEWER: ["assets.view"],
   },
   menus: [
     { id: "assets.list", slot: "sidebar.main", label: "Assets", icon: "wrench", href: "/assets", permission: "assets.view", prominence: "main", order: 45 },
+    { id: "assets.faults", slot: "sidebar.main", label: "Faults", icon: "wrench", href: "/assets/faults", permission: "assets.faults.manage", order: 46 },
     { id: "assets.categories", slot: "settings.company", label: "Asset categories", icon: "wrench", href: "/assets/categories", permission: "assets.manage", order: 58 },
   ],
   routes: async () => (await import("./routes")).routes,

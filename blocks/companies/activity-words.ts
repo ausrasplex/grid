@@ -34,6 +34,8 @@ const THINGS: Record<string, string> = {
   HandoverShare: "client handover link",
   AssetCategory: "asset category",
   AssetSettings: "asset tag settings",
+  AssetFault: "asset fault",
+  AssetLoss: "lost asset report",
   TaxCode: "tax code",
   SignRequest: "signing link",
   QuoteUserSettings: "quote screen setting",
@@ -78,6 +80,16 @@ const VERBS: Record<string, string> = {
   return: "Returned",
   take_over: "Took over",
   move: "Moved",
+  reported: "Reported",
+  added_to: "Added to",
+  acknowledged: "Acknowledged",
+  in_repair: "Sent for repair",
+  fixed: "Fixed",
+  noted: "Added a note to",
+  reported_lost: "Reported lost",
+  reported_stolen: "Reported stolen",
+  recovered: "Recovered",
+  retired_as_lost: "Retired as lost",
 };
 
 const words = (value: string) => value.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();

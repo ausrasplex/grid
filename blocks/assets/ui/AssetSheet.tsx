@@ -8,7 +8,7 @@ import { Camera, X } from "lucide-react";
 import { Alert, Button, Field, FormActions, Label, SelectField, Sheet, SheetContent, Switch, api, useAction } from "@grid/ui";
 import { photoUrl, uploadPhoto, type AssetJson, type CategoryField, type CategoryJson, type FieldValue } from "./shared";
 
-function Photos({ ids, onChange, onError }: { ids: string[]; onChange: (ids: string[]) => void; onError: (message: string | null) => void }) {
+export function Photos({ ids, onChange, onError }: { ids: string[]; onChange: (ids: string[]) => void; onError: (message: string | null) => void }) {
   const picker = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   return (

@@ -98,7 +98,7 @@ export async function history(ctx: RequestContext, assetId: string): Promise<Mov
 // ─── Moving it ───────────────────────────────────────────────────────────
 
 /** A job and (optionally) its building or level, checked, with its name as it reads now. */
-async function placeOnJob(ctx: RequestContext, input: { projectId?: string | null; buildingId?: string | null; levelId?: string | null }) {
+export async function placeOnJob(ctx: RequestContext, input: { projectId?: string | null; buildingId?: string | null; levelId?: string | null }) {
   if (!input.projectId) return null;
   if (!(await canSeeJob(ctx, input.projectId))) throw notFound("Job not found");
   const job = await getProject(ctx, input.projectId);
@@ -119,7 +119,7 @@ async function ownAsset(tx: Tx, companyId: string, id: string) {
 }
 
 /** Closes the current move and opens the next, in one go. */
-async function moveTo(
+export async function moveTo(
   tx: Tx,
   ctx: RequestContext,
   asset: { id: string; number: number; name: string; companyId: string },
@@ -138,7 +138,7 @@ async function moveTo(
   return row;
 }
 
-async function currentRow(tx: Tx, assetId: string) {
+export async function currentRow(tx: Tx, assetId: string) {
   return tx.assetCustody.findFirst({ where: { assetId, toAt: null } });
 }
 

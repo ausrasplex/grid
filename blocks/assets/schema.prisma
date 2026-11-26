@@ -1,8 +1,8 @@
 // Assets block (docs/assets-block.md): the business's tools and gear, with
 // QR tags. Part 1: assets, categories with their own fields, tags and the
 // sticker sheets, scan to open. Part 2: custody (who has it, where it is)
-// and the movement history. Faults, inspections and vehicles add their
-// tables in later parts.
+// and the movement history. Part 3: faults (Do not use, the repair steps)
+// and lost or stolen. Inspections and vehicles add their tables later.
 
 enum AssetStatus {
   IN_SERVICE
@@ -66,6 +66,8 @@ model Asset {
   updatedAt         DateTime       @updatedAt
   deletedAt         DateTime?
   custody           AssetCustody[]
+  faults            AssetFault[]
+  losses            AssetLoss[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
@@ -141,4 +143,100 @@ model AssetCustody {
   @@index([companyId, toAt])
   @@index([userId, toAt])
   @@index([projectId, toAt])
+}
+
+enum AssetFaultType {
+  FAULTY
+  DAMAGED
+  MISSING_PARTS
+  FAILED_TEST
+  OTHER
+}
+
+enum AssetFaultStatus {
+  REPORTED
+  ACKNOWLEDGED
+  IN_REPAIR
+  FIXED
+  RETIRED
+}
+
+/// A fault reported on an asset (§3). Open until FIXED or RETIRED. The
+/// asset's status follows its open faults (status.ts).
+model AssetFault {
+  id           String             @id @default(uuid())
+  companyId    String
+  assetId      String
+  asset        Asset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  type         AssetFaultType
+  /// Unsafe: the asset is Do not use until the fault is closed.
+  doNotUse     Boolean            @default(false)
+  note         String?
+  /// StoredFile ids (block assets).
+  photoFileIds String[]           @default([])
+  status       AssetFaultStatus   @default(REPORTED)
+  reportedById String
+  reportedAt   DateTime           @default(now())
+  /// Where it was, from its custody when reported.
+  projectId    String?
+  siteId       String?
+  buildingId   String?
+  levelId      String?
+  placeName    String?
+  /// Only when the reporter allowed their location.
+  lat          Float?
+  lng          Float?
+  closedAt     DateTime?
+  updatedAt    DateTime           @updatedAt
+  events       AssetFaultEvent[]
+
+  @@index([assetId, closedAt])
+  @@index([companyId, closedAt])
+}
+
+/// Each step of a fault: reported, acknowledged, in repair, fixed or
+/// retired, or a note added (status null), with who and when.
+model AssetFaultEvent {
+  id           String            @id @default(uuid())
+  faultId      String
+  fault        AssetFault        @relation(fields: [faultId], references: [id], onDelete: Cascade)
+  status       AssetFaultStatus?
+  note         String?
+  photoFileIds String[]          @default([])
+  /// Set when this step made it Do not use (an "Add to existing report" that's unsafe).
+  doNotUse     Boolean           @default(false)
+  byUserId     String
+  at           DateTime          @default(now())
+
+  @@index([faultId, at])
+}
+
+enum AssetLossKind {
+  LOST
+  STOLEN
+}
+
+/// Reported lost or stolen (§3a). Open until recovered or retired as lost.
+model AssetLoss {
+  id               String        @id @default(uuid())
+  companyId        String
+  assetId          String
+  asset            Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  kind             AssetLossKind
+  /// Last known whereabouts as the reporter confirmed them ("With Sam T., ED Refurbish, Tue 7:02 am").
+  lastKnown        String?
+  note             String?
+  /// Stolen: the police report number, for insurance.
+  policeReport     String?
+  reportedById     String
+  reportedAt       DateTime      @default(now())
+  recoveredAt      DateTime?
+  recoveredById    String?
+  /// Retired as lost (Owner): off the active list, history and tag kept.
+  retiredAt        DateTime?
+  retiredById      String?
+  updatedAt        DateTime      @updatedAt
+
+  @@index([assetId])
+  @@index([companyId, recoveredAt, retiredAt])
 }

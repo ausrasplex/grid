@@ -4,10 +4,15 @@
 //   /assets/categories   Settings › Asset categories (and each one's fields)
 
 import { can, notFound, type RequestContext } from "@grid/core";
-import { Alert, PageHeader, Section, Stack, type BlockPages } from "@grid/ui";
+import { Alert, AttentionRow, PageHeader, Section, Stack, type BlockPages, type BlockPanels } from "@grid/ui";
 import { getAsset, listAssets, listCategories } from "../service";
 import { tagSvg } from "../stickers";
 import { history } from "../custody";
+import { faultsFor, openFaults, attention } from "../faults";
+import { currentLoss } from "../lost";
+import { FaultCard } from "./FaultCard";
+import { FaultsList } from "./FaultsList";
+import { RetireLost } from "./RetireLost";
 import { CustodyActions } from "./CustodyActions";
 import { AssetActions } from "./AssetActions";
 import { Assets } from "./Assets";
@@ -18,6 +23,10 @@ import { assetMeta, fieldText, photoUrl, statusWords, when, type AssetJson, type
 const json = <T,>(value: unknown): T => JSON.parse(JSON.stringify(value)) as T;
 
 export const pages: BlockPages = {
+  faults: async ({ ctx }) => {
+    if (!can(ctx, "assets.faults.manage")) throw notFound("Page not found");
+    return <FaultsList initial={json(await openFaults(ctx))} />;
+  },
   categories: async ({ ctx }) => {
     if (!can(ctx, "assets.manage")) throw notFound("Page not found");
     return <Categories initial={json<CategoryJson[]>(await listCategories(ctx))} />;
@@ -39,6 +48,9 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
     can(ctx, "assets.manage") ? listCategories(ctx) : Promise.resolve([]),
     history(ctx, assetId),
   ]);
+  const [faults, loss] = await Promise.all([faultsFor(ctx, assetId), currentLoss(ctx, assetId)]);
+  const open = faults.find((fault) => fault.open) ?? null;
+  const unsafe = faults.find((fault) => fault.open && fault.doNotUse);
   const details: { label: string; value: string | null }[] = [
     { label: "Category", value: asset.category },
     { label: "Make", value: asset.make },
@@ -63,14 +75,43 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
       />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Stack>
-          {asset.status === "RETIRED" && <Alert>Retired: it&apos;s off the list, with its history kept. Its tag still opens this page.</Alert>}
+          {unsafe && (
+            <div role="alert" className="rounded-xl bg-destructive p-4 text-destructive-foreground">
+              <p className="text-lg font-bold">Do not use</p>
+              <p>
+                {unsafe.note ? `"${unsafe.note}". ` : ""}Reported by {unsafe.reportedBy}, {when(json<string>(unsafe.reportedAt))}.
+              </p>
+            </div>
+          )}
+          {loss && (
+            <div role="alert" className="flex flex-col gap-2 rounded-xl bg-destructive/15 p-4">
+              <p className="text-lg font-bold">{loss.retired ? "Retired as lost" : loss.kind === "STOLEN" ? "Reported stolen" : "Reported lost"}</p>
+              <p className="text-sm">
+                {[loss.lastKnown ? `Last known: ${loss.lastKnown}` : null, `Reported by ${loss.reportedBy}, ${when(json<string>(loss.reportedAt))}`, loss.policeReport ? `Police report ${loss.policeReport}` : null].filter(Boolean).join(". ")}.
+              </p>
+              {loss.note && <p className="text-sm whitespace-pre-line">{loss.note}</p>}
+              {!loss.retired && can(ctx, "assets.lost.retire") && <RetireLost assetId={asset.id} />}
+            </div>
+          )}
+          {asset.status === "RETIRED" && !loss && <Alert>Retired: it&apos;s off the list, with its history kept. Its tag still opens this page.</Alert>}
           <div className="flex flex-col gap-3 rounded-xl bg-card p-4 sm:p-5">
             <div>
               <p className="text-sm text-muted-foreground">Where it is</p>
               <p className="text-lg font-semibold">{asset.holder.userId === ctx.userId ? ["With you", asset.holder.place].filter(Boolean).join(" · ") : asset.holder.text}</p>
               {asset.holder.since && <p className="text-sm text-muted-foreground">Since {when(json<string>(asset.holder.since))}</p>}
             </div>
-            {can(ctx, "assets.custody") && <CustodyActions asset={json<AssetJson>(asset)} userId={ctx.userId} canAssign={can(ctx, "assets.assign")} solo={ctx.solo} />}
+            {(can(ctx, "assets.custody") || can(ctx, "assets.faults.report")) && (
+              <CustodyActions
+                asset={json<AssetJson>(asset)}
+                userId={ctx.userId}
+                canCustody={can(ctx, "assets.custody")}
+                canAssign={can(ctx, "assets.assign")}
+                canReport={can(ctx, "assets.faults.report")}
+                solo={ctx.solo}
+                openFault={open ? { id: open.id, type: open.type, doNotUse: open.doNotUse, note: open.note } : null}
+                lostOpen={!!loss}
+              />
+            )}
           </div>
           {main && (
             <div className="flex flex-col gap-2">
@@ -103,6 +144,15 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
               {details.every((detail) => !detail.value) && <p className="px-4 py-3 text-muted-foreground sm:px-5">No details yet.</p>}
             </dl>
           </Section>
+          {faults.length > 0 && (
+            <Section title="Faults" flush>
+              <div className="flex flex-col divide-y">
+                {faults.map((fault) => (
+                  <FaultCard key={fault.id} fault={json(fault)} canManage={can(ctx, "assets.faults.manage")} />
+                ))}
+              </div>
+            </Section>
+          )}
           <History moves={json<MoveJson[]>(moves)} />
         </Stack>
         <Section title="Tag" description="Scan it with the Scan button, or any phone camera, to open this asset.">
@@ -141,3 +191,28 @@ function History({ moves }: { moves: MoveJson[] }) {
     </Section>
   );
 }
+
+/** Home's "Needs attention": Do-not-use and other open faults, and lost or stolen gear (for whoever looks after faults). */
+export const panels: BlockPanels = {
+  "home.attention": async ({ ctx }) => {
+    if (!ctx.companyId || !can(ctx, "assets.faults.manage")) return null;
+    const { unsafe, faults, lost } = await attention(ctx.companyId);
+    if (!unsafe && !faults && !lost.length) return null;
+    return (
+      <>
+        {lost.map((entry) => (
+          <AttentionRow
+            key={entry.asset.id}
+            title={`Asset No. ${entry.asset.number}, ${entry.asset.name}`}
+            badge={entry.kind === "STOLEN" ? "Stolen" : "Lost"}
+            tone="destructive"
+            description="Reported missing. Mark it recovered when it turns up."
+            href={`/assets/${entry.asset.id}`}
+          />
+        ))}
+        {unsafe > 0 && <AttentionRow title={`${unsafe} asset${unsafe === 1 ? "" : "s"} marked Do not use`} badge="Do not use" tone="destructive" description="Unsafe gear waiting to be repaired or retired." href="/assets/faults" />}
+        {faults > 0 && <AttentionRow title={`${faults} fault${faults === 1 ? "" : "s"} to sort out`} badge="Faults" tone="warning" description="Acknowledge them, send them for repair, or close them." href="/assets/faults" />}
+      </>
+    );
+  },
+};

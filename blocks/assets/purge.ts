@@ -14,6 +14,8 @@ export async function purgeCompany(companyId: string): Promise<void> {
   const assets = await db.asset.findMany({ where: { companyId }, select: { id: true } });
   await db.routeCode.updateMany({ where: { entityType: "Asset", entityId: { in: assets.map((asset) => asset.id) }, revokedAt: null }, data: { revokedAt: new Date() } });
   await db.assetCustody.deleteMany({ where: { companyId } });
+  await db.assetFault.deleteMany({ where: { companyId } });
+  await db.assetLoss.deleteMany({ where: { companyId } });
   await db.asset.deleteMany({ where: { companyId } });
   await db.assetCategory.deleteMany({ where: { companyId } });
   await db.assetSettings.deleteMany({ where: { companyId } });
@@ -26,6 +28,7 @@ export async function purgeCompany(companyId: string): Promise<void> {
  */
 export async function purgeProject(projectId: string): Promise<string[]> {
   await db.assetCustody.updateMany({ where: { projectId }, data: { projectId: null, siteId: null, buildingId: null, levelId: null } });
+  await db.assetFault.updateMany({ where: { projectId }, data: { projectId: null, siteId: null, buildingId: null, levelId: null } });
   return [];
 }
 

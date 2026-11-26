@@ -4,10 +4,12 @@
 // its state: Check out when it's free, Return when you have it, Take over
 // when someone else has it, greyed out when it mustn't be used. A Foreman
 // (assets.assign) also gets Move: to the workshop, a van or a job, or to
-// someone else. Fault and Lost join these in part 3.
+// someone else. Fault and Lost are always there (part 3); gear reported
+// lost gets Recovered first, which checks it in wherever it is now.
 import { useEffect, useState } from "react";
-import { ArrowRightLeft, Hand, LogIn, LogOut } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Hand, LogIn, LogOut, PackageCheck, SearchX } from "lucide-react";
 import { Alert, Button, Field, FormActions, Label, Segmented, SelectField, Sheet, SheetContent, api, useAction } from "@grid/ui";
+import { FaultSheet, LostSheet, type OpenFault } from "./ReportSheets";
 import type { AssetJson } from "./shared";
 
 interface Places {
@@ -127,7 +129,8 @@ function CheckOutSheet({ asset, canAssign, solo, onClose, onDone }: { asset: Ass
 
 type Where = "STORE" | "VEHICLE" | "PROJECT";
 
-function ReturnSheet({ asset, moving, onClose, onDone }: { asset: AssetJson; moving: boolean; onClose: () => void; onDone: () => void }) {
+function ReturnSheet({ asset, mode, onClose, onDone }: { asset: AssetJson; mode: "return" | "move" | "recover"; onClose: () => void; onDone: () => void }) {
+  const moving = mode === "move";
   const places = usePlaces();
   const [where, setWhere] = useState<Where>("STORE");
   const [store, setStore] = useState("Workshop");
@@ -138,14 +141,18 @@ function ReturnSheet({ asset, moving, onClose, onDone }: { asset: AssetJson; mov
   const ready = where === "STORE" ? !!store.trim() : where === "VEHICLE" ? !!van.trim() : !!job.projectId;
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent desktop="dialog" title={`${moving ? "Move" : "Return"} Asset No. ${asset.number}`} description={moving ? `${asset.name}. Now: ${asset.holder.text}.` : asset.name}>
+      <SheetContent
+        desktop="dialog"
+        title={mode === "recover" ? `Recovered Asset No. ${asset.number}` : `${moving ? "Move" : "Return"} Asset No. ${asset.number}`}
+        description={mode === "recover" ? `${asset.name}. Where is it now? It's checked in there.` : moving ? `${asset.name}. Now: ${asset.holder.text}.` : asset.name}
+      >
         <form
           className="flex flex-col gap-4 px-2"
           onSubmit={(event) => {
             event.preventDefault();
             void action.run(async () => {
               const label = where === "STORE" ? store : where === "VEHICLE" ? van : null;
-              await api(`/assets/${asset.id}/return`, { body: { where, label, ...(where === "PROJECT" ? jobBody(job) : {}), note: note || null } });
+              await api(`/assets/${asset.id}/${mode === "recover" ? "recovered" : "return"}`, { body: { where, label, ...(where === "PROJECT" ? jobBody(job) : {}), note: note || null } });
               onDone();
             });
           }}
@@ -180,7 +187,7 @@ function ReturnSheet({ asset, moving, onClose, onDone }: { asset: AssetJson; mov
               Cancel
             </Button>
             <Button type="submit" size="lg" disabled={action.busy || !ready}>
-              <LogIn /> {moving ? "Move it" : "Return it"}
+              {mode === "recover" ? <PackageCheck /> : <LogIn />} {mode === "recover" ? "Recovered" : moving ? "Move it" : "Return it"}
             </Button>
           </FormActions>
         </form>
@@ -228,18 +235,43 @@ const BLOCKED: Partial<Record<AssetJson["status"], string>> = {
   LOST: "Reported lost",
 };
 
-export function CustodyActions({ asset, userId, canAssign, solo }: { asset: AssetJson; userId: string; canAssign: boolean; solo: boolean }) {
-  const [open, setOpen] = useState<"out" | "return" | "move" | "take" | null>(null);
+export function CustodyActions({
+  asset,
+  userId,
+  canCustody,
+  canAssign,
+  canReport,
+  solo,
+  openFault,
+  lostOpen,
+}: {
+  asset: AssetJson;
+  userId: string;
+  canCustody: boolean;
+  canAssign: boolean;
+  canReport: boolean;
+  solo: boolean;
+  openFault: OpenFault | null;
+  /** Reported lost or stolen (or retired as lost): Recovered comes first. */
+  lostOpen: boolean;
+}) {
+  const [open, setOpen] = useState<"out" | "return" | "move" | "take" | "recover" | "fault" | "lost" | null>(null);
   const done = () => window.location.reload();
+  const lost = lostOpen;
   const blocked = BLOCKED[asset.status];
   const withPerson = asset.holder.kind === "USER";
   const mine = withPerson && asset.holder.userId === userId;
+  const retired = asset.status === "RETIRED";
 
   return (
     <section className="flex flex-col gap-2" aria-label="Actions">
       <h2 className="text-sm font-bold tracking-wide text-muted-foreground uppercase">Actions</h2>
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        {mine ? (
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
+        {lost && canReport ? (
+          <Button size="lg" onClick={() => setOpen("recover")}>
+            <PackageCheck /> Recovered
+          </Button>
+        ) : !canCustody ? null : mine ? (
           <Button size="lg" onClick={() => setOpen("return")}>
             <LogIn /> Return
           </Button>
@@ -255,15 +287,27 @@ export function CustodyActions({ asset, userId, canAssign, solo }: { asset: Asse
             {blocked && <p className="text-sm font-semibold text-destructive">{blocked}</p>}
           </div>
         )}
-        {canAssign && (
-          <Button size="lg" variant="outline" onClick={() => setOpen(withPerson && !mine && !blocked ? "out" : "move")}>
+        {canReport && !retired && !lost && (
+          <Button size="lg" variant="outline" onClick={() => setOpen("fault")}>
+            <AlertTriangle /> Fault
+          </Button>
+        )}
+        {canReport && !retired && !lost && (
+          <Button size="lg" variant="outline" onClick={() => setOpen("lost")}>
+            <SearchX /> Lost
+          </Button>
+        )}
+        {canAssign && !lost && !retired && (
+          <Button size="lg" variant="ghost" onClick={() => setOpen(withPerson && !mine && !blocked ? "out" : "move")}>
             <ArrowRightLeft /> {withPerson && !mine && !blocked && !solo ? "Give to someone" : "Move"}
           </Button>
         )}
       </div>
       {open === "out" && <CheckOutSheet asset={asset} canAssign={canAssign} solo={solo} onClose={() => setOpen(null)} onDone={done} />}
-      {(open === "return" || open === "move") && <ReturnSheet asset={asset} moving={open === "move"} onClose={() => setOpen(null)} onDone={done} />}
+      {(open === "return" || open === "move" || open === "recover") && <ReturnSheet asset={asset} mode={open} onClose={() => setOpen(null)} onDone={done} />}
       {open === "take" && <TakeOverSheet asset={asset} onClose={() => setOpen(null)} onDone={done} />}
+      {open === "fault" && <FaultSheet asset={asset} open={openFault} onClose={() => setOpen(null)} onDone={done} />}
+      {open === "lost" && <LostSheet asset={asset} onClose={() => setOpen(null)} onDone={done} />}
     </section>
   );
 }

@@ -3,7 +3,9 @@ import type { Routes } from "@grid/core";
 import * as svc from "./service";
 import * as stickers from "./stickers";
 import * as custody from "./custody";
-import { assetSchema, categorySchema, checkOutSchema, returnSchema, takeOverSchema, listQuery, presetSchema, statusSchema, stickerQuery, stickerSettingsSchema } from "./validation";
+import * as faults from "./faults";
+import * as lost from "./lost";
+import { assetSchema, categorySchema, checkOutSchema, faultSchema, faultStepSchema, lostSchema, returnSchema, takeOverSchema, listQuery, presetSchema, statusSchema, stickerQuery, stickerSettingsSchema } from "./validation";
 
 const queryParams = (request: { query: URLSearchParams }) => Object.fromEntries(request.query);
 
@@ -12,6 +14,10 @@ export const routes: Routes = {
   "GET /": { permission: "assets.view", handler: (ctx, request) => svc.listAssets(ctx, listQuery.parse(queryParams(request))) },
   "POST /": { permission: "assets.manage", handler: (ctx, request) => svc.saveAsset(ctx, null, assetSchema.parse(request.body)) },
   "GET /next-number": { permission: "assets.manage", handler: (ctx) => svc.suggestedNumber(ctx) },
+
+  // Open faults across the business (the Faults page), and moving a fault along
+  "GET /faults": { permission: "assets.faults.manage", handler: (ctx) => faults.openFaults(ctx) },
+  "POST /faults/:faultId/step": { permission: "assets.faults.manage", handler: (ctx, request) => faults.faultStep(ctx, request.params.faultId!, faultStepSchema.parse(request.body)) },
 
   // What the custody sheets pick from: jobs, stores, vans, the team; a job's levels
   "GET /places": { permission: "assets.custody", handler: (ctx) => custody.places(ctx) },
@@ -42,5 +48,12 @@ export const routes: Routes = {
   "POST /:id/return": { permission: "assets.custody", handler: (ctx, request) => custody.returnAsset(ctx, request.params.id!, returnSchema.parse(request.body)) },
   "POST /:id/take-over": { permission: "assets.custody", handler: (ctx, request) => custody.takeOver(ctx, request.params.id!, takeOverSchema.parse(request.body ?? {}).note) },
   "GET /:id/history": { permission: "assets.view", handler: (ctx, request) => custody.history(ctx, request.params.id!) },
+  // Faults and lost or stolen
+  "GET /:id/faults": { permission: "assets.view", handler: (ctx, request) => faults.faultsFor(ctx, request.params.id!) },
+  "POST /:id/faults": { permission: "assets.faults.report", handler: (ctx, request) => faults.reportFault(ctx, request.params.id!, faultSchema.parse(request.body)) },
+  "GET /:id/last-known": { permission: "assets.faults.report", handler: (ctx, request) => lost.lastKnown(ctx, request.params.id!) },
+  "POST /:id/lost": { permission: "assets.faults.report", handler: (ctx, request) => lost.reportLost(ctx, request.params.id!, lostSchema.parse(request.body)) },
+  "POST /:id/recovered": { permission: "assets.faults.report", handler: (ctx, request) => lost.recover(ctx, request.params.id!, returnSchema.parse(request.body)) },
+  "POST /:id/retire-lost": { permission: "assets.lost.retire", handler: (ctx, request) => lost.retireLost(ctx, request.params.id!) },
   "DELETE /:id": { permission: "assets.manage", handler: (ctx, request) => svc.deleteAsset(ctx, request.params.id!) },
 };

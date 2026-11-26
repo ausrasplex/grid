@@ -8,6 +8,7 @@ import { badRequest, conflict, notFound, requireCompany, type RequestContext } f
 import { attachFile, audit, db, ensureRouteCode, normaliseRouteCode, purgeStoredFile, routeCodeUrl, type Prisma, type Tx } from "@grid/db";
 import { tradePreset } from "@grid/block-companies/trades";
 import { heldBy, holdersFor, type Holder } from "./custody";
+import { refreshStatus } from "./faults";
 import { presetCategories, type CategoryField } from "./presets";
 import type { AssetInput, CategoryInput, ListQuery } from "./validation";
 
@@ -230,13 +231,13 @@ export async function saveAsset(ctx: RequestContext, id: string | null, input: A
   return (await withHolders(companyId, [saved]))[0]!;
 }
 
-/** Retire (no longer used, kept with its history and tag) or put back in service. */
+/** Retire (no longer used, kept with its history and tag) or put back in service (its status then follows what's still open on it). */
 export async function setStatus(ctx: RequestContext, id: string, status: "IN_SERVICE" | "RETIRED") {
   const companyId = requireCompany(ctx);
   const before = await ownAsset(db, companyId, id);
-  if (before.status !== "IN_SERVICE" && before.status !== "RETIRED") throw conflict("Sort out its fault or lost report first");
   const row = await db.$transaction(async (tx) => {
-    const updated = await tx.asset.update({ where: { id }, data: { status }, include });
+    await refreshStatus(tx, id, status === "RETIRED");
+    const updated = await tx.asset.findUniqueOrThrow({ where: { id }, include });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Asset", entityId: id, action: status === "RETIRED" ? "retired" : "restored", diff: { number: before.number, name: before.name } });
     return updated;
   });
@@ -294,7 +295,14 @@ export async function scanLookup(ctx: RequestContext, text: string): Promise<str
 /** /api/files asks this: an asset's photos are seen by anyone in the business who can see assets. */
 export async function canReadAssetFile(ctx: RequestContext, fileId: string): Promise<boolean> {
   if (!ctx.companyId || !ctx.permissions.has("assets.view")) return false;
-  return !!(await db.asset.findFirst({ where: { companyId: ctx.companyId, photoFileIds: { has: fileId } }, select: { id: true } }));
+  const companyId = ctx.companyId;
+  // An asset's own photos, or a fault's (the report, or a later step).
+  const [asset, fault, event] = await Promise.all([
+    db.asset.findFirst({ where: { companyId, photoFileIds: { has: fileId } }, select: { id: true } }),
+    db.assetFault.findFirst({ where: { companyId, photoFileIds: { has: fileId } }, select: { id: true } }),
+    db.assetFaultEvent.findFirst({ where: { fault: { companyId }, photoFileIds: { has: fileId } }, select: { id: true } }),
+  ]);
+  return !!(asset || fault || event);
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────
