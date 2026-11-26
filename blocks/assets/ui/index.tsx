@@ -10,6 +10,8 @@ import { tagSvg } from "../stickers";
 import { history } from "../custody";
 import { faultsFor, openFaults, attention } from "../faults";
 import { currentLoss } from "../lost";
+import { dueCounts, serviceFor } from "../inspections";
+import { ServiceCard, type ServiceJson } from "./ServiceCard";
 import { FaultCard } from "./FaultCard";
 import { FaultsList } from "./FaultsList";
 import { RetireLost } from "./RetireLost";
@@ -48,7 +50,8 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
     can(ctx, "assets.manage") ? listCategories(ctx) : Promise.resolve([]),
     history(ctx, assetId),
   ]);
-  const [faults, loss] = await Promise.all([faultsFor(ctx, assetId), currentLoss(ctx, assetId)]);
+  const [faults, loss, service] = await Promise.all([faultsFor(ctx, assetId), currentLoss(ctx, assetId), serviceFor(ctx, assetId)]);
+  const overdue = service.routines.filter((routine) => routine.mustPass && routine.due.tone === "overdue");
   const open = faults.find((fault) => fault.open) ?? null;
   const unsafe = faults.find((fault) => fault.open && fault.doNotUse);
   const details: { label: string; value: string | null }[] = [
@@ -91,6 +94,12 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
               </p>
               {loss.note && <p className="text-sm whitespace-pre-line">{loss.note}</p>}
               {!loss.retired && can(ctx, "assets.lost.retire") && <RetireLost assetId={asset.id} />}
+            </div>
+          )}
+          {overdue.length > 0 && !unsafe && (
+            <div role="alert" className="rounded-xl bg-destructive p-4 text-destructive-foreground">
+              <p className="text-lg font-bold">{overdue.map((routine) => routine.name).join(" and ")} overdue</p>
+              <p>Due {overdue.map((routine) => day(routine.due.dueOn)).join(" and ")}. Don&apos;t use it until a pass is logged.</p>
             </div>
           )}
           {asset.status === "RETIRED" && !loss && <Alert>Retired: it&apos;s off the list, with its history kept. Its tag still opens this page.</Alert>}
@@ -153,6 +162,9 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
               </div>
             </Section>
           )}
+          {(service.enabled || service.routines.length > 0 || service.checks.length > 0) && (
+            <ServiceCard assetId={asset.id} assetName={asset.name} data={json<ServiceJson>(service)} canManage={can(ctx, "assets.manage")} canRecord={can(ctx, "assets.inspections.record")} />
+          )}
           <History moves={json<MoveJson[]>(moves)} />
         </Stack>
         <Section title="Tag" description="Scan it with the Scan button, or any phone camera, to open this asset.">
@@ -192,12 +204,12 @@ function History({ moves }: { moves: MoveJson[] }) {
   );
 }
 
-/** Home's "Needs attention": Do-not-use and other open faults, and lost or stolen gear (for whoever looks after faults). */
+/** Home's "Needs attention": Do-not-use and other open faults, lost or stolen gear, and tests overdue or coming up (for whoever looks after faults). */
 export const panels: BlockPanels = {
   "home.attention": async ({ ctx }) => {
     if (!ctx.companyId || !can(ctx, "assets.faults.manage")) return null;
-    const { unsafe, faults, lost } = await attention(ctx.companyId);
-    if (!unsafe && !faults && !lost.length) return null;
+    const [{ unsafe, faults, lost }, due] = await Promise.all([attention(ctx.companyId), dueCounts(ctx.companyId)]);
+    if (!unsafe && !faults && !lost.length && !due.overdue && !due.soon) return null;
     return (
       <>
         {lost.map((entry) => (
@@ -211,6 +223,16 @@ export const panels: BlockPanels = {
           />
         ))}
         {unsafe > 0 && <AttentionRow title={`${unsafe} asset${unsafe === 1 ? "" : "s"} marked Do not use`} badge="Do not use" tone="destructive" description="Unsafe gear waiting to be repaired or retired." href="/assets/faults" />}
+        {due.overdue > 0 && (
+          <AttentionRow
+            title={`${due.overdue} asset${due.overdue === 1 ? "" : "s"} overdue for a test`}
+            badge="Overdue"
+            tone="destructive"
+            description="Test & tag or an inspection they must pass. They can't be checked out until a pass is logged."
+            href="/assets?show=due"
+          />
+        )}
+        {due.soon > 0 && <AttentionRow title={`${due.soon} test${due.soon === 1 ? "" : "s"} due in the next 2 weeks`} badge="Coming up" tone="warning" description="Book them in, or log them once they're done." href="/assets?show=due" />}
         {faults > 0 && <AttentionRow title={`${faults} fault${faults === 1 ? "" : "s"} to sort out`} badge="Faults" tone="warning" description="Acknowledge them, send them for repair, or close them." href="/assets/faults" />}
       </>
     );

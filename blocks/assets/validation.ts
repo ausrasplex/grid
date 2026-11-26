@@ -29,6 +29,8 @@ export const assetSchema = z
     notes: optText(4000),
     fields: z.record(z.string().max(40), z.union([z.string().max(500), z.number(), z.boolean(), z.null()])).default({}),
     barcode: optText(200),
+    /** "Track tests and servicing"; stays on while its category has routines. */
+    serviceEnabled: z.boolean().optional(),
   })
   .strict();
 
@@ -38,10 +40,24 @@ export const fieldSchema = z.object({
   type: z.enum(["text", "number", "date", "yesno"]),
 });
 
+/** A routine (§4): test & tag every 3 months, must pass; a service every 12. */
+export const routineSchema = z
+  .object({
+    /** Kept when changing a category's routine, so its log and due dates follow. */
+    id: uuid.nullish(),
+    name: z.string().trim().min(1, "Give the routine a name").max(80),
+    everyMonths: z.coerce.number().int().min(1).max(240).nullish(),
+    mustPass: z.boolean().default(false),
+    notes: optText(1000),
+  })
+  .strict();
+
 export const categorySchema = z
   .object({
     name: z.string().trim().min(1, "Give it a name").max(80),
     fields: z.array(fieldSchema).max(30).default([]),
+    /** Routines every asset in it follows. Left out: unchanged. */
+    routines: z.array(routineSchema).max(20).optional(),
   })
   .strict();
 
@@ -51,7 +67,7 @@ export const listQuery = z.object({
   q: z.string().optional(),
   category: z.union([uuid, z.literal("none")]).optional(),
   /** "active" (default: everything not retired), "mine" (what you have now), "retired" or "all". */
-  show: z.enum(["active", "mine", "retired", "all"]).optional(),
+  show: z.enum(["active", "mine", "due", "retired", "all"]).optional(),
 });
 
 export const statusSchema = z.object({ status: z.enum(["IN_SERVICE", "RETIRED"]) }).strict();
@@ -127,6 +143,44 @@ export const lostSchema = z
   })
   .strict();
 
+/** Log a test, inspection or service done (§4). */
+export const checkSchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick the date it was done"),
+    routineIds: z.array(uuid).max(20).default([]),
+    title: z.string().trim().min(1, "Say what was done").max(200),
+    result: z.enum(["PASS", "FAIL"]).default("PASS"),
+    doneBy: optText(200),
+    tagColour: z.enum(["RED", "GREEN", "BLUE", "YELLOW"]).nullish().transform((value) => value ?? null),
+    cost: z
+      .union([z.number(), z.string()])
+      .nullish()
+      .transform((value, context) => {
+        if (value === null || value === undefined || value === "") return null;
+        const number = typeof value === "number" ? value : Number(value.replace(/[$,\s]/g, ""));
+        if (!Number.isFinite(number) || number < 0) {
+          context.addIssue({ code: "custom", message: "The cost must be a number" });
+          return z.NEVER;
+        }
+        return Math.round(number * 100) / 100;
+      }),
+    fileIds: z.array(uuid).max(20).default([]),
+    notes: optText(4000),
+  })
+  .strict();
+
+/** Book one in: the day, what for, and where or who. */
+export const bookingSchema = z
+  .object({
+    routineIds: z.array(uuid).min(1, "Pick what it's booked in for").max(20),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick the day it's booked for"),
+    withWho: optText(200),
+  })
+  .strict();
+
+export type RoutineInput = z.infer<typeof routineSchema>;
+export type CheckInput = z.infer<typeof checkSchema>;
+export type BookingInput = z.infer<typeof bookingSchema>;
 export type AssetInput = z.infer<typeof assetSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
 export type ListQuery = z.infer<typeof listQuery>;

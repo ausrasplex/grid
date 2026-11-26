@@ -10,10 +10,24 @@ export interface CategoryField {
   type: FieldType;
 }
 
+export interface PresetRoutine {
+  name: string;
+  everyMonths: number;
+  mustPass: boolean;
+}
+
 export interface PresetCategory {
   name: string;
   fields: CategoryField[];
+  /** Starting routines (§4), changed or removed in the category like any other. */
+  routines: PresetRoutine[];
 }
+
+/** AS/NZS 3760: every 3 months for gear used on construction and demolition sites. */
+const TEST_AND_TAG: PresetRoutine = { name: "Test & tag", everyMonths: 3, mustPass: true };
+/** AS/NZS 1891.4: height safety gear inspected by a competent person at least every 6 months. */
+const HEIGHTS_CHECK: PresetRoutine = { name: "Height safety inspection", everyMonths: 6, mustPass: true };
+const CALIBRATION: PresetRoutine = { name: "Calibration", everyMonths: 12, mustPass: false };
 
 const field = (label: string, type: FieldType = "text"): CategoryField => ({ key: fieldKey(label), label, type });
 
@@ -28,25 +42,27 @@ export function fieldKey(label: string) {
   );
 }
 
-const POWER_TOOLS = { name: "Power tools", fields: [field("Battery platform")] };
-const HAND_TOOLS = { name: "Hand tools", fields: [] };
-const LADDERS = { name: "Ladders", fields: [field("Type"), field("Height (m)", "number"), field("Rated load (kg)", "number")] };
-const LEADS = { name: "Leads & RCDs", fields: [field("Length (m)", "number")] };
-const TEST_GEAR = { name: "Test equipment", fields: [] };
-const LOCKBOXES = { name: "Lockboxes", fields: [field("Code holder")] };
-const HEIGHTS = { name: "Harnesses & height safety", fields: [] };
-const ACCESS = { name: "Access equipment", fields: [field("Type")] };
-const GENERATORS = { name: "Generators & compressors", fields: [field("Fuel")] };
-const PPE = { name: "PPE & first aid", fields: [] };
+const preset = (name: string, fields: CategoryField[] = [], routines: PresetRoutine[] = []): PresetCategory => ({ name, fields, routines });
+
+const POWER_TOOLS = preset("Power tools", [field("Battery platform")], [TEST_AND_TAG]);
+const HAND_TOOLS = preset("Hand tools");
+const LADDERS = preset("Ladders", [field("Type"), field("Height (m)", "number"), field("Rated load (kg)", "number")]);
+const LEADS = preset("Leads & RCDs", [field("Length (m)", "number")], [TEST_AND_TAG]);
+const TEST_GEAR = preset("Test equipment", [], [CALIBRATION]);
+const LOCKBOXES = preset("Lockboxes", [field("Code holder")]);
+const HEIGHTS = preset("Harnesses & height safety", [], [HEIGHTS_CHECK]);
+const ACCESS = preset("Access equipment", [field("Type")]);
+const GENERATORS = preset("Generators & compressors", [field("Fuel")], [TEST_AND_TAG]);
+const PPE = preset("PPE & first aid");
 
 /** Keyed by the trade's preset (blocks/companies/trades.ts). */
 const BY_PRESET: Record<string, PresetCategory[]> = {
   ELECTRICAL: [POWER_TOOLS, TEST_GEAR, LEADS, LADDERS, LOCKBOXES, HAND_TOOLS],
-  CONTROLS_BMS: [TEST_GEAR, POWER_TOOLS, { name: "Laptops & programmers", fields: [] }, LADDERS, LEADS],
-  MECHANICAL: [POWER_TOOLS, { name: "Refrigeration gear", fields: [] }, TEST_GEAR, LADDERS, ACCESS, LEADS],
-  PLUMBING: [POWER_TOOLS, { name: "Drain cameras & jetters", fields: [] }, { name: "Pressing & threading", fields: [] }, LADDERS, LEADS, TEST_GEAR],
+  CONTROLS_BMS: [TEST_GEAR, POWER_TOOLS, preset("Laptops & programmers"), LADDERS, LEADS],
+  MECHANICAL: [POWER_TOOLS, preset("Refrigeration gear", [], [TEST_AND_TAG]), TEST_GEAR, LADDERS, ACCESS, LEADS],
+  PLUMBING: [POWER_TOOLS, preset("Drain cameras & jetters", [], [TEST_AND_TAG]), preset("Pressing & threading", [], [TEST_AND_TAG]), LADDERS, LEADS, TEST_GEAR],
   FIRE: [POWER_TOOLS, TEST_GEAR, LADDERS, ACCESS, HEIGHTS, LEADS],
-  CARPENTRY: [POWER_TOOLS, HAND_TOOLS, LADDERS, LEADS, { name: "Nail guns & compressors", fields: [] }],
+  CARPENTRY: [POWER_TOOLS, HAND_TOOLS, LADDERS, LEADS, preset("Nail guns & compressors", [], [TEST_AND_TAG])],
   BUILDER: [POWER_TOOLS, LADDERS, ACCESS, HEIGHTS, GENERATORS, LEADS, PPE],
   OTHER: [POWER_TOOLS, HAND_TOOLS, LADDERS, LEADS],
 };

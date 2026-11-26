@@ -36,6 +36,9 @@ const THINGS: Record<string, string> = {
   AssetSettings: "asset tag settings",
   AssetFault: "asset fault",
   AssetLoss: "lost asset report",
+  AssetRoutine: "asset routine",
+  AssetCheck: "test or service",
+  AssetBooking: "test or service",
   TaxCode: "tax code",
   SignRequest: "signing link",
   QuoteUserSettings: "quote screen setting",
@@ -90,6 +93,9 @@ const VERBS: Record<string, string> = {
   reported_stolen: "Reported stolen",
   recovered: "Recovered",
   retired_as_lost: "Retired as lost",
+  logged: "Logged",
+  booked: "Booked",
+  cancelled: "Cancelled",
 };
 
 const words = (value: string) => value.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();

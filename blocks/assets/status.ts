@@ -4,23 +4,27 @@
 //   retired (by hand, a fault closed as Retired, or retired as lost) → RETIRED, until put back
 //   reported lost or stolen → LOST
 //   an open Do-not-use fault → OUT_OF_SERVICE
+//   a must-pass routine (test & tag) past due → OVERDUE, until a pass is logged
 //   an open fault in repair → IN_REPAIR
 //   any other open fault → FAULTY
 //   nothing open → IN_SERVICE
 
-export type Status = "IN_SERVICE" | "FAULTY" | "OUT_OF_SERVICE" | "IN_REPAIR" | "RETIRED" | "LOST";
+export type Status = "IN_SERVICE" | "FAULTY" | "OUT_OF_SERVICE" | "IN_REPAIR" | "RETIRED" | "LOST" | "OVERDUE";
 
 export interface OpenThings {
   retired: boolean;
   lossOpen: boolean;
   /** Faults not yet fixed or retired. */
   faults: { doNotUse: boolean; status: string }[];
+  /** A must-pass routine is past due (due.ts). */
+  overdue?: boolean;
 }
 
 export function statusFor(open: OpenThings): Status {
   if (open.retired) return "RETIRED";
   if (open.lossOpen) return "LOST";
   if (open.faults.some((fault) => fault.doNotUse)) return "OUT_OF_SERVICE";
+  if (open.overdue) return "OVERDUE";
   if (open.faults.some((fault) => fault.status === "IN_REPAIR")) return "IN_REPAIR";
   if (open.faults.length) return "FAULTY";
   return "IN_SERVICE";

@@ -19,3 +19,11 @@ test("fault steps only go forward", () => {
   assert.deepEqual(nextSteps("IN_REPAIR"), ["FIXED", "RETIRED"]);
   assert.deepEqual(nextSteps("FIXED"), []);
 });
+
+test("an overdue test sits under Do not use and lost, above repairs and faults", () => {
+  assert.equal(statusFor({ retired: false, lossOpen: false, faults: [], overdue: true }), "OVERDUE");
+  assert.equal(statusFor({ retired: false, lossOpen: false, faults: [{ doNotUse: false, status: "IN_REPAIR" }], overdue: true }), "OVERDUE");
+  assert.equal(statusFor({ retired: false, lossOpen: false, faults: [{ doNotUse: true, status: "REPORTED" }], overdue: true }), "OUT_OF_SERVICE");
+  assert.equal(statusFor({ retired: false, lossOpen: true, faults: [], overdue: true }), "LOST");
+  assert.equal(statusFor({ retired: true, lossOpen: false, faults: [], overdue: true }), "RETIRED");
+});

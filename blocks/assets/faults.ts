@@ -9,6 +9,7 @@ import { app, badRequest, conflict, notFound, requireCompany, type RequestContex
 import { attachFile, audit, db, routeCodeUrl, type Tx } from "@grid/db";
 import { currentRow } from "./custody";
 import { tellManagers } from "./notify";
+import { isOverdue, today } from "./due";
 import { nextSteps, statusFor } from "./status";
 import type { FaultInput, FaultStepInput } from "./validation";
 
@@ -31,14 +32,40 @@ export const STEP_WORDS: Record<string, string> = {
 
 /** Works the asset's status out again from what's open on it. */
 export async function refreshStatus(tx: Tx, assetId: string, retired?: boolean) {
-  const asset = await tx.asset.findUniqueOrThrow({ where: { id: assetId }, select: { status: true } });
+  const asset = await tx.asset.findUniqueOrThrow({ where: { id: assetId }, select: { status: true, nextInspectionDue: true } });
   const [faults, losses] = await Promise.all([
     tx.assetFault.findMany({ where: { assetId, closedAt: null }, select: { doNotUse: true, status: true } }),
     tx.assetLoss.count({ where: { assetId, recoveredAt: null, retiredAt: null } }),
   ]);
-  const status = statusFor({ retired: retired ?? asset.status === "RETIRED", lossOpen: losses > 0, faults });
+  const overdue = isOverdue(asset.nextInspectionDue?.toISOString().slice(0, 10) ?? null, today());
+  const status = statusFor({ retired: retired ?? asset.status === "RETIRED", lossOpen: losses > 0, faults, overdue });
   if (status !== asset.status) await tx.asset.update({ where: { id: assetId }, data: { status } });
   return status;
+}
+
+/**
+ * A failed test or inspection opens a Failed test fault, Do not use
+ * (§4), inside the check's own transaction. Returns the fault's id.
+ */
+export async function openFailedTest(tx: Tx, ctx: RequestContext, asset: { id: string; companyId: string }, note: string) {
+  const where = await currentRow(tx, asset.id);
+  const fault = await tx.assetFault.create({
+    data: {
+      companyId: asset.companyId,
+      assetId: asset.id,
+      type: "FAILED_TEST",
+      doNotUse: true,
+      note,
+      reportedById: ctx.userId,
+      projectId: where?.projectId,
+      siteId: where?.siteId,
+      buildingId: where?.buildingId,
+      levelId: where?.levelId,
+      placeName: where?.placeName ?? where?.label ?? null,
+    },
+  });
+  await tx.assetFaultEvent.create({ data: { faultId: fault.id, status: "REPORTED", note, doNotUse: true, byUserId: ctx.userId } });
+  return fault.id;
 }
 
 async function ownAsset(companyId: string, id: string) {

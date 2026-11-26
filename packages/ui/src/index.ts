@@ -14,6 +14,7 @@ export { Alert } from "./components/alert";
 export { Switch } from "./components/switch";
 export { Checkbox } from "./components/checkbox";
 export { Sheet, SheetTrigger, SheetClose, SheetContent } from "./components/sheet";
+export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuDetail } from "./components/dropdown-menu";
 
 // Layout building blocks + fields
 export * from "./blocks";

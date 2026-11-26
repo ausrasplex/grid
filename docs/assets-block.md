@@ -71,7 +71,7 @@ The asset screen has an **Actions** group with three buttons: **Return**, **Faul
 ## 4. Inspections and due dates
 
 - **Rules per category:** e.g. test & tag interval for electrical equipment, ladder inspection, harness inspection, lifting gear. Interval in days or months, set per company.
-- Record result: pass/fail, tester, date, next due date, optional certificate (stored in the Documents block if enabled).
+- Record result: pass/fail, tester, date, next due date, optional certificate (kept on the check itself; see "What part 4 built").
 - **Reminders** before due (e.g. 14 days), and a daily digest of what's due.
 - **Overdue assets are flagged as not to be used**, with a banner on scan, until a passing inspection is recorded.
 - A failed inspection creates a fault automatically (type `FAILED_TEST`, do not use).
@@ -263,3 +263,18 @@ A vehicle is an asset in a built-in **Vehicle** category. Faults, custody, QR ta
 - **Lost** in the Actions (`assets.faults.report`): the last known whereabouts filled in from its custody (editable), Lost or Stolen, the police report number for stolen gear, a note. **Recovered** clears it and checks the asset in where it is now (workshop, van or job). **Retire as lost** (`assets.lost.retire`, Owners) takes it off the list for good, history and tag kept; Recovered still brings it back.
 - **Telling people** (decided Nov 2026, until notifications in stage 6): Owners and anyone who looks after faults are **emailed** when a fault (subject starts "DO NOT USE:" for unsafe ones) or a loss is reported, and the reporter is emailed when it's fixed, when the server has email set up. Home's **Needs attention** shows each lost or stolen asset, the Do-not-use count and the other faults to sort out.
 - **Not yet:** offline reports in the outbox, quiet hours and push (stage 6), sightings and the public tag page (§10), the "Do you still have it?" nudge (part 5).
+
+## What part 4 built (Nov 2026)
+
+Decided Nov 2026: the asset screens follow **Docket's Fixtures** (the owner's home app, used daily) in layout, options and wording, in Grid's own look. Part 4 is laid out like Docket's **Service** card; part 4b brings the rest of the list and asset page across.
+
+- **Routines** (`AssetRoutine`): a name, **every so many months**, and **Must pass to use it** (test & tag, height safety). Set on a **category** (Settings › Asset categories; every asset in it follows, and a change there changes it on all of them) or on **one asset** (Add routine on its page). The trade's starting set now brings **Test & tag every 3 months** (AS/NZS 3760 for construction sites) on power tools, leads, generators and the like, **Height safety inspection every 6 months** (AS/NZS 1891.4) on harnesses, and **Calibration every 12 months** (not must-pass) on test equipment. Months only: no km until vehicles.
+- **When it's due** (`due.ts`, tested), like Docket's service plans: from the latest check that covered it; for a must-pass routine only a **pass** counts. Chips: fine (due later), coming up (within 30 days), late (overdue), and **Not done yet** for gear never tested. Never-tested gear **isn't blocked**, so adding 50 tools doesn't stop work; it shows Not done yet until its first test.
+- **The Log** (`AssetCheck`): **Checked ▾** gives *Checked today*, *Checked earlier* and *Book it in*. A check has the routines it covered (pills), what was done, the date, **Passed or Failed**, who did it, a cost, certificates, photos or the invoice (PDF or pictures), notes, and for test & tag the **tag colour**, picked from the date (Red Dec–Feb, Green Mar–May, Blue Jun–Aug, Yellow Sep–Nov) and changeable. Edit or Delete from its ⋯ menu.
+- **A fail** opens a **Failed test** fault, **Do not use**, and Owners and Foremen are emailed ("DO NOT USE: … failed Test & tag").
+- **Overdue** (new status, decided Nov 2026): once a must-pass routine is past its due date the asset is **Overdue**: a red banner ("Test & tag overdue"), Check out and Take over greyed out with the reason, until a pass is logged. Its order in `status.ts`: Retired, Lost, Do not use, **Overdue**, In repair, Faulty, In service. The asset keeps its soonest must-pass due date (`nextInspectionDue`) for lists and Home.
+- **The morning check** (`assets.morning`, 6 am): gear that tipped past due becomes Overdue, and each business's Owners and Foremen get **one email** listing it.
+- **Bookings** (`AssetBooking`): **Book it in** (what for, the day, where or who) shows as "Booked 3 Dec · Spark Safe Testing" until it's logged; once its day has passed it asks **Yes, log it** or **It didn't happen**. One booking per routine; logging a check closes it.
+- **Where it shows:** the asset page's **Inspections and servicing** card; the list's **Due** view (overdue first, then the soonest, within 30 days) and a due chip on each row; Home's **Needs attention**: assets overdue for a test, and tests due in the next 2 weeks.
+- **Permission:** `assets.inspections.record` (log and book; Foreman). Routines are part of `assets.manage`.
+- **Not yet:** reminder emails before the due date (Home shows what's coming up), the job's Assets on site (part 5), km-based servicing (vehicles, §11).

@@ -4,7 +4,8 @@ import { defineBlock } from "@grid/core";
 // Part 1: assets, categories with their own fields, tags and sticker
 // sheets, and scan to open. Part 2: custody (check out, return, take over)
 // and the movement history. Part 3: faults (Do not use, the repair steps)
-// and lost or stolen. Inspections and vehicles come in later parts.
+// and lost or stolen. Part 4: inspections and servicing (routines, the log,
+// bookings, Overdue). Vehicles come later.
 export default defineBlock({
   id: "assets",
   name: "Assets",
@@ -18,10 +19,11 @@ export default defineBlock({
     { key: "assets.faults.report", label: "Report faults and lost gear" },
     { key: "assets.faults.manage", label: "Look after faults", description: "Acknowledge, repair and close them. Told about faults and lost gear" },
     { key: "assets.lost.retire", label: "Retire lost gear for good" },
+    { key: "assets.inspections.record", label: "Log tests, inspections and services", description: "And book them in" },
     { key: "assets.manage", label: "Add and change assets", description: "Assets, categories and printing tags" },
   ],
   grants: {
-    FOREMAN: ["assets.view", "assets.custody", "assets.assign", "assets.faults.report", "assets.faults.manage", "assets.manage"],
+    FOREMAN: ["assets.view", "assets.custody", "assets.assign", "assets.faults.report", "assets.faults.manage", "assets.inspections.record", "assets.manage"],
     EMPLOYEE: ["assets.view", "assets.custody", "assets.faults.report"],
     VIEWER: ["assets.view"],
   },
@@ -39,6 +41,10 @@ export default defineBlock({
     return { companyUsage: purge.companyUsage, purgeCompany: purge.purgeCompany, purgeProject: purge.purgeProject };
   },
   levelUsage: async () => (await import("./purge")).levelUsage,
+  jobs: async () => ({
+    // Every morning: gear whose test & tag (or another must-pass routine) went past due becomes Overdue, and Owners and Foremen get one email.
+    "assets.morning": { handler: async () => (await import("./inspections")).morningCheck(), schedule: "0 6 * * *" },
+  }),
   // A scanned tag (/go/<code>) opens the asset.
   routeTargets: {
     Asset: (id) => `/assets/${id}`,

@@ -44,6 +44,7 @@ export function SheetContent({
   desktop = "drawer",
   title,
   description,
+  footer,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "bottom" | "right" | "left";
@@ -51,6 +52,8 @@ export function SheetContent({
   desktop?: "drawer" | "dialog";
   title: string;
   description?: string;
+  /** The main buttons (Cancel, Save), pinned to the bottom while the form scrolls. */
+  footer?: React.ReactNode;
 }) {
   const wide = useWide();
   const layout = side === "bottom" && wide ? (desktop === "dialog" ? "dialog" : "right") : side;
@@ -79,7 +82,10 @@ export function SheetContent({
         ) : (
           <SheetPrimitive.Description className="sr-only">{title}</SheetPrimitive.Description>
         )}
-        <div className="px-2 pb-4">{children}</div>
+        <div className={cn("px-2", footer ? "pb-2" : "pb-4")}>{children}</div>
+        {footer && (
+          <div className="sticky bottom-0 mt-auto flex gap-2 border-t bg-popover px-4 pt-3 pb-4 [&>*]:flex-1">{footer}</div>
+        )}
       </SheetPrimitive.Content>
     </SheetPrimitive.Portal>
   );

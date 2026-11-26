@@ -2,7 +2,8 @@
 // QR tags. Part 1: assets, categories with their own fields, tags and the
 // sticker sheets, scan to open. Part 2: custody (who has it, where it is)
 // and the movement history. Part 3: faults (Do not use, the repair steps)
-// and lost or stolen. Inspections and vehicles add their tables later.
+// and lost or stolen. Part 4: inspections and servicing (routines, the log
+// of checks done, bookings). Vehicles add their tables later.
 
 enum AssetStatus {
   IN_SERVICE
@@ -11,6 +12,8 @@ enum AssetStatus {
   IN_REPAIR
   RETIRED
   LOST
+  /// A routine that must be passed (test & tag) is past due.
+  OVERDUE
 }
 
 /// A kind of gear (Power tools, Test equipment, Ladders…), per business.
@@ -20,14 +23,12 @@ model AssetCategory {
   name                   String
   /// The category's own fields, in order: [{ key, label, type: "text" | "number" | "date" | "yesno" }].
   fields                 Json      @default("[]")
-  /// Inspections (part 4): every so many days, and what kind ("Test & tag").
-  inspectionIntervalDays Int?
-  inspectionType         String?
   sort                   Int       @default(0)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   deletedAt              DateTime?
   assets                 Asset[]
+  routines               AssetRoutine[]
 
   @@index([companyId])
 }
@@ -56,8 +57,12 @@ model Asset {
   tagCode           String         @unique
   /// A barcode sticker it already had, linked instead of (or as well as) the QR tag.
   barcode           String?
-  /// Inspections (part 4) and "Not seen recently" (part 5).
-  nextInspectionDue DateTime?
+  /// The soonest due date of its must-pass routines (part 4, due.ts), kept
+  /// so lists, Home and the morning check don't work it out every time.
+  nextInspectionDue DateTime?      @db.Date
+  /// Shows "Inspections and servicing" on its page. Stays on while its category has routines.
+  serviceEnabled    Boolean        @default(true)
+  /// "Not seen recently" (part 5).
   lastSeenAt        DateTime?
   /// Containers (vehicles, §11): the van or toolbox it's in.
   parentAssetId     String?
@@ -68,6 +73,9 @@ model Asset {
   custody           AssetCustody[]
   faults            AssetFault[]
   losses            AssetLoss[]
+  routines          AssetRoutine[]
+  checks            AssetCheck[]
+  bookings          AssetBooking[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
@@ -239,4 +247,88 @@ model AssetLoss {
 
   @@index([assetId])
   @@index([companyId, recoveredAt, retiredAt])
+}
+
+/// Something done to gear on a schedule (§4): test & tag, a harness or
+/// ladder inspection, a service, calibration. Set on a category (every
+/// asset in it follows, and changes flow to them) or on one asset.
+model AssetRoutine {
+  id          String         @id @default(uuid())
+  companyId   String
+  categoryId  String?
+  category    AssetCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  assetId     String?
+  asset       Asset?         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  name        String
+  /// Every so many months; null for one with no set interval.
+  everyMonths Int?
+  /// Must be passed to use it: once overdue the asset is Overdue and can't be checked out.
+  mustPass    Boolean        @default(false)
+  notes       String?
+  sort        Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  @@index([companyId])
+  @@index([categoryId])
+  @@index([assetId])
+}
+
+enum AssetCheckResult {
+  PASS
+  FAIL
+}
+
+/// One test, inspection or service done (the log, §4). Covers one or more
+/// routines; a pass restarts their countdown. A fail opens a Failed test
+/// fault, Do not use.
+model AssetCheck {
+  id         String           @id @default(uuid())
+  companyId  String
+  assetId    String
+  asset      Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  date       DateTime         @db.Date
+  /// AssetRoutine ids it covered.
+  routineIds String[]         @default([])
+  /// What was done ("Test & tag", "12-month service").
+  title      String
+  result     AssetCheckResult @default(PASS)
+  /// Who did it: the tester, the business or the person ("Spark Safe Testing").
+  doneBy     String?
+  /// Test & tag colour for the period it was done in (RED, GREEN, BLUE, YELLOW).
+  tagColour  String?
+  cost       Decimal?         @db.Decimal(12, 2)
+  /// StoredFile ids (block assets): certificates, photos, invoices.
+  fileIds    String[]         @default([])
+  notes      String?
+  /// The Failed test fault it opened.
+  faultId    String?
+  byUserId   String
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  deletedAt  DateTime?
+
+  @@index([assetId, date])
+  @@index([companyId])
+}
+
+/// A test or service booked in (§4): it shows as the next date until it's
+/// logged or called off.
+model AssetBooking {
+  id         String    @id @default(uuid())
+  companyId  String
+  assetId    String
+  asset      Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  routineIds String[]  @default([])
+  date       DateTime  @db.Date
+  /// Where or who ("Spark Safe Testing, Dandenong").
+  withWho    String?
+  byUserId   String
+  createdAt  DateTime  @default(now())
+  /// Logged (a check was recorded for it) or cancelled ("It didn't happen").
+  closedAt   DateTime?
+  closedHow  String?
+
+  @@index([assetId, closedAt])
 }

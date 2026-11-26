@@ -145,6 +145,7 @@ export async function currentRow(tx: Tx, assetId: string) {
 const BLOCKED: Record<string, string> = {
   OUT_OF_SERVICE: "Do not use: a fault was reported. It can't be checked out until it's fixed.",
   IN_REPAIR: "It's in for repair, so it can't be checked out.",
+  OVERDUE: "A test or inspection it must pass is overdue. Log a pass first.",
   RETIRED: "It's retired. Put it back in service first.",
   LOST: "It's reported lost. Mark it recovered first.",
 };

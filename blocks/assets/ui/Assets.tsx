@@ -8,9 +8,9 @@ import { CheckSquare, Plus, Printer, ScanLine } from "lucide-react";
 import { ActionButton, Button, Checkbox, EmptyState, List, PageHeader, Scroller, SearchInput, Section, Segmented, Stack, api, buttonVariants, cn } from "@grid/ui";
 import { AssetSheet } from "./AssetSheet";
 import { PrintTagsSheet } from "./PrintTagsSheet";
-import { AssetPicture, StatusBadge, assetMeta, type AssetJson, type CategoryJson } from "./shared";
+import { AssetPicture, Chip, StatusBadge, assetMeta, type AssetJson, type CategoryJson } from "./shared";
 
-type Show = "active" | "mine" | "retired";
+type Show = "active" | "mine" | "due" | "retired";
 
 export function Assets({ initial, categories, canManage }: { initial: AssetJson[]; categories: CategoryJson[]; canManage: boolean }) {
   const [rows, setRows] = useState(initial);
@@ -22,6 +22,11 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [printing, setPrinting] = useState(false);
   const [first, setFirst] = useState(true);
+
+  // Home's "overdue for a test" opens this with ?show=due.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("show") === "due") setShow("due");
+  }, []);
 
   useEffect(() => {
     // The page arrives with the active list; fetch only once something changes.
@@ -53,7 +58,7 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
       <PageHeader
         title="Assets"
         subtitle="Your tools and gear, each with a QR tag. Scan a tag to open it."
-        meta={`${rows.length} ${rows.length === 1 ? "asset" : "assets"}${show === "retired" ? " retired" : show === "mine" ? " with you" : ""}`}
+        meta={`${rows.length} ${rows.length === 1 ? "asset" : "assets"}${show === "retired" ? " retired" : show === "mine" ? " with you" : show === "due" ? " due" : ""}`}
         actions={
           canManage && (
             <>
@@ -96,6 +101,7 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
             items={[
               { value: "active", label: "In use" },
               { value: "mine", label: "With me" },
+              { value: "due", label: "Due" },
               { value: "retired", label: "Retired" },
             ]}
           />
@@ -113,7 +119,7 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
         )}
         <Section flush>
           {rows.length === 0 ? (
-            <EmptyState title={filtered ? "Nothing matches" : show === "retired" ? "Nothing retired" : show === "mine" ? "You haven't got anything checked out" : "No assets yet"}>
+            <EmptyState title={filtered ? "Nothing matches" : show === "retired" ? "Nothing retired" : show === "mine" ? "You haven't got anything checked out" : show === "due" ? "Nothing due in the next 30 days" : "No assets yet"}>
               {!filtered && show === "active" && canManage && "Add your tools and gear: a photo, the make and model, the serial number. Then print QR tags to stick on them."}
             </EmptyState>
           ) : (
@@ -126,6 +132,11 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
                       <span className="block truncate font-semibold">{row.name}</span>
                       <span className="block truncate text-sm text-muted-foreground">{[`No. ${row.number}`, row.holder.text, assetMeta(row, used.length > 1 || category === "ALL")].filter(Boolean).join(" · ")}</span>
                     </span>
+                    {row.due && (
+                      <Chip tone={row.due.tone} className="hidden sm:inline-flex">
+                        {row.due.text}
+                      </Chip>
+                    )}
                     <StatusBadge status={row.status} />
                   </>
                 );

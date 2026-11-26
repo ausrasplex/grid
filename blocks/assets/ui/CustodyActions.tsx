@@ -231,6 +231,7 @@ function TakeOverSheet({ asset, onClose, onDone }: { asset: AssetJson; onClose: 
 const BLOCKED: Partial<Record<AssetJson["status"], string>> = {
   OUT_OF_SERVICE: "Do not use: fault reported",
   IN_REPAIR: "In for repair",
+  OVERDUE: "A test it must pass is overdue",
   RETIRED: "Retired",
   LOST: "Reported lost",
 };

@@ -5,7 +5,8 @@ import * as stickers from "./stickers";
 import * as custody from "./custody";
 import * as faults from "./faults";
 import * as lost from "./lost";
-import { assetSchema, categorySchema, checkOutSchema, faultSchema, faultStepSchema, lostSchema, returnSchema, takeOverSchema, listQuery, presetSchema, statusSchema, stickerQuery, stickerSettingsSchema } from "./validation";
+import * as inspections from "./inspections";
+import { assetSchema, bookingSchema, categorySchema, checkSchema, routineSchema, checkOutSchema, faultSchema, faultStepSchema, lostSchema, returnSchema, takeOverSchema, listQuery, presetSchema, statusSchema, stickerQuery, stickerSettingsSchema } from "./validation";
 
 const queryParams = (request: { query: URLSearchParams }) => Object.fromEntries(request.query);
 
@@ -55,5 +56,15 @@ export const routes: Routes = {
   "POST /:id/lost": { permission: "assets.faults.report", handler: (ctx, request) => lost.reportLost(ctx, request.params.id!, lostSchema.parse(request.body)) },
   "POST /:id/recovered": { permission: "assets.faults.report", handler: (ctx, request) => lost.recover(ctx, request.params.id!, returnSchema.parse(request.body)) },
   "POST /:id/retire-lost": { permission: "assets.lost.retire", handler: (ctx, request) => lost.retireLost(ctx, request.params.id!) },
+  // Inspections and servicing: routines, the log, bookings
+  "GET /:id/service": { permission: "assets.view", handler: (ctx, request) => inspections.serviceFor(ctx, request.params.id!) },
+  "POST /:id/routines": { permission: "assets.manage", handler: (ctx, request) => inspections.saveRoutine(ctx, request.params.id!, null, routineSchema.parse(request.body)) },
+  "PUT /:id/routines/:routineId": { permission: "assets.manage", handler: (ctx, request) => inspections.saveRoutine(ctx, request.params.id!, request.params.routineId!, routineSchema.parse(request.body)) },
+  "DELETE /:id/routines/:routineId": { permission: "assets.manage", handler: (ctx, request) => inspections.removeRoutine(ctx, request.params.id!, request.params.routineId!) },
+  "POST /:id/checks": { permission: "assets.inspections.record", handler: (ctx, request) => inspections.saveCheck(ctx, request.params.id!, null, checkSchema.parse(request.body)) },
+  "PUT /:id/checks/:checkId": { permission: "assets.inspections.record", handler: (ctx, request) => inspections.saveCheck(ctx, request.params.id!, request.params.checkId!, checkSchema.parse(request.body)) },
+  "DELETE /:id/checks/:checkId": { permission: "assets.inspections.record", handler: (ctx, request) => inspections.deleteCheck(ctx, request.params.id!, request.params.checkId!) },
+  "POST /:id/bookings": { permission: "assets.inspections.record", handler: (ctx, request) => inspections.book(ctx, request.params.id!, bookingSchema.parse(request.body)) },
+  "DELETE /:id/bookings/:bookingId": { permission: "assets.inspections.record", handler: (ctx, request) => inspections.cancelBooking(ctx, request.params.id!, request.params.bookingId!) },
   "DELETE /:id": { permission: "assets.manage", handler: (ctx, request) => svc.deleteAsset(ctx, request.params.id!) },
 };

@@ -14,6 +14,7 @@
     "@grid/core": "workspace:*",
     "@radix-ui/react-checkbox": "^1",
     "@radix-ui/react-dialog": "^1",
+    "@radix-ui/react-dropdown-menu": "^2",
     "@radix-ui/react-label": "^2",
     "@radix-ui/react-select": "^2",
     "@radix-ui/react-slot": "^1",

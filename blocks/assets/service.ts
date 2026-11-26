@@ -9,12 +9,14 @@ import { attachFile, audit, db, ensureRouteCode, normaliseRouteCode, purgeStored
 import { tradePreset } from "@grid/block-companies/trades";
 import { heldBy, holdersFor, type Holder } from "./custody";
 import { refreshStatus } from "./faults";
+import { dueChips, intervalText, refreshCategory, refreshDue, setServiceEnabled } from "./inspections";
+import type { Due } from "./due";
 import { presetCategories, type CategoryField } from "./presets";
-import type { AssetInput, CategoryInput, ListQuery } from "./validation";
+import type { AssetInput, CategoryInput, ListQuery, RoutineInput } from "./validation";
 
 const MOD = "assets";
 
-export type AssetStatus = "IN_SERVICE" | "FAULTY" | "OUT_OF_SERVICE" | "IN_REPAIR" | "RETIRED" | "LOST";
+export type AssetStatus = "IN_SERVICE" | "FAULTY" | "OUT_OF_SERVICE" | "IN_REPAIR" | "RETIRED" | "LOST" | "OVERDUE";
 export type FieldValue = string | number | boolean | null;
 
 export interface AssetView {
@@ -36,15 +38,30 @@ export interface AssetView {
   barcode: string | null;
   /** Who has it and where it is (part 2). */
   holder: Holder;
+  /** The most urgent routine, when one is due soon or overdue (part 4). */
+  due: Due | null;
+  /** "Track tests and servicing". */
+  serviceEnabled: boolean;
   lastSeenAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CategoryRoutineView {
+  id: string;
+  name: string;
+  everyMonths: number | null;
+  mustPass: boolean;
+  notes: string | null;
+  interval: string;
 }
 
 export interface CategoryView {
   id: string;
   name: string;
   fields: CategoryField[];
+  /** Routines every asset in it follows (part 4). */
+  routines: CategoryRoutineView[];
   /** Assets in it, not counting retired ones. */
   count: number;
 }
@@ -69,7 +86,7 @@ const dayText = (date: Date | null) => (date ? date.toISOString().slice(0, 10) :
 
 type AssetRow = Prisma.AssetGetPayload<{ include: { category: { select: { name: true } } } }>;
 
-function view(row: AssetRow, holder: Holder): AssetView {
+function view(row: AssetRow, holder: Holder, due: Due | null = null): AssetView {
   return {
     id: row.id,
     number: row.number,
@@ -87,6 +104,8 @@ function view(row: AssetRow, holder: Holder): AssetView {
     tagCode: row.tagCode,
     barcode: row.barcode,
     holder,
+    due,
+    serviceEnabled: row.serviceEnabled,
     lastSeenAt: row.lastSeenAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -129,12 +148,19 @@ export async function listAssets(ctx: RequestContext, query: ListQuery = {}): Pr
     ];
   }
   const rows = await db.asset.findMany({ where, include, orderBy: [{ number: "asc" }] });
-  return withHolders(companyId, rows);
+  const assets = await withHolders(companyId, rows);
+  // Due: anything with a routine overdue or due in the next 30 days, most urgent first.
+  if (query.show === "due") {
+    const rank = { overdue: 0, soon: 1, ok: 2, none: 3 } as const;
+    return assets.filter((asset) => asset.due).sort((a, b) => rank[a.due!.tone] - rank[b.due!.tone] || (a.due!.dueOn ?? "0").localeCompare(b.due!.dueOn ?? "0"));
+  }
+  return assets;
 }
 
 async function withHolders(companyId: string, rows: AssetRow[]) {
-  const holders = await holdersFor(companyId, rows.map((row) => row.id));
-  return rows.map((row) => view(row, holders.get(row.id)!));
+  const ids = rows.map((row) => row.id);
+  const [holders, dues] = await Promise.all([holdersFor(companyId, ids), dueChips(companyId, ids)]);
+  return rows.map((row) => view(row, holders.get(row.id)!, dues.get(row.id) ?? null));
 }
 
 export async function getAsset(ctx: RequestContext, id: string) {
@@ -217,6 +243,12 @@ export async function saveAsset(ctx: RequestContext, id: string | null, input: A
       const tagCode = await ensureRouteCode(tx, { blockId: MOD, entityType: "Asset", entityId: newId, companyId, createdById: ctx.userId });
       row = await tx.asset.create({ data: { ...data, id: newId, companyId, tagCode, createdById: ctx.userId }, include });
     }
+    // Its category's routines follow it in or out.
+    if (input.serviceEnabled !== undefined || !before || before.categoryId !== row.categoryId) {
+      await setServiceEnabled(tx, row, input.serviceEnabled ?? before?.serviceEnabled ?? true);
+      await refreshDue(tx, row.id);
+      row = await tx.asset.findUniqueOrThrow({ where: { id: row.id }, include });
+    }
     await audit(tx, {
       blockId: MOD,
       actorId: ctx.userId,
@@ -297,12 +329,14 @@ export async function canReadAssetFile(ctx: RequestContext, fileId: string): Pro
   if (!ctx.companyId || !ctx.permissions.has("assets.view")) return false;
   const companyId = ctx.companyId;
   // An asset's own photos, or a fault's (the report, or a later step).
-  const [asset, fault, event] = await Promise.all([
+  const [asset, fault, event, check] = await Promise.all([
     db.asset.findFirst({ where: { companyId, photoFileIds: { has: fileId } }, select: { id: true } }),
     db.assetFault.findFirst({ where: { companyId, photoFileIds: { has: fileId } }, select: { id: true } }),
     db.assetFaultEvent.findFirst({ where: { fault: { companyId }, photoFileIds: { has: fileId } }, select: { id: true } }),
+    // A certificate, photo or invoice on a test or service (part 4).
+    db.assetCheck.findFirst({ where: { companyId, fileIds: { has: fileId } }, select: { id: true } }),
   ]);
-  return !!(asset || fault || event);
+  return !!(asset || fault || event || check);
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────
@@ -310,11 +344,39 @@ export async function canReadAssetFile(ctx: RequestContext, fileId: string): Pro
 export async function listCategories(ctx: RequestContext): Promise<CategoryView[]> {
   const companyId = requireCompany(ctx);
   const [rows, counts] = await Promise.all([
-    db.assetCategory.findMany({ where: { companyId, deletedAt: null }, orderBy: [{ sort: "asc" }, { name: "asc" }] }),
+    db.assetCategory.findMany({
+      where: { companyId, deletedAt: null },
+      include: { routines: { where: { deletedAt: null }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }] } },
+      orderBy: [{ sort: "asc" }, { name: "asc" }],
+    }),
     db.asset.groupBy({ by: ["categoryId"], where: { companyId, deletedAt: null, status: { not: "RETIRED" } }, _count: { _all: true } }),
   ]);
   const count = new Map(counts.map((entry) => [entry.categoryId, entry._count._all]));
-  return rows.map((row) => ({ id: row.id, name: row.name, fields: asFields(row.fields), count: count.get(row.id) ?? 0 }));
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    fields: asFields(row.fields),
+    routines: row.routines.map((routine) => ({ id: routine.id, name: routine.name, everyMonths: routine.everyMonths, mustPass: routine.mustPass, notes: routine.notes, interval: intervalText(routine.everyMonths) })),
+    count: count.get(row.id) ?? 0,
+  }));
+}
+
+/**
+ * Brings a category's routines in line with the form: kept ones are
+ * changed in place (so their log and due dates follow), new ones added,
+ * missing ones removed. Then every asset in it is worked out again.
+ */
+async function syncRoutines(tx: Tx, companyId: string, categoryId: string, routines: RoutineInput[]) {
+  const before = await tx.assetRoutine.findMany({ where: { categoryId, deletedAt: null } });
+  const keep = new Set(routines.flatMap((routine) => (routine.id ? [routine.id] : [])));
+  for (const old of before) if (!keep.has(old.id)) await tx.assetRoutine.update({ where: { id: old.id }, data: { deletedAt: new Date() } });
+  for (const [index, routine] of routines.entries()) {
+    const data = { name: routine.name, everyMonths: routine.everyMonths ?? null, mustPass: routine.mustPass, notes: routine.notes, sort: index + 1 };
+    if (routine.id && before.some((old) => old.id === routine.id)) await tx.assetRoutine.update({ where: { id: routine.id }, data });
+    else await tx.assetRoutine.create({ data: { ...data, companyId, categoryId } });
+  }
+  if (routines.length) await tx.asset.updateMany({ where: { categoryId, deletedAt: null }, data: { serviceEnabled: true } });
+  await refreshCategory(tx, categoryId);
 }
 
 /** Field keys stay the same when a label is changed, so filled-in values follow. */
@@ -338,11 +400,13 @@ export async function saveCategory(ctx: RequestContext, id: string | null, input
       const before = await tx.assetCategory.findFirst({ where: { id, companyId, deletedAt: null } });
       if (!before) throw notFound("That category isn't there any more");
       await tx.assetCategory.update({ where: { id }, data: { name: input.name, fields: fields as unknown as Prisma.InputJsonValue } });
-      await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: id, action: "updated", diff: { name: input.name, fields: fields.map((field) => field.label), before: { name: before.name } } });
+      if (input.routines) await syncRoutines(tx, companyId, id, input.routines);
+      await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: id, action: "updated", diff: { name: input.name, fields: fields.map((field) => field.label), routines: input.routines?.map((routine) => routine.name), before: { name: before.name } } });
     } else {
       const last = await tx.assetCategory.aggregate({ where: { companyId }, _max: { sort: true } });
       const row = await tx.assetCategory.create({ data: { companyId, name: input.name, fields: fields as unknown as Prisma.InputJsonValue, sort: (last._max.sort ?? 0) + 1 } });
-      await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: row.id, action: "created", diff: { name: input.name, fields: fields.map((field) => field.label) } });
+      if (input.routines?.length) await syncRoutines(tx, companyId, row.id, input.routines);
+      await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: row.id, action: "created", diff: { name: input.name, fields: fields.map((field) => field.label), routines: input.routines?.map((routine) => routine.name) } });
     }
   });
   return listCategories(ctx);
@@ -354,8 +418,11 @@ export async function deleteCategory(ctx: RequestContext, id: string) {
   const before = await db.assetCategory.findFirst({ where: { id, companyId, deletedAt: null } });
   if (!before) throw notFound("That category isn't there any more");
   await db.$transaction(async (tx) => {
+    const assets = await tx.asset.findMany({ where: { companyId, categoryId: id }, select: { id: true } });
     const moved = await tx.asset.updateMany({ where: { companyId, categoryId: id }, data: { categoryId: null } });
     await tx.assetCategory.update({ where: { id }, data: { deletedAt: new Date() } });
+    await tx.assetRoutine.updateMany({ where: { categoryId: id, deletedAt: null }, data: { deletedAt: new Date() } });
+    for (const asset of assets) await refreshDue(tx, asset.id);
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: id, action: "deleted", diff: { name: before.name, assets: moved.count } });
   });
   return listCategories(ctx);
@@ -381,6 +448,7 @@ export async function addPresets(ctx: RequestContext, names: string[]) {
     let sort = last._max.sort ?? 0;
     for (const preset of presets) {
       const row = await tx.assetCategory.create({ data: { companyId, name: preset.name, fields: preset.fields as unknown as Prisma.InputJsonValue, sort: ++sort } });
+      for (const [index, routine] of preset.routines.entries()) await tx.assetRoutine.create({ data: { companyId, categoryId: row.id, name: routine.name, everyMonths: routine.everyMonths, mustPass: routine.mustPass, sort: index + 1 } });
       await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: row.id, action: "created", diff: { name: preset.name, from: "starting set" } });
     }
   });

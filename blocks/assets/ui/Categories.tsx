@@ -2,16 +2,21 @@
 
 // Settings › Asset categories (docs/assets-block.md §1): the kinds of gear
 // the business has, each with its own fields ("Rated load (kg)" on
-// ladders). While there are few, the trade's starting set is offered.
+// ladders) and routines every asset in it follows (test & tag every 3
+// months, §4). While there are few, the trade's starting set is offered.
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { ActionButton, Alert, Button, Checkbox, EmptyState, Field, FormActions, List, PageHeader, SelectField, Section, Sheet, SheetContent, Stack, TapRow, api, useAction } from "@grid/ui";
-import type { CategoryField, CategoryJson, FieldType } from "./shared";
+import { ActionButton, Alert, Button, Checkbox, EmptyState, Field, FormActions, List, PageHeader, SelectField, Section, Sheet, SheetContent, Stack, Switch, TapRow, api, useAction } from "@grid/ui";
+import type { CategoryField, CategoryJson, CategoryRoutineJson, FieldType } from "./shared";
 
 interface Preset {
   name: string;
   fields: CategoryField[];
+  routines: { name: string; everyMonths: number; mustPass: boolean }[];
 }
+
+type RoutineRow = { id: string | null; name: string; everyMonths: string; mustPass: boolean; notes: string | null };
+const ROUTINE_NAMES = ["Test & tag", "Height safety inspection", "Ladder inspection", "Annual service", "Calibration"];
 
 const TYPES: { value: FieldType; label: string }[] = [
   { value: "text", label: "Text" },
@@ -31,6 +36,10 @@ const keyFor = (label: string) =>
 function CategorySheet({ category, onClose, onSaved }: { category: Partial<CategoryJson>; onClose: () => void; onSaved: (rows: CategoryJson[]) => void }) {
   const [name, setName] = useState(category.name ?? "");
   const [fields, setFields] = useState<(CategoryField & { fresh?: boolean })[]>(category.fields ?? []);
+  const [routines, setRoutines] = useState<RoutineRow[]>(
+    (category.routines ?? []).map((routine: CategoryRoutineJson) => ({ id: routine.id, name: routine.name, everyMonths: routine.everyMonths ? String(routine.everyMonths) : "", mustPass: routine.mustPass, notes: routine.notes })),
+  );
+  const changeRoutine = (index: number, changes: Partial<RoutineRow>) => setRoutines(routines.map((routine, at) => (at === index ? { ...routine, ...changes } : routine)));
   const action = useAction();
   const change = (index: number, changes: Partial<CategoryField>) => setFields(fields.map((field, at) => (at === index ? { ...field, ...changes } : field)));
   const move = (index: number, by: -1 | 1) => {
@@ -48,7 +57,13 @@ function CategorySheet({ category, onClose, onSaved }: { category: Partial<Categ
           onSubmit={(event) => {
             event.preventDefault();
             void action.run(async () => {
-              const body = { name, fields: fields.filter((field) => field.label.trim()).map((field) => ({ key: field.fresh ? keyFor(field.label) : field.key, label: field.label.trim(), type: field.type })) };
+              const body = {
+                name,
+                fields: fields.filter((field) => field.label.trim()).map((field) => ({ key: field.fresh ? keyFor(field.label) : field.key, label: field.label.trim(), type: field.type })),
+                routines: routines
+                  .filter((routine) => routine.name.trim())
+                  .map((routine) => ({ id: routine.id, name: routine.name.trim(), everyMonths: routine.everyMonths ? Number(routine.everyMonths) : null, mustPass: routine.mustPass, notes: routine.notes })),
+              };
               onSaved(await (category.id ? api<CategoryJson[]>(`/assets/categories/${category.id}`, { method: "PUT", body }) : api<CategoryJson[]>("/assets/categories", { body })));
             });
           }}
@@ -64,13 +79,13 @@ function CategorySheet({ category, onClose, onSaved }: { category: Partial<Categ
                   <SelectField label="Type" value={field.type} onChange={(event) => change(index, { type: event.target.value as FieldType })} options={TYPES} />
                 </div>
                 <div className="flex gap-1">
-                  <Button type="button" variant="ghost" size="sm" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Move up">
+                  <Button type="button" variant="ghost" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Move up">
                     <ArrowUp />
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" disabled={index === fields.length - 1} onClick={() => move(index, 1)} aria-label="Move down">
+                  <Button type="button" variant="ghost" disabled={index === fields.length - 1} onClick={() => move(index, 1)} aria-label="Move down">
                     <ArrowDown />
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" className="ml-auto text-destructive" onClick={() => setFields(fields.filter((_, at) => at !== index))}>
+                  <Button type="button" variant="ghost" className="ml-auto text-destructive" onClick={() => setFields(fields.filter((_, at) => at !== index))}>
                     <Trash2 /> Remove
                   </Button>
                 </div>
@@ -78,6 +93,35 @@ function CategorySheet({ category, onClose, onSaved }: { category: Partial<Categ
             ))}
             <Button type="button" variant="outline" className="self-start" onClick={() => setFields([...fields, { key: `new-${fields.length}`, label: "", type: "text", fresh: true }])}>
               <Plus /> Add a field
+            </Button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Routines</p>
+            <p className="text-sm text-muted-foreground">Every asset in it follows these, like test & tag every 3 months. Changing one here changes it on all of them.</p>
+            {routines.map((routine, index) => (
+              <div key={routine.id ?? `new-${index}`} className="flex flex-col gap-2 rounded-xl bg-muted/40 p-3">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem]">
+                  <Field label="Name" placeholder="e.g. Test & tag" list="routine-names" value={routine.name} onChange={(event) => changeRoutine(index, { name: event.target.value })} />
+                  <Field label="Every (months)" inputMode="numeric" placeholder="3" value={routine.everyMonths} onChange={(event) => changeRoutine(index, { everyMonths: event.target.value.replace(/\D/g, "") })} />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex min-h-touch cursor-pointer items-center gap-3">
+                    <Switch checked={routine.mustPass} onCheckedChange={(checked) => changeRoutine(index, { mustPass: checked })} />
+                    <span className="text-sm font-medium">Must pass to use it</span>
+                  </label>
+                  <Button type="button" variant="ghost" className="ml-auto text-destructive" onClick={() => setRoutines(routines.filter((_, at) => at !== index))}>
+                    <Trash2 /> Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <datalist id="routine-names">
+              {ROUTINE_NAMES.map((entry) => (
+                <option key={entry} value={entry} />
+              ))}
+            </datalist>
+            <Button type="button" variant="outline" className="self-start" onClick={() => setRoutines([...routines, { id: null, name: routines.length ? "" : "Test & tag", everyMonths: routines.length ? "" : "3", mustPass: !routines.length, notes: null }])}>
+              <Plus /> Add a routine
             </Button>
           </div>
           <Alert variant="error">{action.error}</Alert>
@@ -138,7 +182,12 @@ function Presets({ onAdded }: { onAdded: (rows: CategoryJson[]) => void }) {
                 />
                 <span>
                   {preset.name}
-                  {preset.fields.length > 0 && <span className="text-sm text-muted-foreground"> · {preset.fields.map((field) => field.label).join(", ")}</span>}
+                  {(preset.fields.length > 0 || preset.routines.length > 0) && (
+                    <span className="text-sm text-muted-foreground">
+                      {" "}
+                      · {[...preset.fields.map((field) => field.label), ...preset.routines.map((routine) => `${routine.name} every ${routine.everyMonths} months`)].join(", ")}
+                    </span>
+                  )}
                 </span>
               </label>
             </li>
@@ -175,7 +224,7 @@ export function Categories({ initial }: { initial: CategoryJson[] }) {
                 <TapRow
                   key={row.id}
                   title={row.name}
-                  meta={[`${row.count} asset${row.count === 1 ? "" : "s"}`, row.fields.length ? row.fields.map((field) => field.label).join(", ") : null].filter(Boolean).join(" · ")}
+                  meta={[`${row.count} asset${row.count === 1 ? "" : "s"}`, ...row.routines.map((routine) => `${routine.name}: ${routine.interval.toLowerCase()}`), row.fields.length ? row.fields.map((field) => field.label).join(", ") : null].filter(Boolean).join(" · ")}
                   onClick={() => setOpen(row)}
                 />
               ))}
