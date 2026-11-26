@@ -125,6 +125,8 @@ export interface IconProgressJson {
   markupId: string;
   done: number;
   total: number;
+  /** The items still to do, in list order (What's left). */
+  remaining: { id: string; text: string }[];
 }
 
 export async function sheetIconProgress(ctx: RequestContext, sheetId: string): Promise<IconProgressJson[]> {
@@ -134,13 +136,15 @@ export async function sheetIconProgress(ctx: RequestContext, sheetId: string): P
   await jobFor(ctx, icons[0]!.projectId, false);
   const items = await db.checklistItem.findMany({
     where: { companyId, projectId: icons[0]!.projectId, markupId: { in: icons.map((icon) => icon.id) } },
-    select: { markupId: true, doneAt: true },
+    select: { id: true, text: true, markupId: true, doneAt: true },
+    orderBy: { position: "asc" },
   });
   const byIcon = new Map<string, IconProgressJson>();
   for (const item of items) {
-    const progress = byIcon.get(item.markupId!) ?? { markupId: item.markupId!, done: 0, total: 0 };
+    const progress = byIcon.get(item.markupId!) ?? { markupId: item.markupId!, done: 0, total: 0, remaining: [] };
     progress.total += 1;
     if (item.doneAt) progress.done += 1;
+    else progress.remaining.push({ id: item.id, text: item.text });
     byIcon.set(item.markupId!, progress);
   }
   return [...byIcon.values()];

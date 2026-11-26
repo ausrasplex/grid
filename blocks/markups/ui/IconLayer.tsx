@@ -131,7 +131,7 @@ export function IconLayer({
 }) {
   const lookup = useMemo(() => iconLookup(customIcons), [customIcons]);
   const overlay = usePlanOverlay();
-  const { view, version, versions, isCurrent, hidden, setTool, selectMarkup, setMarkupPanel, markupProgress } = overlay;
+  const { view, version, versions, isCurrent, hidden, setTool, selectMarkup, setMarkupPanel, markupProgress, setPlacedMarkups } = overlay;
   const placing = overlay.tool === "markups.icon";
   const canPlace = canAdd && isCurrent;
 
@@ -312,6 +312,27 @@ export function IconLayer({
     selectMarkup(selected && selectedName && !placing ? { id: selected.id, name: selectedName } : null);
   }, [selected?.id, selectedName, placing, selectMarkup]);
   useEffect(() => () => selectMarkup(null), [selectMarkup]);
+
+  // Another Block picked an icon (What's left): open its panel.
+  const requestedId = overlay.selectedMarkup?.id ?? null;
+  useEffect(() => {
+    if (requestedId && requestedId !== selectedId && visible.some((entry) => entry.id === requestedId)) setSelectedId(requestedId);
+    // Only when the request changes; our own selection is pushed out above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedId]);
+
+  // Tell the other Blocks which icons are showing, what they're called and where (What's left lists them).
+  useEffect(() => {
+    setPlacedMarkups(
+      visible.flatMap((entry) => {
+        const icon = lookup.icon(entry.iconKey);
+        if (!icon) return [];
+        const numbered = numbersOf(entry.iconKey).length >= 2;
+        return [{ id: entry.id, name: `${icon.name}${numbered ? ` ${entry.iconNumber ?? 1}` : ""}`, point: entry.points[0]! as [number, number] }];
+      }),
+    );
+  }, [visible, lookup, numbersOf, setPlacedMarkups]);
+  useEffect(() => () => setPlacedMarkups([]), [setPlacedMarkups]);
 
   const likeSelected = selected ? visible.filter((entry) => entry.iconKey === selected.iconKey && (entry.iconNumber ?? 1) === (selected.iconNumber ?? 1) && entry.canChange) : [];
 

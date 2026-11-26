@@ -101,16 +101,28 @@ export interface PlanOverlayValue {
   onPointer: (listener: (pointer: PlanPointer) => void) => () => void;
   /** Where PlanToolButton puts tool buttons (the bar under the plan). */
   toolbar: HTMLElement | null;
+  /** Where PlanSideButton puts round buttons (the stack on the right, above Layers and the zoom buttons). */
+  sideButtons: HTMLElement | null;
+  /** Moves the view to this sheet point, zoomed in to a room or two, a quarter of the way down the screen (clear of the panel at the bottom). */
+  goTo: (point: SheetPoint) => void;
   /**
    * The placed icon tapped on the plan (Markups sets it while its panel is
    * open), so other Blocks can add their part to that panel with
-   * PlanMarkupSection: the icon's checklist, its photos.
+   * PlanMarkupSection: the icon's checklist, its photos. Another Block can
+   * set it too (What's left): Markups then opens that icon's panel.
    */
   selectedMarkup: SelectedMarkup | null;
   selectMarkup: (markup: SelectedMarkup | null) => void;
   /** Where PlanMarkupSection puts its parts (inside the open icon panel). Markups sets it. */
   markupPanel: HTMLElement | null;
   setMarkupPanel: (element: HTMLElement | null) => void;
+  /**
+   * The placed icons showing on this revision (on layers and trades that
+   * are turned on), with their names and where they are. Markups sets it,
+   * so other Blocks can list them and jump to one (What's left).
+   */
+  placedMarkups: PlacedMarkup[];
+  setPlacedMarkups: (markups: PlacedMarkup[]) => void;
   /** Checklist progress per placed icon (by markup id), drawn as a ring around the icon. Checklist sets it. */
   markupProgress: Record<string, MarkupProgress>;
   setMarkupProgress: (progress: Record<string, MarkupProgress>) => void;
@@ -121,6 +133,13 @@ export interface SelectedMarkup {
   id: string;
   /** What it's called, e.g. "Double power point 2". */
   name: string;
+}
+
+/** A placed icon showing on the plan: what it's called and where it is, in sheet units. */
+export interface PlacedMarkup {
+  id: string;
+  name: string;
+  point: SheetPoint;
 }
 
 /** How much of an icon's checklist is ticked off. */
@@ -174,6 +193,36 @@ export function PlanMarkupSection({ order = 100, children }: { order?: number; c
   const { markupPanel, selectedMarkup } = usePlanOverlay();
   if (!markupPanel || !selectedMarkup) return null;
   return createPortal(<div style={{ order }}>{children}</div>, markupPanel);
+}
+
+/**
+ * A round button in the stack on the right of the plan (with Layers and the
+ * zoom buttons), for things you look at rather than draw with. `badge`
+ * shows a small number on it.
+ */
+export function PlanSideButton({ label, icon, badge, active, onClick }: { label: string; icon: ReactNode; badge?: number | null; active?: boolean; onClick: () => void }) {
+  const { sideButtons } = usePlanOverlay();
+  if (!sideButtons) return null;
+  return createPortal(
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={badge ? `${label}: ${badge}` : label}
+      aria-pressed={active}
+      className={cn(
+        "pointer-events-auto relative flex size-12 items-center justify-center rounded-full bg-neutral-900/90 text-white shadow-lg hover:bg-neutral-700 [&_svg]:size-5",
+        active && "bg-primary text-primary-foreground hover:bg-primary",
+      )}
+    >
+      {icon}
+      {badge ? (
+        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground" aria-hidden>
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
+    </button>,
+    sideButtons,
+  );
 }
 
 /** A button in the tool bar under the plan. `order` sorts it among other Blocks' buttons. */

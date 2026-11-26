@@ -28,10 +28,12 @@ import {
   cn,
   useAction,
   type MarkupProgress,
+  type PlacedMarkup,
   type PlanOverlayValue,
   type PlanPointer,
   type PlanView,
   type SelectedMarkup,
+  type SheetPoint,
 } from "@grid/ui";
 import { DISCIPLINES, disciplineName } from "../parse";
 import { LayersPanel, useSheetLayers, type LayerJson } from "./Layers";
@@ -135,10 +137,14 @@ export function Viewer({
   }, []);
   const [hidden, setHidden] = useState(false);
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
+  // Where other Blocks' round buttons go, above Layers in the stack on the right (PlanSideButton).
+  const [sideButtons, setSideButtons] = useState<HTMLDivElement | null>(null);
+  const seadragon = useRef<typeof OpenSeadragonType | null>(null);
   // A placed icon tapped on the plan: Markups shows its panel, other Blocks add to it (checklist, photos).
   const [selectedMarkup, selectMarkup] = useState<SelectedMarkup | null>(null);
   const [markupPanel, setMarkupPanel] = useState<HTMLElement | null>(null);
   const [markupProgress, setMarkupProgress] = useState<Record<string, MarkupProgress>>({});
+  const [placedMarkups, setPlacedMarkups] = useState<PlacedMarkup[]>([]);
   const listeners = useRef(new Set<(pointer: PlanPointer) => void>());
   const onPointer = useCallback((listener: (pointer: PlanPointer) => void) => {
     listeners.current.add(listener);
@@ -174,6 +180,7 @@ export function Viewer({
     let alive = true;
     setLoading(true);
     void import("openseadragon").then(({ default: OSD }) => {
+      seadragon.current = OSD;
       if (!alive || !box.current) return;
       const zoomViewer = OSD({
         element: box.current,
@@ -316,6 +323,22 @@ export function Viewer({
 
   const zoom = (factor: number) => viewer.current?.viewport.zoomBy(factor).applyConstraints();
   const home = () => viewer.current?.viewport.goHome();
+  /**
+   * Moves the view to `point`, zoomed in to a room or two (or closer, if
+   * you're already closer). It lands a quarter of the way down the screen,
+   * clear of the panel that opens at the bottom when an icon is picked.
+   */
+  const goTo = useCallback((point: SheetPoint) => {
+    const zoomViewer = viewer.current;
+    const OSD = seadragon.current;
+    if (!zoomViewer || !OSD) return;
+    const container = zoomViewer.viewport.getContainerSize();
+    if (!container.x || !container.y) return;
+    // A third of the sheet's width across the screen, unless already zoomed in further.
+    const width = Math.min(1 / 3, zoomViewer.viewport.getBoundsNoRotate(true).width);
+    const height = (width * container.y) / container.x;
+    zoomViewer.viewport.fitBounds(new OSD.Rect(point[0] - width / 2, point[1] - height / 4, width, height));
+  }, []);
 
   // Put the tool down when you switch revision.
   useEffect(() => setTool(null), [version?.id, setTool]);
@@ -348,14 +371,18 @@ export function Viewer({
       layers: layerState.layers,
       onPointer,
       toolbar,
+      sideButtons,
+      goTo,
       selectedMarkup,
       selectMarkup,
       markupPanel,
       setMarkupPanel,
       markupProgress,
       setMarkupProgress,
+      placedMarkups,
+      setPlacedMarkups,
     };
-  }, [sheet, version, isCurrent, view, tool, setTool, hidden, layerState.active, layerState.layerShown, layerState.layers, onPointer, toolbar, selectedMarkup, markupPanel, markupProgress]);
+  }, [sheet, version, isCurrent, view, tool, setTool, hidden, layerState.active, layerState.layerShown, layerState.layers, onPointer, toolbar, sideButtons, goTo, selectedMarkup, markupPanel, markupProgress, placedMarkups]);
   const showOverlays = overlays.length > 0 && ready && overlay !== null;
 
   return (
@@ -426,6 +453,8 @@ export function Viewer({
               </div>
             )}
             <div className="absolute right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-col gap-2">
+              {/* Other Blocks' buttons (What's left), above Layers. */}
+              <div ref={setSideButtons} className="contents" />
               {[
                 ...(showOverlays
                   ? [
