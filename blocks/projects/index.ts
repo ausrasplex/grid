@@ -23,6 +23,11 @@ export {
   type SearchResult,
 } from "./service";
 
+/** What a block's "job.top" panel receives: the top of a job page, for the whole job (the checklist). */
+export interface JobTopPanelProps {
+  job: { id: string; name: string; status: string; archived: boolean };
+}
+
 /** What a block's "job.area" panel receives (photos, plans… on a job page). */
 export interface JobAreaPanelProps {
   job: { id: string; name: string; status: "ACTIVE" | "COMPLETED" | "QUOTING" | "NOT_WON"; siteId: string };

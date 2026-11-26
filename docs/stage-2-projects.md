@@ -298,3 +298,18 @@ A quote that needs plans (for a take-off) before the work is won gets a job to h
 4. Invites, chain, placement and moves (§2, §4, §5).
 5. Site and project QR access requests (§1f, §3).
 6. Managed-site ownership: editors, structure proposals, claims, duplicate checks.
+
+### Job checklist (decided and built Nov 2026)
+
+A to-do list on each job, ticked off as the work gets done. Its own optional Block, `checklists` (Checklist in the Store), on for every business by default (the preset, and the migration for businesses that already existed).
+
+- **Where:** the top of the job page, above the work areas: it's for the whole job, not one level. Blocks put things there through the **`job.top`** panel slot (props `JobTopPanelProps` from `@grid/block-projects`). Not on a quote's job (Quoting / Not won).
+- **Ticking:** tap the item. It records **who and when** ("Sam Lee · Today, 2:14 pm"; the name is kept with the tick, in case they leave the team) and goes to the bottom under **Done (n)**, folded away while there's still something to do. Tapping a done one puts it back. Two people ticking at once keeps the first tick.
+- **Who can do what** (two permissions, so roles can split them):
+  - `checklists.items.tick`, **Tick checklist items**: Owner, Foreman, Employee and Viewer, i.e. anyone who can see the job.
+  - `checklists.items.manage`, **Add and remove checklist items** (and rename them): Owner, Foreman, Employee.
+  - **Apprentices and trainees** are a custom role (Settings › Roles: copy Employee, switch "Add and remove checklist items" off), given to them on the Team page. They tick but don't change the list. Decided: set on the Team page by an Owner, never on your own Profile.
+- **Adding:** the box at the bottom. Enter adds; several lines (typed with Shift+Enter, or pasted from notes) add one item each, with bullets, numbers and tick boxes taken off (`blocks/checklists/lines.ts`). New items go at the end.
+- **Edit** (top right of the list, for those who can manage it): rename in place (saves when you leave the box) and a Bin on each. No reordering yet.
+- **An archived job's list** is kept as it was: it can be read, not changed. A job's list goes when the job is deleted for good, and with a deleted business.
+- Every add, rename, tick, untick and removal is in the activity log. The list belongs to the business that wrote it (`ChecklistItem.companyId`), ready for shared jobs in the contract chain.

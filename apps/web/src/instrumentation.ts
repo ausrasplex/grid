@@ -12,6 +12,14 @@ export async function register() {
     // Don't block startup (e.g. before the first migration has run).
     console.error("[startup] couldn't sync built-in roles", error);
   }
+  // Business pictures for businesses that had a Branding logo before pictures existed.
+  try {
+    const { pictureFromExistingLogos } = await import("@grid/block-templates");
+    const made = await pictureFromExistingLogos();
+    if (made) console.log(`[startup] made ${made} business picture(s) from Branding logos`);
+  } catch (error) {
+    console.error("[startup] couldn't make business pictures from logos", error);
+  }
   // Scheduled jobs (storage clean-up). Failing to start them mustn't stop the app.
   try {
     const { startJobs } = await import("./lib/jobs");

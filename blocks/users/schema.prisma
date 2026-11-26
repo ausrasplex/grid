@@ -17,6 +17,9 @@ model User {
   name      String
   phone     String?
   avatarKey String?
+  /// Put their own photo on business cards other businesses import
+  /// ("Share my photo on business cards"). Off: they get the business's picture.
+  sharePhotoOnCards Boolean @default(false)
   /// Personal preferences: { markupColour, favouriteIcons, units, ... }
   settings  Json      @default("{}")
   createdAt DateTime  @default(now())

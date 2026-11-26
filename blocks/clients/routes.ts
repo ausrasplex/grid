@@ -14,12 +14,21 @@ export const routes: Routes = {
       return transfer.exportOurCard(ctx, query.members, query.format);
     },
   },
-  "POST /import/preview": { permission: "clients.add", handler: (ctx, request) => transfer.previewImport(ctx, importSchema.parse(request.body).cells) },
+  // Contact files (.vcf). Yours: anyone in the business. A client's: anyone who can see clients.
+  "GET /vcard/me": { handler: (ctx) => transfer.myContact(ctx) },
+  "GET /:id/vcard": { permission: "clients.view", handler: (ctx, request) => transfer.clientContact(ctx, request.params.id!) },
+  "POST /import/preview": {
+    permission: "clients.add",
+    handler: (ctx, request) => {
+      const input = importSchema.parse(request.body);
+      return transfer.previewImport(ctx, input.cells, input.pictureNames);
+    },
+  },
   "POST /import": {
     permission: "clients.add",
     handler: (ctx, request) => {
       const input = importSchema.parse(request.body);
-      return transfer.applyImport(ctx, input.cells, input.decisions);
+      return transfer.applyImport(ctx, input.cells, input.decisions, input.pictures);
     },
   },
   "GET /": { permission: "clients.view", handler: (ctx, request) => svc.listClients(ctx, request.query.get("q") ?? "") },

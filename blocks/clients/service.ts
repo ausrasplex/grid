@@ -5,7 +5,7 @@
 // "Clients and businesses").
 
 import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
-import { audit, db, type Tx } from "@grid/db";
+import { audit, db, pictureUrl, type Tx } from "@grid/db";
 import { clientLabel, type BusinessDetails } from "./people";
 import type { BusinessInput, ClientInput } from "./validation";
 
@@ -26,6 +26,10 @@ export interface ClientRow {
   business: BusinessDetails | null;
   /** "Sam Lee, Honeywell", or just the name: what jobs and quote lists show. */
   label: string;
+  /** Their own photo, or null. */
+  photoUrl: string | null;
+  /** What to show for them: their photo, else their business's logo, else null (initials). */
+  pictureUrl: string | null;
 }
 
 const businessDetailsSelect = { id: true, name: true, abn: true, email: true, phone: true, address: true } as const;
@@ -40,11 +44,21 @@ const clientSelect = {
   address: true,
   abn: true,
   notes: true,
-  business: { select: businessDetailsSelect },
+  photoKey: true,
+  business: { select: { ...businessDetailsSelect, logoKey: true } },
 } as const;
 
-type ClientRecord = Omit<ClientRow, "label">;
-const toRow = (client: ClientRecord): ClientRow => ({ ...client, label: clientLabel(client) });
+type ClientRecord = Omit<ClientRow, "label" | "photoUrl" | "pictureUrl" | "business"> & { photoKey: string | null; business: (BusinessDetails & { logoKey: string | null }) | null };
+const toRow = ({ photoKey, business, ...client }: ClientRecord): ClientRow => {
+  const { logoKey, ...details } = business ?? { logoKey: null };
+  return {
+    ...client,
+    business: business ? (details as BusinessDetails) : null,
+    label: clientLabel({ name: client.name, business }),
+    photoUrl: pictureUrl(photoKey),
+    pictureUrl: pictureUrl(photoKey ?? logoKey),
+  };
+};
 
 /**
  * Payload of "clients.renamed": jobs keep a copy of the client's label for
@@ -195,10 +209,16 @@ export interface BusinessRow extends BusinessDetails {
   notes: string | null;
   /** People at it still on the list. */
   peopleCount: number;
+  /** Its logo, or null. */
+  logoUrl: string | null;
 }
 
-const businessSelect = { ...businessDetailsSelect, notes: true, _count: { select: { people: { where: { deletedAt: null } } } } } as const;
-const toBusinessRow = ({ _count, ...business }: { _count: { people: number } } & Omit<BusinessRow, "peopleCount">): BusinessRow => ({ ...business, peopleCount: _count.people });
+const businessSelect = { ...businessDetailsSelect, notes: true, logoKey: true, _count: { select: { people: { where: { deletedAt: null } } } } } as const;
+const toBusinessRow = ({ _count, logoKey, ...business }: { _count: { people: number }; logoKey: string | null } & Omit<BusinessRow, "peopleCount" | "logoUrl">): BusinessRow => ({
+  ...business,
+  peopleCount: _count.people,
+  logoUrl: pictureUrl(logoKey),
+});
 
 export async function listBusinesses(ctx: RequestContext, query = ""): Promise<BusinessRow[]> {
   const companyId = requireCompany(ctx);

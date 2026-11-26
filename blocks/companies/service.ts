@@ -199,10 +199,11 @@ export async function updateCurrentCompany(ctx: RequestContext, input: UpdateCom
 // ---------------------------------------------------------------------
 
 export async function listMembers(ctx: RequestContext) {
+  const company = await db.company.findUniqueOrThrow({ where: { id: requireCompany(ctx) }, select: { logoKey: true } });
   const rows = await db.membership.findMany({
     where: { companyId: requireCompany(ctx), status: { in: ["ACTIVE", "INVITED"] } },
     include: {
-      user: { select: { id: true, name: true, email: true, phone: true, avatarKey: true, image: true } },
+      user: { select: { id: true, name: true, email: true, phone: true, avatarKey: true, image: true, sharePhotoOnCards: true } },
       role: { select: { id: true, name: true, systemRole: true } },
     },
     orderBy: { user: { name: "asc" } },
@@ -212,7 +213,8 @@ export async function listMembers(ctx: RequestContext) {
   return rows.map((row) => ({
     membershipId: row.id,
     status: row.status,
-    user: { id: row.user.id, name: row.user.name, email: row.user.email, phone: row.user.phone, avatarUrl: avatarUrl(row.user) },
+    // Their picture, else the business's. ownPhotoKey and sharePhotoOnCards are for Share our business card.
+    user: { id: row.user.id, name: row.user.name, email: row.user.email, phone: row.user.phone, avatarUrl: avatarUrl(row.user, company.logoKey), ownPhotoKey: row.user.avatarKey, sharePhotoOnCards: row.user.sharePhotoOnCards },
     role: row.role,
     since: row.createdAt,
     ...(canInvite && row.status === "INVITED"

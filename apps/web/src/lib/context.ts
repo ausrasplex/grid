@@ -74,9 +74,11 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
   }
   if (!companyId || !access) return base;
 
-  const company = await db.company.findUniqueOrThrow({ where: { id: companyId }, select: { id: true, name: true } });
+  const { logoKey, ...company } = await db.company.findUniqueOrThrow({ where: { id: companyId }, select: { id: true, name: true, logoKey: true } });
   return {
     ...base,
+    // Until they add their own, people show their business's picture.
+    user: { ...user, avatarUrl: avatarUrl(found, logoKey) },
     companyId,
     company: { ...company, role: access.roleName },
     permissions: access.permissions,

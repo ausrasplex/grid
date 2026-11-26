@@ -173,6 +173,10 @@ export async function runCleanup(options: { trigger: "schedule" | "manual"; user
       }
       // Profile pictures live outside StoredFile (User.avatarKey).
       for (const user of await db.user.findMany({ where: { avatarKey: { not: null } }, select: { avatarKey: true } })) known.add(user.avatarKey!);
+      // So do business pictures and pictures in the Clients list (Company.logoKey, Client.photoKey, ClientBusiness.logoKey).
+      for (const company of await db.company.findMany({ where: { logoKey: { not: null } }, select: { logoKey: true } })) known.add(company.logoKey!);
+      for (const client of await db.client.findMany({ where: { photoKey: { not: null } }, select: { photoKey: true } })) known.add(client.photoKey!);
+      for (const business of await db.clientBusiness.findMany({ where: { logoKey: { not: null } }, select: { logoKey: true } })) known.add(business.logoKey!);
       for (const stray of await findStrayFiles(known, new Date(now - DAY))) {
         if (!dryRun) await removeStrayFile(stray.key);
         items.push({ companyId: null, kind: "stray", label: `File on disk with no record: ${stray.key}`, refId: null, bytes: stray.bytes });

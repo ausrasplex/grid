@@ -148,3 +148,35 @@ test("a blank cell never counts as a change", () => {
   const plan = planImport(rows, list);
   assert.equal(plan.people[0]!.changes.length, 0);
 });
+
+test("pictures: a zip's table names them in two more columns; plain files have none", () => {
+  const plain = toTable([{ ...siemens, picture: "pictures/siemens.jpg" }], [{ ...steve, picture: "pictures/steve.jpg" }]);
+  assert.equal(plain[0]!.length, COLUMNS.length);
+  const zipped = toTable([{ ...siemens, picture: "pictures/siemens.jpg" }], [{ ...steve, picture: "pictures/steve.jpg" }], { pictures: true });
+  assert.deepEqual(zipped[0]!.slice(-2), ["Business picture", "Picture"]);
+  assert.deepEqual(zipped[1]!.slice(-2), ["pictures/siemens.jpg", "pictures/steve.jpg"]);
+});
+
+test("pictures: only ones in the zip count, and never replace one Grid already has", () => {
+  const { rows } = readTable([
+    ["Business", "Business picture", "Name", "Email", "Picture"],
+    ["Siemens Pty Ltd", "pictures/siemens.jpg", "Steve Serci", "steve.serci@siemens.example", "pictures/steve.jpg"],
+    ["Honeywell", "pictures/missing.jpg", "Sam Lee", "", "pictures/sam.jpg"],
+  ]);
+  const withPictures = {
+    businesses: [{ ...siemens, picture: "pictures/clients/x/logo.jpg" }, honeywell, empty],
+    people: [{ ...steve, picture: null }, jane],
+  };
+  const plan = planImport(rows, withPictures, [], new Set(["pictures/siemens.jpg", "pictures/steve.jpg", "pictures/sam.jpg"]));
+  const siemensPlan = plan.businesses.find((business) => business.match?.id === "b-siemens")!;
+  // Siemens already has a logo: the zip's doesn't replace it.
+  assert.equal(siemensPlan.picture, "pictures/siemens.jpg");
+  assert.equal(siemensPlan.changes.length, 0);
+  // Honeywell's picture isn't in the zip: ignored.
+  assert.equal(plan.businesses.find((business) => business.match?.id === "b-honeywell")!.picture, null);
+  // Steve has no photo yet: Update would add the zip's, and it isn't a field to write.
+  const stevePlan = plan.people.find((person) => person.match?.id === "p-steve")!;
+  assert.deepEqual(stevePlan.changes.map((change) => change.field), ["picture"]);
+  assert.deepEqual(updateFields(stevePlan), {});
+  assert.equal(plan.people.find((person) => person.fields.name === "Sam Lee")!.picture, "pictures/sam.jpg");
+});

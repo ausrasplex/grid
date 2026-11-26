@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Avatar, Button, Field, FormActions, Loading, Section, Sheet, SheetContent, Stack, THEMES, api, cn, resolveTokens, showThemeNow, themeAttributes, tokensCss, useAction, useApi, type KeyColours, type ThemeId, type TokenOverrides } from "@grid/ui";
+import { ActionButton, Alert, Button, EditablePicture, Field, FormActions, Loading, Section, Sheet, SheetContent, Stack, Switch, THEMES, api, cn, resolveTokens, shareFile, showThemeNow, themeAttributes, tokensCss, useAction, useApi, type KeyColours, type ThemeId, type TokenOverrides } from "@grid/ui";
+import { Share2 } from "lucide-react";
 
 interface Me {
   id: string;
@@ -10,6 +11,7 @@ interface Me {
   name: string;
   phone: string | null;
   avatarUrl: string | null;
+  sharePhotoOnCards: boolean;
   settings: Record<string, unknown>;
 }
 
@@ -18,6 +20,8 @@ export function ProfileForm() {
   const save = useAction();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  /** What's saved, so Save only shows once something's changed. */
+  const [savedValues, setSavedValues] = useState({ name: "", phone: "" });
   const [saved, setSaved] = useState(false);
   /** The email shown, once changed here. */
   const [email, setEmail] = useState<string | null>(null);
@@ -27,63 +31,123 @@ export function ProfileForm() {
     if (data) {
       setName(data.name);
       setPhone(data.phone ?? "");
+      setSavedValues({ name: data.name, phone: data.phone ?? "" });
     }
   }, [data]);
 
   if (loading) return <Loading />;
   if (error || !data) return <Alert variant="error">{error ?? "Couldn't load your profile"}</Alert>;
+  const changed = name !== savedValues.name || phone.trim() !== savedValues.phone;
 
   return (
     <Stack>
-    <Section>
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setSaved(false);
-          const ok = await save.run(() =>
-            api("/users/me", { method: "PATCH", body: { name, phone: phone.trim() || null } }),
-          );
-          if (ok) setSaved(true);
-        }}
-      >
-        <ProfilePicture name={name || data.name} initial={data.avatarUrl} />
-        <div className="flex flex-col gap-2 lg:max-w-2xl">
-          <Field label="Email" value={email ?? data.email} disabled hint="Your sign-in email." />
-          <Button type="button" variant="outline" className="self-start" onClick={() => setChangingEmail(true)}>
-            Change email
-          </Button>
+      <Section>
+        <div className="flex flex-col gap-4">
+          <ProfilePicture name={name || data.name} initial={data.avatarUrl} />
+          <form
+            className="flex flex-col gap-4 lg:max-w-2xl"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setSaved(false);
+              const ok = await save.run(() => api("/users/me", { method: "PATCH", body: { name, phone: phone.trim() || null } }));
+              if (ok) {
+                setSavedValues({ name, phone: phone.trim() });
+                setSaved(true);
+              }
+            }}
+          >
+            <Field
+              label="Name"
+              autoComplete="name"
+              value={name}
+              onChange={(event) => (setName(event.target.value), setSaved(false))}
+              required
+              maxLength={120}
+            />
+            <Field
+              label="Mobile"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="04xx xxx xxx"
+              value={phone}
+              onChange={(event) => (setPhone(event.target.value), setSaved(false))}
+              maxLength={30}
+            />
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Email</span>
+              <div className="flex min-h-touch items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">{email ?? data.email}</span>
+                <Button type="button" variant="ghost" className="shrink-0 text-primary" onClick={() => setChangingEmail(true)}>
+                  Change
+                </Button>
+              </div>
+            </div>
+            <Alert variant="error">{save.error}</Alert>
+            {changed ? (
+              <FormActions>
+                <Button type="submit" disabled={save.busy}>
+                  {save.busy ? "Saving…" : "Save"}
+                </Button>
+              </FormActions>
+            ) : (
+              saved && <p className="text-sm text-muted-foreground">Saved</p>
+            )}
+          </form>
+          <PhotoSharing initial={data.sharePhotoOnCards} />
         </div>
-        <Field label="Name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required maxLength={120} />
-        <Field
-          label="Mobile"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          maxLength={30}
+        <ChangeEmail
+          open={changingEmail}
+          onOpenChange={setChangingEmail}
+          current={email ?? data.email}
+          onChanged={(next) => {
+            setEmail(next);
+            setChangingEmail(false);
+          }}
         />
-        <Alert variant="error">{save.error}</Alert>
-        {saved && <Alert variant="success">Saved</Alert>}
-        <FormActions>
-          <Button type="submit" size="lg" disabled={save.busy}>
-            {save.busy ? "Saving…" : "Save"}
-          </Button>
-        </FormActions>
-      </form>
-      <ChangeEmail
-        open={changingEmail}
-        onOpenChange={setChangingEmail}
-        current={email ?? data.email}
-        onChanged={(next) => {
-          setEmail(next);
-          setChangingEmail(false);
-        }}
-      />
-    </Section>
-    <Appearance initial={typeof data.settings?.theme === "string" ? data.settings.theme : "grid"} />
+      </Section>
+      <Appearance initial={typeof data.settings?.theme === "string" ? data.settings.theme : "grid"} />
     </Stack>
+  );
+}
+
+/** "Share photo on business cards": whether your own photo goes on cards, or your business's picture. Saves straight away. */
+function PhotoSharing({ initial }: { initial: boolean }) {
+  const [sharing, setSharing] = useState(initial);
+  const action = useAction();
+  const share = async (on: boolean) => {
+    setSharing(on);
+    const saved = await action.run(() => api("/users/me", { method: "PATCH", body: { sharePhotoOnCards: on } }));
+    if (saved === undefined) setSharing(!on);
+  };
+  return (
+    <div className="flex flex-col gap-2 border-t pt-4">
+      <label className="flex min-h-touch items-center gap-3">
+        <Switch checked={sharing} onCheckedChange={(on) => void share(on)} disabled={action.busy} />
+        <span className="min-w-0">
+          <span className="block font-medium">Share photo on business cards</span>
+          <span className="block text-sm text-muted-foreground">{sharing ? "Cards include your photo" : "Cards show your business's picture"}</span>
+        </span>
+      </label>
+      <Alert variant="error">{action.error}</Alert>
+    </div>
+  );
+}
+
+/** The page header's share button: your contact file (.vcf) to the phone's Share menu, or downloaded (the server names the file). */
+export function ShareMyContact() {
+  const action = useAction();
+  return (
+    <>
+      <ActionButton
+        variant="outline"
+        icon={<Share2 />}
+        label={action.busy ? "Getting it…" : "Share my contact"}
+        disabled={action.busy}
+        onClick={() => void action.run(() => shareFile("/api/clients/vcard/me", "Contact.vcf"))}
+      />
+      {action.error && <Alert variant="error">{action.error}</Alert>}
+    </>
   );
 }
 
@@ -96,7 +160,10 @@ const SWATCHES: Record<ThemeId, string[]> = {
   "soft-system": ["#f5f5f8", "#14131f", "#b9a8f5", "#fbd8ae", "#e6f548"],
 };
 
-/** A theme someone made (the Themes block, /api/themes). */
+/**
+ * Settings › Profile › Appearance: Grid's look, for you on every device.
+ * Soft is a trial (docs/visual-style.md "Themes"). Applies straight away.
+ */
 interface CustomTheme {
   id: string;
   name: string;
@@ -148,18 +215,19 @@ function Appearance({ initial }: { initial: string }) {
       disabled={action.busy}
       onClick={() => void pick(id)}
       className={cn(
-        "flex min-h-touch-lg items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors",
+        "flex min-h-touch items-center gap-3 rounded-xl border-2 px-3 py-2 text-left transition-colors",
         theme === id ? "border-primary bg-accent text-accent-foreground" : "border-transparent bg-muted hover:border-input",
       )}
     >
       <span aria-hidden className="flex shrink-0 -space-x-1.5">
         {swatches.map((colour, index) => (
-          <span key={index} className="size-6 rounded-full border-2 border-card" style={{ background: colour }} />
+          <span key={index} className="size-5 rounded-full border-2 border-card" style={{ background: colour }} />
         ))}
       </span>
       <span className="min-w-0">
         <span className="block truncate font-semibold">{label}</span>
-        <span className="block truncate text-sm opacity-80">{description}</span>
+        {/* Only the one picked says what it is: the rest stay one line. */}
+        {theme === id && <span className="block truncate text-sm opacity-80">{description}</span>}
       </span>
     </button>
   );
@@ -167,14 +235,14 @@ function Appearance({ initial }: { initial: string }) {
   return (
     <Section
       title="Appearance"
-      description="How Grid looks for you, on every device you sign in on. Soft is a trial look: try it and tell us."
+      description="How Grid looks for you"
       actions={
         <Button variant="ghost" size="sm" onClick={() => router.push("/themes/new")}>
           Make your own
         </Button>
       }
     >
-      <div role="radiogroup" aria-label="Theme" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div role="radiogroup" aria-label="Theme" className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
         {THEMES.map((builtIn) => option(builtIn.id, builtIn.label, builtIn.description, SWATCHES[builtIn.id]))}
         {made.map((madeTheme) =>
           option(`custom:${madeTheme.id}`, madeTheme.name, madeTheme.description || (madeTheme.scope === "business" ? "The business's theme" : "Your theme"), customSwatches(madeTheme)),
@@ -182,9 +250,8 @@ function Appearance({ initial }: { initial: string }) {
       </div>
       <p className="mt-3 text-sm text-muted-foreground">
         <a href="/themes" className="font-semibold text-primary underline-offset-4 hover:underline">
-          Themes
-        </a>{" "}
-        is where you change the ones you&apos;ve made, export them, or share one with the business.
+          Manage your themes
+        </a>
       </p>
       <Alert variant="error">{action.error}</Alert>
     </Section>
@@ -197,9 +264,11 @@ function Appearance({ initial }: { initial: string }) {
  */
 function ProfilePicture({ name, initial }: { name: string; initial: string | null }) {
   const router = useRouter();
-  const picker = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(initial);
   const action = useAction();
+  // Shown until you add your own (none when you're not in a business yet).
+  const business = useApi<{ pictureUrl: string | null }>("/companies/current/picture");
+  const fallback = business.data?.pictureUrl ?? null;
 
   const apply = async (request: () => Promise<{ avatarUrl: string | null }>) => {
     const result = await action.run(request);
@@ -209,40 +278,27 @@ function ProfilePicture({ name, initial }: { name: string; initial: string | nul
     }
   };
 
+  const upload = (file: File) =>
+    apply(async () => {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/session/avatar", { method: "POST", body: form, credentials: "same-origin" });
+      const body = (await response.json().catch(() => null)) as { avatarUrl?: string | null; error?: { message?: string } } | null;
+      if (!response.ok || !body) throw new Error(body?.error?.message ?? "Couldn't upload the photo");
+      return { avatarUrl: body.avatarUrl ?? null };
+    });
+
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium">Picture</span>
-      <div className="flex items-center gap-4">
-        <Avatar name={name} src={url} className="size-20 text-2xl" />
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" disabled={action.busy} onClick={() => picker.current?.click()}>
-            {action.busy ? "Saving…" : url ? "Change picture" : "Add a picture"}
-          </Button>
-          {url && (
-            <Button type="button" variant="ghost" disabled={action.busy} onClick={() => apply(() => api<{ avatarUrl: string | null }>("/session/avatar", { method: "DELETE" }))}>
-              Remove
-            </Button>
-          )}
-        </div>
-      </div>
-      <input
-        ref={picker}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (!file) return;
-          void apply(async () => {
-            const form = new FormData();
-            form.append("file", file);
-            const response = await fetch("/api/session/avatar", { method: "POST", body: form, credentials: "same-origin" });
-            const body = (await response.json().catch(() => null)) as { avatarUrl?: string | null; error?: { message?: string } } | null;
-            if (!response.ok || !body) throw new Error(body?.error?.message ?? "Couldn't upload the photo");
-            return { avatarUrl: body.avatarUrl ?? null };
-          });
-        }}
+    // Centred over the fields (which stop at 2xl wide on a big screen).
+    <div className="flex flex-col items-center gap-2 lg:max-w-2xl">
+      <EditablePicture
+        name={name}
+        src={url ?? fallback}
+        canRemove={!!url}
+        busy={action.busy}
+        onPick={(file) => void upload(file)}
+        onRemove={() => void apply(() => api<{ avatarUrl: string | null }>("/session/avatar", { method: "DELETE" }))}
+        className="size-32"
       />
       <Alert variant="error">{action.error}</Alert>
     </div>

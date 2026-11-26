@@ -50,9 +50,13 @@ export function Clients({
         <TapRow
           key={business.id}
           leading={
-            <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-              <Building2 className="size-5 text-muted-foreground" />
-            </span>
+            business.logoUrl ? (
+              <Avatar name={business.name} src={business.logoUrl} />
+            ) : (
+              <span className="flex size-10 items-center justify-center rounded-full bg-muted">
+                <Building2 className="size-5 text-muted-foreground" />
+              </span>
+            )
           }
           title={business.name}
           meta={[business.peopleCount === 1 ? "1 person" : `${business.peopleCount} people`, business.phone, business.address].filter(Boolean).join(" · ")}
@@ -117,7 +121,7 @@ export function Clients({
                   {rows.map((row) => (
                     <TapRow
                       key={row.id}
-                      leading={<Avatar name={row.name} />}
+                      leading={<Avatar name={row.name} src={row.pictureUrl} />}
                       title={row.name}
                       meta={[roleAt(row), row.contactName, row.email, row.phone, row.address].filter(Boolean).join(" · ") || "No details yet"}
                       onClick={() => (window.location.href = `/clients/${row.id}`)}
