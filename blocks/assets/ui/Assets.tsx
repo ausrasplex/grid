@@ -10,7 +10,7 @@ import { AssetSheet } from "./AssetSheet";
 import { PrintTagsSheet } from "./PrintTagsSheet";
 import { AssetPicture, StatusBadge, assetMeta, type AssetJson, type CategoryJson } from "./shared";
 
-type Show = "active" | "retired";
+type Show = "active" | "mine" | "retired";
 
 export function Assets({ initial, categories, canManage }: { initial: AssetJson[]; categories: CategoryJson[]; canManage: boolean }) {
   const [rows, setRows] = useState(initial);
@@ -53,7 +53,7 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
       <PageHeader
         title="Assets"
         subtitle="Your tools and gear, each with a QR tag. Scan a tag to open it."
-        meta={`${rows.length} ${rows.length === 1 ? "asset" : "assets"}${show === "retired" ? " retired" : ""}`}
+        meta={`${rows.length} ${rows.length === 1 ? "asset" : "assets"}${show === "retired" ? " retired" : show === "mine" ? " with you" : ""}`}
         actions={
           canManage && (
             <>
@@ -95,6 +95,7 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
             onChange={setShow}
             items={[
               { value: "active", label: "In use" },
+              { value: "mine", label: "With me" },
               { value: "retired", label: "Retired" },
             ]}
           />
@@ -112,7 +113,7 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
         )}
         <Section flush>
           {rows.length === 0 ? (
-            <EmptyState title={filtered ? "Nothing matches" : show === "retired" ? "Nothing retired" : "No assets yet"}>
+            <EmptyState title={filtered ? "Nothing matches" : show === "retired" ? "Nothing retired" : show === "mine" ? "You haven't got anything checked out" : "No assets yet"}>
               {!filtered && show === "active" && canManage && "Add your tools and gear: a photo, the make and model, the serial number. Then print QR tags to stick on them."}
             </EmptyState>
           ) : (
@@ -123,7 +124,7 @@ export function Assets({ initial, categories, canManage }: { initial: AssetJson[
                     <AssetPicture asset={row} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold">{row.name}</span>
-                      <span className="block truncate text-sm text-muted-foreground">{[`No. ${row.number}`, assetMeta(row, used.length > 1 || category === "ALL")].filter(Boolean).join(" · ")}</span>
+                      <span className="block truncate text-sm text-muted-foreground">{[`No. ${row.number}`, row.holder.text, assetMeta(row, used.length > 1 || category === "ALL")].filter(Boolean).join(" · ")}</span>
                     </span>
                     <StatusBadge status={row.status} />
                   </>

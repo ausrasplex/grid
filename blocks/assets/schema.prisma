@@ -1,7 +1,8 @@
 // Assets block (docs/assets-block.md): the business's tools and gear, with
 // QR tags. Part 1: assets, categories with their own fields, tags and the
-// sticker sheets, scan to open. Custody, faults, inspections and vehicles
-// add their tables in later parts.
+// sticker sheets, scan to open. Part 2: custody (who has it, where it is)
+// and the movement history. Faults, inspections and vehicles add their
+// tables in later parts.
 
 enum AssetStatus {
   IN_SERVICE
@@ -64,6 +65,7 @@ model Asset {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   deletedAt         DateTime?
+  custody           AssetCustody[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
@@ -88,4 +90,55 @@ model AssetSettings {
   stickerOffsetX    Float    @default(0)
   stickerOffsetY    Float    @default(0)
   updatedAt         DateTime @updatedAt
+}
+
+enum AssetHolder {
+  /// The workshop, yard or store (label: "Workshop").
+  STORE
+  /// Left on a job: projectId, and the building or level when picked.
+  PROJECT
+  /// With a person (userId), and the job they took it to when picked.
+  USER
+  /// In a van, by its name (label: "Van 3"). Becomes ASSET when vans are assets (§11).
+  VEHICLE
+  /// Inside another asset (a van, a toolbox): later, §11.
+  ASSET
+}
+
+enum AssetMove {
+  CHECK_OUT
+  RETURN
+  TAKE_OVER
+  MOVE
+}
+
+/// Where an asset is, and who has it: one row per move. The current one has
+/// no toAt. No row at all means it's in the workshop, never moved.
+model AssetCustody {
+  id         String      @id @default(uuid())
+  companyId  String
+  assetId    String
+  asset      Asset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  holderType AssetHolder
+  userId     String?
+  projectId  String?
+  siteId     String?
+  buildingId String?
+  levelId    String?
+  /// The store's or van's name.
+  label      String?
+  /// The job and area as they were called then ("ED Refurbish · Tower B Level 5"), for the history.
+  placeName  String?
+  /// Inside this asset (holderType ASSET, later).
+  parentId   String?
+  move       AssetMove
+  note       String?
+  fromAt     DateTime    @default(now())
+  toAt       DateTime?
+  byUserId   String
+
+  @@index([assetId, fromAt])
+  @@index([companyId, toAt])
+  @@index([userId, toAt])
+  @@index([projectId, toAt])
 }

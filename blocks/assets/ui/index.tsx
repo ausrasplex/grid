@@ -1,16 +1,18 @@
 // Assets pages (docs/assets-block.md §1).
 //   /assets              the list: search, scan, categories, retired, Select → Print tags
-//   /assets/<id>         one asset: photos, details, its fields, the QR tag
+//   /assets/<id>         one asset: where it is and its Actions, photos, details, its fields, the QR tag, its history
 //   /assets/categories   Settings › Asset categories (and each one's fields)
 
 import { can, notFound, type RequestContext } from "@grid/core";
 import { Alert, PageHeader, Section, Stack, type BlockPages } from "@grid/ui";
 import { getAsset, listAssets, listCategories } from "../service";
 import { tagSvg } from "../stickers";
+import { history } from "../custody";
+import { CustodyActions } from "./CustodyActions";
 import { AssetActions } from "./AssetActions";
 import { Assets } from "./Assets";
 import { Categories } from "./Categories";
-import { assetMeta, fieldText, photoUrl, statusWords, type AssetJson, type CategoryJson } from "./shared";
+import { assetMeta, fieldText, photoUrl, statusWords, when, type AssetJson, type CategoryJson, type MoveJson } from "./shared";
 
 /** Dates → strings, the way they reach a client component anyway. */
 const json = <T,>(value: unknown): T => JSON.parse(JSON.stringify(value)) as T;
@@ -31,7 +33,12 @@ export const pages: BlockPages = {
 const day = (value: string | null) => (value ? new Date(`${value}T00:00:00`).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : null);
 
 async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: string }) {
-  const [{ asset, fields }, qr, categories] = await Promise.all([getAsset(ctx, assetId), tagSvg(ctx, assetId), can(ctx, "assets.manage") ? listCategories(ctx) : Promise.resolve([])]);
+  const [{ asset, fields }, qr, categories, moves] = await Promise.all([
+    getAsset(ctx, assetId),
+    tagSvg(ctx, assetId),
+    can(ctx, "assets.manage") ? listCategories(ctx) : Promise.resolve([]),
+    history(ctx, assetId),
+  ]);
   const details: { label: string; value: string | null }[] = [
     { label: "Category", value: asset.category },
     { label: "Make", value: asset.make },
@@ -57,6 +64,14 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Stack>
           {asset.status === "RETIRED" && <Alert>Retired: it&apos;s off the list, with its history kept. Its tag still opens this page.</Alert>}
+          <div className="flex flex-col gap-3 rounded-xl bg-card p-4 sm:p-5">
+            <div>
+              <p className="text-sm text-muted-foreground">Where it is</p>
+              <p className="text-lg font-semibold">{asset.holder.userId === ctx.userId ? ["With you", asset.holder.place].filter(Boolean).join(" · ") : asset.holder.text}</p>
+              {asset.holder.since && <p className="text-sm text-muted-foreground">Since {when(json<string>(asset.holder.since))}</p>}
+            </div>
+            {can(ctx, "assets.custody") && <CustodyActions asset={json<AssetJson>(asset)} userId={ctx.userId} canAssign={can(ctx, "assets.assign")} solo={ctx.solo} />}
+          </div>
           {main && (
             <div className="flex flex-col gap-2">
               <a href={photoUrl(main, "original")} className="overflow-hidden rounded-xl bg-muted">
@@ -88,6 +103,7 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
               {details.every((detail) => !detail.value) && <p className="px-4 py-3 text-muted-foreground sm:px-5">No details yet.</p>}
             </dl>
           </Section>
+          <History moves={json<MoveJson[]>(moves)} />
         </Stack>
         <Section title="Tag" description="Scan it with the Scan button, or any phone camera, to open this asset.">
           <div className="flex items-center gap-4">
@@ -100,5 +116,28 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
         </Section>
       </div>
     </>
+  );
+}
+
+const MOVE_WORDS: Record<MoveJson["move"], string> = { CHECK_OUT: "Checked out", RETURN: "Returned", TAKE_OVER: "Taken over", MOVE: "Moved" };
+
+function History({ moves }: { moves: MoveJson[] }) {
+  if (!moves.length) return null;
+  return (
+    <Section title="History" description="Every move: where it went, who did it, and when." flush>
+      <ol className="divide-y">
+        {moves.map((move) => (
+          <li key={move.id} className="flex flex-col gap-0.5 px-4 py-3 sm:px-5">
+            <span className="font-medium">
+              {MOVE_WORDS[move.move]}: {move.holder.text}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {[move.by, when(move.at), move.until ? `until ${when(move.until)}` : "now"].join(" · ")}
+            </span>
+            {move.note && <span className="text-sm whitespace-pre-line">{move.note}</span>}
+          </li>
+        ))}
+      </ol>
+    </Section>
   );
 }

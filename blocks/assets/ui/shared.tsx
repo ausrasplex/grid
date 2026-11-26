@@ -30,9 +30,36 @@ export interface AssetJson {
   status: AssetStatus;
   tagCode: string;
   barcode: string | null;
+  holder: HolderJson;
+  lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface HolderJson {
+  kind: "STORE" | "PROJECT" | "USER" | "VEHICLE" | "ASSET";
+  userId: string | null;
+  userName: string | null;
+  projectId: string | null;
+  buildingId: string | null;
+  levelId: string | null;
+  place: string | null;
+  text: string;
+  since: string | null;
+}
+
+export interface MoveJson {
+  id: string;
+  move: "CHECK_OUT" | "RETURN" | "TAKE_OVER" | "MOVE";
+  holder: HolderJson;
+  by: string;
+  note: string | null;
+  at: string;
+  until: string | null;
+}
+
+/** "Tue 3 Mar, 7:02 am". */
+export const when = (at: string) => new Date(at).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 export interface CategoryJson {
   id: string;

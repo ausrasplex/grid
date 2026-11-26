@@ -245,3 +245,12 @@ A vehicle is an asset in a built-in **Vehicle** category. Faults, custody, QR ta
 - **Settings › Asset categories**: categories with their own fields (text, number, date, yes or no), and the trade's starting set offered (`presets.ts`).
 - **The one scanner** (`/scan`, navigation.md §7a): the phone's own barcode reader, or ZXing on iPhone; `GET /api/scan?text=` resolves Grid's codes (any `/go/` link, a tag address, or typed), then each Block's new `scanLookup` hook (assets: barcodes), then this server's own links. The camera needs https; **Type it instead** always works.
 - **Not yet:** custody, faults, lost, inspections, the job tab and Home widgets, vehicles, the public tag page (parts 2 onwards, §9).
+
+## What part 2 built (Nov 2026)
+
+- **Custody** (`custody.ts`, table `AssetCustody`): one row per move, the current one open (no `toAt`); an asset never moved is in the **Workshop**. Holders: a store (named: Workshop, Yard…), a van (by name, until vans are assets in §11), a job (and its building or level), or a person (who can also be on a job). Each move keeps the job and area's name as it read then (`placeName`), so the history still reads after a job is renamed or deleted.
+- **Actions** on the asset page (§2a): the first button follows the state: **Check out** ("I've got it", optionally on a job and level), **Return** (to a store, a van, or left on a job), **Take over** (moves it to you, keeping the job it's on), or Check out greyed out with the reason (Do not use, in repair, retired, lost). A Foreman also gets **Move** and **Give to someone**. Fault and Lost join them in part 3. While solo there's no person to pick.
+- **Permissions:** `assets.custody` (Employee and up: yourself, and taking over) and `assets.assign` (Foreman: others, and moving gear nobody has).
+- **History** on every asset: what happened, where, who, when, until when, and the note. The list shows where each asset is, and has a **With me** tab.
+- Each move sets `lastSeenAt`. A deleted job leaves its moves' names (`purgeProject`); a level with gear on it now counts in `levelUsage`.
+- **Not yet:** telling the previous holder about a Take over (with notifications, stage 6), scanning counting as "seen" (part 5), and the job's Assets on site (part 5).

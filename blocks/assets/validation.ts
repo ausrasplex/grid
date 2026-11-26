@@ -50,8 +50,8 @@ export const presetSchema = z.object({ names: z.array(z.string().trim().min(1).m
 export const listQuery = z.object({
   q: z.string().optional(),
   category: z.union([uuid, z.literal("none")]).optional(),
-  /** "active" (default: everything not retired), "retired" or "all". */
-  show: z.enum(["active", "retired", "all"]).optional(),
+  /** "active" (default: everything not retired), "mine" (what you have now), "retired" or "all". */
+  show: z.enum(["active", "mine", "retired", "all"]).optional(),
 });
 
 export const statusSchema = z.object({ status: z.enum(["IN_SERVICE", "RETIRED"]) }).strict();
@@ -86,8 +86,25 @@ export const stickerQuery = z.object({
   start: z.coerce.number().int().min(1).max(300).default(1),
 });
 
+const where = {
+  projectId: uuid.nullish(),
+  buildingId: uuid.nullish(),
+  levelId: uuid.nullish(),
+  note: optText(500),
+};
+
+/** Check out: to you (no userId) or someone else (assets.assign), optionally on a job. */
+export const checkOutSchema = z.object({ userId: z.string().min(1).max(100).nullish(), ...where }).strict();
+
+/** Return: to a store, a van (by name) or left on a job. */
+export const returnSchema = z.object({ where: z.enum(["STORE", "VEHICLE", "PROJECT"]), label: optText(60), ...where }).strict();
+
+export const takeOverSchema = z.object({ note: optText(500) }).strict();
+
 export type AssetInput = z.infer<typeof assetSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
 export type ListQuery = z.infer<typeof listQuery>;
 export type StickerQuery = z.infer<typeof stickerQuery>;
 export type StickerSettingsInput = z.infer<typeof stickerSettingsSchema>;
+export type CheckOutInput = z.infer<typeof checkOutSchema>;
+export type ReturnInput = z.infer<typeof returnSchema>;

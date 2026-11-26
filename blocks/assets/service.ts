@@ -7,6 +7,7 @@ import "server-only";
 import { badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { attachFile, audit, db, ensureRouteCode, normaliseRouteCode, purgeStoredFile, routeCodeUrl, type Prisma, type Tx } from "@grid/db";
 import { tradePreset } from "@grid/block-companies/trades";
+import { heldBy, holdersFor, type Holder } from "./custody";
 import { presetCategories, type CategoryField } from "./presets";
 import type { AssetInput, CategoryInput, ListQuery } from "./validation";
 
@@ -32,6 +33,9 @@ export interface AssetView {
   status: AssetStatus;
   tagCode: string;
   barcode: string | null;
+  /** Who has it and where it is (part 2). */
+  holder: Holder;
+  lastSeenAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,7 +68,7 @@ const dayText = (date: Date | null) => (date ? date.toISOString().slice(0, 10) :
 
 type AssetRow = Prisma.AssetGetPayload<{ include: { category: { select: { name: true } } } }>;
 
-function view(row: AssetRow): AssetView {
+function view(row: AssetRow, holder: Holder): AssetView {
   return {
     id: row.id,
     number: row.number,
@@ -81,6 +85,8 @@ function view(row: AssetRow): AssetView {
     status: row.status,
     tagCode: row.tagCode,
     barcode: row.barcode,
+    holder,
+    lastSeenAt: row.lastSeenAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -103,6 +109,7 @@ export async function listAssets(ctx: RequestContext, query: ListQuery = {}): Pr
   const companyId = requireCompany(ctx);
   const where: Prisma.AssetWhereInput = { companyId, deletedAt: null };
   if (query.show !== "all") where.status = query.show === "retired" ? "RETIRED" : { not: "RETIRED" };
+  if (query.show === "mine") where.id = { in: await heldBy(companyId, ctx.userId) };
   if (query.category) where.categoryId = query.category === "none" ? null : query.category;
   const text = query.q?.trim();
   if (text) {
@@ -121,14 +128,20 @@ export async function listAssets(ctx: RequestContext, query: ListQuery = {}): Pr
     ];
   }
   const rows = await db.asset.findMany({ where, include, orderBy: [{ number: "asc" }] });
-  return rows.map(view);
+  return withHolders(companyId, rows);
+}
+
+async function withHolders(companyId: string, rows: AssetRow[]) {
+  const holders = await holdersFor(companyId, rows.map((row) => row.id));
+  return rows.map((row) => view(row, holders.get(row.id)!));
 }
 
 export async function getAsset(ctx: RequestContext, id: string) {
   const companyId = requireCompany(ctx);
   const row = await ownAsset(db, companyId, id);
   const category = row.categoryId ? await db.assetCategory.findFirst({ where: { id: row.categoryId, companyId } }) : null;
-  return { asset: view(row), fields: category ? asFields(category.fields) : [], tagUrl: routeCodeUrl(row.tagCode) };
+  const [asset] = await withHolders(companyId, [row]);
+  return { asset: asset!, fields: category ? asFields(category.fields) : [], tagUrl: routeCodeUrl(row.tagCode) };
 }
 
 /** The next friendly number: one more than the highest. */
@@ -214,7 +227,7 @@ export async function saveAsset(ctx: RequestContext, id: string | null, input: A
     });
     return row;
   });
-  return view(saved);
+  return (await withHolders(companyId, [saved]))[0]!;
 }
 
 /** Retire (no longer used, kept with its history and tag) or put back in service. */
@@ -227,7 +240,7 @@ export async function setStatus(ctx: RequestContext, id: string, status: "IN_SER
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Asset", entityId: id, action: status === "RETIRED" ? "retired" : "restored", diff: { number: before.number, name: before.name } });
     return updated;
   });
-  return view(row);
+  return (await withHolders(companyId, [row]))[0]!;
 }
 
 /**
@@ -258,7 +271,7 @@ export async function newTag(ctx: RequestContext, id: string) {
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Asset", entityId: id, action: "new_tag", diff: { number: before.number, before: before.tagCode, after: tagCode } });
     return updated;
   });
-  return { asset: view(row), tagUrl: routeCodeUrl(row.tagCode) };
+  return { asset: (await withHolders(companyId, [row]))[0]!, tagUrl: routeCodeUrl(row.tagCode) };
 }
 
 /**
