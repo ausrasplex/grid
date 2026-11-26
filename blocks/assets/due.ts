@@ -122,5 +122,23 @@ export function tagColourFor(day: string): "RED" | "GREEN" | "BLUE" | "YELLOW" {
 
 export const TAG_COLOURS = ["RED", "GREEN", "BLUE", "YELLOW"] as const;
 
+export interface WarrantyState {
+  tone: "ok" | "soon" | "expired" | "none";
+  /** "Warranty to 3 Mar 2031", "Warranty ends in 21 days", "Warranty ended 4 Jan 2025". */
+  text: string;
+  /** "3 Mar 2031", for compact chips. */
+  date: string | null;
+}
+
+/** How a warranty reads (Docket's): ending within 90 days is "soon". */
+export function warrantyState(endsOn: string | null, todayIs = today()): WarrantyState {
+  if (!endsOn) return { tone: "none", text: "No warranty recorded", date: null };
+  const days = Math.round((toTime(endsOn) - toTime(todayIs)) / DAY);
+  const date = dayText(endsOn);
+  if (days < 0) return { tone: "expired", text: `Warranty ended ${date}`, date };
+  if (days <= 90) return { tone: "soon", text: days === 0 ? "Warranty ends today" : `Warranty ends in ${days} day${days === 1 ? "" : "s"}`, date };
+  return { tone: "ok", text: `Warranty to ${date}`, date };
+}
+
 /** A routine that's test & tag, which shows the tag colour in the log. */
 export const isTestAndTag = (name: string) => /test\s*(&|and|n)\s*tag/i.test(name);

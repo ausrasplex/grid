@@ -153,6 +153,9 @@ importers:
       '@grid/block-companies':
         specifier: workspace:*
         version: link:../companies
+      '@grid/block-materials':
+        specifier: workspace:*
+        version: link:../materials
       '@grid/block-projects':
         specifier: workspace:*
         version: link:../projects

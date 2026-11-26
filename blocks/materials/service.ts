@@ -7,7 +7,7 @@ import { app, conflict, notFound, requireCompany, type RequestContext } from "@g
 import { attachFile, audit, db, purgeStoredFile, type Prisma, type Tx } from "@grid/db";
 import { tradeForCompany } from "./trades";
 import { priceBookName } from "./words";
-import type { BrandInput, ListQuery, MaterialInput, SameQuery } from "./validation";
+import type { BrandInput, BrandSupportInput, ListQuery, MaterialInput, SameQuery } from "./validation";
 
 const MOD = "materials";
 
@@ -312,6 +312,61 @@ export async function saveBrand(ctx: RequestContext, id: string | null, input: B
     return { id: row.id, name: row.name };
   });
   return brand;
+}
+
+/** A brand with the maker's support details (the assets page's brand card). */
+export interface BrandDetails {
+  id: string;
+  name: string;
+  website: string | null;
+  supportUrl: string | null;
+  supportPhone: string | null;
+  supportEmail: string | null;
+  notes: string | null;
+}
+
+const details = (row: BrandDetails): BrandDetails => ({
+  id: row.id,
+  name: row.name,
+  website: row.website,
+  supportUrl: row.supportUrl,
+  supportPhone: row.supportPhone,
+  supportEmail: row.supportEmail,
+  notes: row.notes,
+});
+
+/** Brands by id, with their support details (for other Blocks' pages). */
+export async function brandsById(companyId: string, ids: string[]): Promise<Map<string, BrandDetails>> {
+  if (!ids.length) return new Map();
+  const rows = await db.materialBrand.findMany({ where: { companyId, id: { in: [...new Set(ids)] }, deletedAt: null } });
+  return new Map(rows.map((row) => [row.id, details(row)]));
+}
+
+/**
+ * The brand with this name, made when there isn't one yet (typing a new
+ * make on an asset adds it to the list, as Docket does). Inside the
+ * caller's transaction. Null for a blank name.
+ */
+export async function brandForName(tx: Tx, companyId: string, userId: string, name: string | null): Promise<string | null> {
+  const clean = name?.trim();
+  if (!clean) return null;
+  const same = await tx.materialBrand.findFirst({ where: { companyId, deletedAt: null, name: insensitive(clean) }, select: { id: true } });
+  if (same) return same.id;
+  const row = await tx.materialBrand.create({ data: { companyId, name: clean.slice(0, 60) } });
+  await audit(tx, { blockId: MOD, actorId: userId, companyId, entityType: "MaterialBrand", entityId: row.id, action: "created", diff: { name: row.name, from: "an asset" } });
+  return row.id;
+}
+
+/** Sets the maker's support site, phone, email and notes, once for every asset of the brand. */
+export async function saveBrandSupport(ctx: RequestContext, id: string, input: BrandSupportInput): Promise<BrandDetails> {
+  const companyId = requireCompany(ctx);
+  return db.$transaction(async (tx) => {
+    const before = await tx.materialBrand.findFirst({ where: { id, companyId, deletedAt: null } });
+    if (!before) throw notFound("Brand not found");
+    const row = await tx.materialBrand.update({ where: { id }, data: input });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "MaterialBrand", entityId: id, action: "updated", diff: { name: row.name, ...input } });
+    return details(row);
+  });
 }
 
 /** Removes a brand from the list. Its materials stay, without a brand. */

@@ -2,6 +2,8 @@
 // categories page while a business has none, never added by themselves.
 // Plain data, so the page and the tests can use it.
 
+import { guessIcon } from "./category-icons.ts";
+
 export type FieldType = "text" | "number" | "date" | "yesno";
 
 export interface CategoryField {
@@ -18,6 +20,8 @@ export interface PresetRoutine {
 
 export interface PresetCategory {
   name: string;
+  /** Its picture (category-icons.ts). */
+  icon: string;
   fields: CategoryField[];
   /** Starting routines (§4), changed or removed in the category like any other. */
   routines: PresetRoutine[];
@@ -42,7 +46,7 @@ export function fieldKey(label: string) {
   );
 }
 
-const preset = (name: string, fields: CategoryField[] = [], routines: PresetRoutine[] = []): PresetCategory => ({ name, fields, routines });
+const preset = (name: string, fields: CategoryField[] = [], routines: PresetRoutine[] = []): PresetCategory => ({ name, icon: guessIcon(name), fields, routines });
 
 const POWER_TOOLS = preset("Power tools", [field("Battery platform")], [TEST_AND_TAG]);
 const HAND_TOOLS = preset("Hand tools");

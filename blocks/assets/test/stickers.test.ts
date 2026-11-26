@@ -52,3 +52,14 @@ test("trade starting categories, and field keys", () => {
   assert.ok(presetCategories("NOPE").length > 0);
   assert.equal(fieldKey("Rated load (kg)"), "rated-load-kg");
 });
+
+test("presets bring a picture and their routines", async () => {
+  const { guessIcon } = await import("../category-icons.ts");
+  const power = presetCategories("ELECTRICAL").find((entry) => entry.name === "Power tools")!;
+  assert.equal(power.icon, "drill");
+  assert.deepEqual(power.routines, [{ name: "Test & tag", everyMonths: 3, mustPass: true }]);
+  assert.equal(presetCategories("BUILDER").find((entry) => entry.name === "Harnesses & height safety")!.routines[0]!.everyMonths, 6);
+  assert.equal(guessIcon("Ladders"), "construction");
+  assert.equal(guessIcon("Leads & RCDs"), "plug");
+  assert.equal(guessIcon("Something new"), "package");
+});

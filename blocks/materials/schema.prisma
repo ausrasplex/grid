@@ -6,9 +6,15 @@
 /// book (it was PriceBrand; the ids were kept). Removing a brand leaves its
 /// materials without one.
 model MaterialBrand {
-  id        String     @id @default(uuid())
-  companyId String
-  name      String
+  id           String     @id @default(uuid())
+  companyId    String
+  name         String
+  /// The maker's details, set once and shown on every asset of this brand (assets, Docket's brand card).
+  website      String?
+  supportUrl   String?
+  supportPhone String?
+  supportEmail String?
+  notes        String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   deletedAt DateTime?

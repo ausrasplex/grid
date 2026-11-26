@@ -6,7 +6,9 @@
 // months, §4). While there are few, the trade's starting set is offered.
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { ActionButton, Alert, Button, Checkbox, EmptyState, Field, FormActions, List, PageHeader, SelectField, Section, Sheet, SheetContent, Stack, Switch, TapRow, api, useAction } from "@grid/ui";
+import { ActionButton, Alert, Button, Checkbox, EmptyState, Field, List, PageHeader, SelectField, Section, Sheet, SheetContent, Stack, Switch, TapRow, api, useAction } from "@grid/ui";
+import { CATEGORY_ICONS } from "../category-icons";
+import { CategoryTile, ICON_COMPONENTS } from "./CategoryTile";
 import type { CategoryField, CategoryJson, CategoryRoutineJson, FieldType } from "./shared";
 
 interface Preset {
@@ -35,6 +37,7 @@ const keyFor = (label: string) =>
 
 function CategorySheet({ category, onClose, onSaved }: { category: Partial<CategoryJson>; onClose: () => void; onSaved: (rows: CategoryJson[]) => void }) {
   const [name, setName] = useState(category.name ?? "");
+  const [icon, setIcon] = useState<string | null>(category.icon ?? null);
   const [fields, setFields] = useState<(CategoryField & { fresh?: boolean })[]>(category.fields ?? []);
   const [routines, setRoutines] = useState<RoutineRow[]>(
     (category.routines ?? []).map((routine: CategoryRoutineJson) => ({ id: routine.id, name: routine.name, everyMonths: routine.everyMonths ? String(routine.everyMonths) : "", mustPass: routine.mustPass, notes: routine.notes })),
@@ -51,14 +54,29 @@ function CategorySheet({ category, onClose, onSaved }: { category: Partial<Categ
 
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent desktop="dialog" title={category.id ? `Change ${category.name}` : "New category"} description="Its own fields show when adding an asset in it.">
+      <SheetContent
+        title={category.id ? `Edit ${category.name}` : "Add category"}
+        description="Its picture shows on gear without a photo; its fields show when adding an asset in it."
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" form="category-form" disabled={action.busy || !name.trim()}>
+              {action.busy ? "Saving…" : category.id ? "Save" : "Add category"}
+            </Button>
+          </>
+        }
+      >
         <form
+          id="category-form"
           className="flex flex-col gap-4 px-2"
           onSubmit={(event) => {
             event.preventDefault();
             void action.run(async () => {
               const body = {
                 name,
+                icon,
                 fields: fields.filter((field) => field.label.trim()).map((field) => ({ key: field.fresh ? keyFor(field.label) : field.key, label: field.label.trim(), type: field.type })),
                 routines: routines
                   .filter((routine) => routine.name.trim())
@@ -69,6 +87,29 @@ function CategorySheet({ category, onClose, onSaved }: { category: Partial<Categ
           }}
         >
           <Field label="Name" placeholder="e.g. Test equipment" value={name} onChange={(event) => setName(event.target.value)} required autoFocus={!category.id} />
+          <div role="radiogroup" aria-label="Picture" className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Picture</p>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-2">
+              {CATEGORY_ICONS.map((entry) => {
+                const Icon = ICON_COMPONENTS[entry.key]!;
+                const on = (icon ?? category.icon) === entry.key;
+                return (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    aria-label={entry.label}
+                    title={entry.label}
+                    onClick={() => setIcon(entry.key)}
+                    className={`flex size-touch items-center justify-center rounded-xl ${on ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-accent"}`}
+                  >
+                    <Icon className="size-5" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium">Fields</p>
             {fields.length === 0 && <p className="text-sm text-muted-foreground">None yet. Every asset has a name, number, make, model, serial number, date bought and notes already.</p>}
@@ -125,29 +166,21 @@ function CategorySheet({ category, onClose, onSaved }: { category: Partial<Categ
             </Button>
           </div>
           <Alert variant="error">{action.error}</Alert>
-          <FormActions>
-            {category.id && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="mr-auto text-destructive"
-                disabled={action.busy}
-                onClick={() => {
-                  const count = category.count ?? 0;
-                  if (!window.confirm(`Remove ${category.name}?${count ? ` Its ${count} asset${count === 1 ? "" : "s"} stay, with no category.` : ""}`)) return;
-                  void action.run(async () => onSaved(await api<CategoryJson[]>(`/assets/categories/${category.id}`, { method: "DELETE" })));
-                }}
-              >
-                Remove
-              </Button>
-            )}
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+          {category.id && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="self-start text-destructive"
+              disabled={action.busy}
+              onClick={() => {
+                const count = category.count ?? 0;
+                if (!window.confirm(`Remove ${category.name}?${count ? ` Its ${count} asset${count === 1 ? "" : "s"} stay, with no category.` : ""}`)) return;
+                void action.run(async () => onSaved(await api<CategoryJson[]>(`/assets/categories/${category.id}`, { method: "DELETE" })));
+              }}
+            >
+              <Trash2 /> Remove category
             </Button>
-            <Button type="submit" size="lg" disabled={action.busy || !name.trim()}>
-              {action.busy ? "Saving…" : "Save"}
-            </Button>
-          </FormActions>
+          )}
         </form>
       </SheetContent>
     </Sheet>
@@ -223,6 +256,7 @@ export function Categories({ initial }: { initial: CategoryJson[] }) {
               {rows.map((row) => (
                 <TapRow
                   key={row.id}
+                  leading={<CategoryTile icon={row.icon} className="size-10" />}
                   title={row.name}
                   meta={[`${row.count} asset${row.count === 1 ? "" : "s"}`, ...row.routines.map((routine) => `${routine.name}: ${routine.interval.toLowerCase()}`), row.fields.length ? row.fields.map((field) => field.label).join(", ") : null].filter(Boolean).join(" · ")}
                   onClick={() => setOpen(row)}

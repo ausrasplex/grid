@@ -3,7 +3,8 @@
 // sticker sheets, scan to open. Part 2: custody (who has it, where it is)
 // and the movement history. Part 3: faults (Do not use, the repair steps)
 // and lost or stolen. Part 4: inspections and servicing (routines, the log
-// of checks done, bookings). Vehicles add their tables later.
+// of checks done, bookings). Part 4b: Docket's layout (warranty, value, brand, kit pieces,
+// manuals and documents, copies). Vehicles add their tables later.
 
 enum AssetStatus {
   IN_SERVICE
@@ -21,6 +22,8 @@ model AssetCategory {
   id                     String    @id @default(uuid())
   companyId              String
   name                   String
+  /// Its picture when an asset has no photo (ui/category-icons.ts key: "drill", "plug"…).
+  icon                   String?
   /// The category's own fields, in order: [{ key, label, type: "text" | "number" | "date" | "yesno" }].
   fields                 Json      @default("[]")
   sort                   Int       @default(0)
@@ -46,6 +49,21 @@ model Asset {
   model             String?
   serial            String?
   purchasedOn       DateTime?      @db.Date
+  /// The maker's warranty (Docket's "Warranty ends"), and where it was bought.
+  warrantyEndsOn    DateTime?      @db.Date
+  supplier          String?
+  /// What was paid, and what it would cost to replace (the asset register).
+  purchasePrice     Decimal?       @db.Decimal(12, 2)
+  replacementValue  Decimal?       @db.Decimal(12, 2)
+  /// This exact model on the maker's site; the page falls back to the brand's support site.
+  productUrl        String?
+  /// The brand in Materials (MaterialBrand): its support site and phone show on the page. `make` keeps the name as typed.
+  brandId           String?
+  /// Shows "Kit pieces". Stays on while it has any.
+  partsEnabled      Boolean        @default(false)
+  /// Copies of the same model (Duplicate) share one id: manuals, warranties
+  /// and links filed to one show on all of them; receipts, certificates and photos stay per copy.
+  docSetId          String?
   /// StoredFile ids (block assets); the first is the main photo.
   photoFileIds      String[]       @default([])
   notes             String?
@@ -76,10 +94,13 @@ model Asset {
   routines          AssetRoutine[]
   checks            AssetCheck[]
   bookings          AssetBooking[]
+  parts             AssetPart[]
+  documents         AssetDocument[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
   @@index([companyId, barcode])
+  @@index([docSetId])
   @@index([categoryId])
 }
 
@@ -331,4 +352,63 @@ model AssetBooking {
   closedHow  String?
 
   @@index([assetId, closedAt])
+}
+
+/// A piece of a kit (Docket's Parts): the batteries, charger and case that
+/// come with a drill, each with its own model, serial and warranty. Not
+/// tagged or listed on its own; tag it as its own asset if it moves alone.
+model AssetPart {
+  id             String          @id @default(uuid())
+  companyId      String
+  assetId        String
+  asset          Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  name           String
+  make           String?
+  model          String?
+  serial         String?
+  warrantyEndsOn DateTime?       @db.Date
+  /// A StoredFile id (block assets).
+  photoFileId    String?
+  notes          String?
+  sort           Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+  documents      AssetDocument[]
+
+  @@index([assetId])
+}
+
+enum AssetDocumentKind {
+  MANUAL
+  WARRANTY
+  LINK
+  RECEIPT
+  CERTIFICATE
+  PHOTO
+  OTHER
+}
+
+/// Manuals, links and documents (Docket's card of the same name): a file
+/// or a link, on the whole asset or one kit piece. Manuals, warranties and
+/// links are shared by its copies (docSetId).
+model AssetDocument {
+  id          String            @id @default(uuid())
+  companyId   String
+  assetId     String
+  asset       Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  partId      String?
+  part        AssetPart?        @relation(fields: [partId], references: [id], onDelete: Cascade)
+  kind        AssetDocumentKind
+  title       String
+  /// A StoredFile id (block assets), or a link.
+  fileId      String?
+  url         String?
+  sort        Int               @default(0)
+  createdById String
+  createdAt   DateTime          @default(now())
+  deletedAt   DateTime?
+
+  @@index([assetId])
+  @@index([partId])
 }

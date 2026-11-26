@@ -39,6 +39,8 @@ const THINGS: Record<string, string> = {
   AssetRoutine: "asset routine",
   AssetCheck: "test or service",
   AssetBooking: "test or service",
+  AssetPart: "kit piece",
+  AssetDocument: "asset document",
   TaxCode: "tax code",
   SignRequest: "signing link",
   QuoteUserSettings: "quote screen setting",
@@ -94,6 +96,7 @@ const VERBS: Record<string, string> = {
   recovered: "Recovered",
   retired_as_lost: "Retired as lost",
   logged: "Logged",
+  duplicated: "Duplicated",
   booked: "Booked",
   cancelled: "Cancelled",
 };

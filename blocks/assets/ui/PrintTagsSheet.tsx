@@ -37,7 +37,7 @@ interface Settings {
 
 const BLANK_CUSTOM: Custom = { paper: "a4", columns: 3, rows: 7, width: 63.5, height: 38.1, top: 15, left: 7, gapX: 2.5, gapY: 0 };
 /** Fetches the PDF and saves it: a download, not a new tab (a new tab leaves the installed app). */
-async function download(href: string, filename: string) {
+export async function download(href: string, filename: string) {
   const response = await fetch(href, { credentials: "same-origin" });
   if (!response.ok) {
     const body = await response.json().catch(() => null);

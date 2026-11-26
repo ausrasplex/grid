@@ -6,7 +6,10 @@ import * as custody from "./custody";
 import * as faults from "./faults";
 import * as lost from "./lost";
 import * as inspections from "./inspections";
-import { assetSchema, bookingSchema, categorySchema, checkSchema, routineSchema, checkOutSchema, faultSchema, faultStepSchema, lostSchema, returnSchema, takeOverSchema, listQuery, presetSchema, statusSchema, stickerQuery, stickerSettingsSchema } from "./validation";
+import * as kit from "./kit";
+import { registerPdf } from "./register";
+import * as viewer from "./viewer";
+import { assetSchema, bookingSchema, categorySchema, checkSchema, documentSchema, duplicateSchema, partSchema, renameDocumentSchema, routineSchema, checkOutSchema, faultSchema, faultStepSchema, lostSchema, returnSchema, takeOverSchema, listQuery, presetSchema, statusSchema, stickerQuery, stickerSettingsSchema } from "./validation";
 
 const queryParams = (request: { query: URLSearchParams }) => Object.fromEntries(request.query);
 
@@ -15,6 +18,8 @@ export const routes: Routes = {
   "GET /": { permission: "assets.view", handler: (ctx, request) => svc.listAssets(ctx, listQuery.parse(queryParams(request))) },
   "POST /": { permission: "assets.manage", handler: (ctx, request) => svc.saveAsset(ctx, null, assetSchema.parse(request.body)) },
   "GET /next-number": { permission: "assets.manage", handler: (ctx) => svc.suggestedNumber(ctx) },
+  // The asset register PDF (Docket's Insurance Report): everything in service, with serials and values
+  "GET /register.pdf": { permission: "assets.manage", handler: (ctx) => registerPdf(ctx) },
 
   // Open faults across the business (the Faults page), and moving a fault along
   "GET /faults": { permission: "assets.faults.manage", handler: (ctx) => faults.openFaults(ctx) },
@@ -56,6 +61,19 @@ export const routes: Routes = {
   "POST /:id/lost": { permission: "assets.faults.report", handler: (ctx, request) => lost.reportLost(ctx, request.params.id!, lostSchema.parse(request.body)) },
   "POST /:id/recovered": { permission: "assets.faults.report", handler: (ctx, request) => lost.recover(ctx, request.params.id!, returnSchema.parse(request.body)) },
   "POST /:id/retire-lost": { permission: "assets.lost.retire", handler: (ctx, request) => lost.retireLost(ctx, request.params.id!) },
+  // Kit pieces, manuals and documents, and Duplicate
+  "GET /:id/parts": { permission: "assets.view", handler: (ctx, request) => kit.partsFor(ctx, request.params.id!) },
+  "POST /:id/parts": { permission: "assets.manage", handler: (ctx, request) => kit.savePart(ctx, request.params.id!, null, partSchema.parse(request.body)) },
+  "PUT /:id/parts/:partId": { permission: "assets.manage", handler: (ctx, request) => kit.savePart(ctx, request.params.id!, request.params.partId!, partSchema.parse(request.body)) },
+  "DELETE /:id/parts/:partId": { permission: "assets.manage", handler: (ctx, request) => kit.removePart(ctx, request.params.id!, request.params.partId!) },
+  "GET /:id/documents": { permission: "assets.view", handler: (ctx, request) => kit.documentsFor(ctx, request.params.id!) },
+  "POST /:id/documents": { permission: "assets.manage", handler: (ctx, request) => kit.addDocument(ctx, request.params.id!, documentSchema.parse(request.body)) },
+  "PUT /:id/documents/:documentId": { permission: "assets.manage", handler: (ctx, request) => kit.renameDocument(ctx, request.params.id!, request.params.documentId!, renameDocumentSchema.parse(request.body)) },
+  "DELETE /:id/documents/:documentId": { permission: "assets.manage", handler: (ctx, request) => kit.removeDocument(ctx, request.params.id!, request.params.documentId!) },
+  // A manual or certificate shown inside Grid: its pages as pictures
+  "GET /:id/files/:fileId/view": { permission: "assets.view", handler: (ctx, request) => viewer.viewFile(ctx, request.params.id!, request.params.fileId!) },
+  "GET /:id/files/:fileId/pages/:level/:name": { permission: "assets.view", handler: (ctx, request) => viewer.pagePicture(ctx, request.params.id!, request.params.fileId!, request.params.level!, request.params.name!) },
+  "POST /:id/duplicate": { permission: "assets.manage", handler: (ctx, request) => kit.duplicate(ctx, request.params.id!, duplicateSchema.parse(request.body)) },
   // Inspections and servicing: routines, the log, bookings
   "GET /:id/service": { permission: "assets.view", handler: (ctx, request) => inspections.serviceFor(ctx, request.params.id!) },
   "POST /:id/routines": { permission: "assets.manage", handler: (ctx, request) => inspections.saveRoutine(ctx, request.params.id!, null, routineSchema.parse(request.body)) },

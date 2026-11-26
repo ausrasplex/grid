@@ -15,6 +15,28 @@ const day = z
   .nullish()
   .transform((value) => value || null);
 
+/** A dollar amount typed any way ("$1,299", "1299.00"); blank for none. */
+const money = z
+  .union([z.number(), z.string()])
+  .nullish()
+  .transform((value, context) => {
+    if (value === null || value === undefined || value === "") return null;
+    const number = typeof value === "number" ? value : Number(value.replace(/[$,\s]/g, ""));
+    if (!Number.isFinite(number) || number < 0) {
+      context.addIssue({ code: "custom", message: "Type the amount as a number, like 349.00" });
+      return z.NEVER;
+    }
+    return Math.round(number * 100) / 100;
+  });
+
+/** A web address, with https:// added when it's typed without. */
+const link = z
+  .string()
+  .trim()
+  .max(1000)
+  .nullish()
+  .transform((value) => (value ? (/^https?:\/\//i.test(value) ? value : `https://${value}`) : null));
+
 export const assetSchema = z
   .object({
     name: z.string().trim().min(1, "Give it a name").max(200),
@@ -25,6 +47,13 @@ export const assetSchema = z
     model: optText(120),
     serial: optText(120),
     purchasedOn: day,
+    warrantyEndsOn: day,
+    supplier: optText(120),
+    purchasePrice: money,
+    replacementValue: money,
+    productUrl: link,
+    /** "Track kit pieces"; stays on while it has any. */
+    partsEnabled: z.boolean().optional(),
     photoFileIds: z.array(uuid).max(20).default([]),
     notes: optText(4000),
     fields: z.record(z.string().max(40), z.union([z.string().max(500), z.number(), z.boolean(), z.null()])).default({}),
@@ -55,6 +84,8 @@ export const routineSchema = z
 export const categorySchema = z
   .object({
     name: z.string().trim().min(1, "Give it a name").max(80),
+    /** Its picture when an asset has no photo (ui/category-icons.ts). */
+    icon: z.string().max(40).nullish().transform((value) => value || null),
     fields: z.array(fieldSchema).max(30).default([]),
     /** Routines every asset in it follows. Left out: unchanged. */
     routines: z.array(routineSchema).max(20).optional(),
@@ -178,6 +209,52 @@ export const bookingSchema = z
   })
   .strict();
 
+/** A kit piece (Docket's Parts): the battery, charger or case. */
+export const partSchema = z
+  .object({
+    name: z.string().trim().min(1, "Give the piece a name").max(120),
+    make: optText(120),
+    model: optText(120),
+    serial: optText(120),
+    warrantyEndsOn: day,
+    photoFileId: uuid.nullish().transform((value) => value ?? null),
+    notes: optText(2000),
+  })
+  .strict();
+
+/** A manual, link or document on the asset or one of its pieces. */
+export const documentSchema = z
+  .object({
+    kind: z.enum(["MANUAL", "WARRANTY", "LINK", "RECEIPT", "CERTIFICATE", "PHOTO", "OTHER"]),
+    title: z.string().trim().min(1, "Give it a name").max(200),
+    fileId: uuid.nullish().transform((value) => value ?? null),
+    url: link,
+    partId: uuid.nullish().transform((value) => value ?? null),
+  })
+  .strict()
+  .refine((value) => !!value.fileId !== !!value.url, { message: "Add a file or a link" });
+
+/** Rename a document, or file it under another kind. */
+export const renameDocumentSchema = z
+  .object({
+    title: z.string().trim().min(1, "Give it a name").max(200),
+    kind: z.enum(["MANUAL", "WARRANTY", "LINK", "RECEIPT", "CERTIFICATE", "PHOTO", "OTHER"]),
+  })
+  .strict();
+
+/** Duplicate: one entry per copy, each with its own serials. */
+export const duplicateSchema = z
+  .object({
+    copies: z
+      .array(z.object({ serial: optText(120), partSerials: z.record(uuid, z.string().trim().max(120)).default({}) }).strict())
+      .min(1, "Make at least one copy")
+      .max(50),
+  })
+  .strict();
+
+export type PartInput = z.infer<typeof partSchema>;
+export type DocumentInput = z.infer<typeof documentSchema>;
+export type DuplicateInput = z.infer<typeof duplicateSchema>;
 export type RoutineInput = z.infer<typeof routineSchema>;
 export type CheckInput = z.infer<typeof checkSchema>;
 export type BookingInput = z.infer<typeof bookingSchema>;

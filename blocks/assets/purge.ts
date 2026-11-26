@@ -19,6 +19,8 @@ export async function purgeCompany(companyId: string): Promise<void> {
   await db.assetCheck.deleteMany({ where: { companyId } });
   await db.assetBooking.deleteMany({ where: { companyId } });
   await db.assetRoutine.deleteMany({ where: { companyId } });
+  await db.assetDocument.deleteMany({ where: { companyId } });
+  await db.assetPart.deleteMany({ where: { companyId } });
   await db.asset.deleteMany({ where: { companyId } });
   await db.assetCategory.deleteMany({ where: { companyId } });
   await db.assetSettings.deleteMany({ where: { companyId } });

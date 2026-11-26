@@ -32,6 +32,25 @@ export const materialSchema = z
 
 export const brandSchema = z.object({ name: z.string().trim().min(1).max(60) }).strict();
 
+/** A web address, with https:// added when it's typed without ("makita.com.au/support"). */
+const link = z
+  .string()
+  .trim()
+  .max(500)
+  .nullish()
+  .transform((value) => (value ? (/^https?:\/\//i.test(value) ? value : `https://${value}`) : null));
+
+/** The maker's support details (Docket's brand card), shown on every asset of the brand. */
+export const brandSupportSchema = z
+  .object({
+    website: link,
+    supportUrl: link,
+    supportPhone: optText(40),
+    supportEmail: optText(200),
+    notes: optText(2000),
+  })
+  .strict();
+
 export const listQuery = z.object({
   q: z.string().optional(),
   trade: z.string().optional(),
@@ -51,5 +70,6 @@ export const sameQuery = z.object({
 
 export type MaterialInput = z.infer<typeof materialSchema>;
 export type BrandInput = z.infer<typeof brandSchema>;
+export type BrandSupportInput = z.infer<typeof brandSupportSchema>;
 export type ListQuery = z.infer<typeof listQuery>;
 export type SameQuery = z.infer<typeof sameQuery>;

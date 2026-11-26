@@ -7,11 +7,14 @@ import "server-only";
 import { badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
 import { attachFile, audit, db, ensureRouteCode, normaliseRouteCode, purgeStoredFile, routeCodeUrl, type Prisma, type Tx } from "@grid/db";
 import { tradePreset } from "@grid/block-companies/trades";
+import { brandForName } from "@grid/block-materials";
 import { heldBy, holdersFor, type Holder } from "./custody";
+import { removeKitAndDocuments } from "./kit";
 import { refreshStatus } from "./faults";
 import { dueChips, intervalText, refreshCategory, refreshDue, setServiceEnabled } from "./inspections";
-import type { Due } from "./due";
+import { warrantyState, type Due, type WarrantyState } from "./due";
 import { presetCategories, type CategoryField } from "./presets";
+import { guessIcon } from "./category-icons";
 import type { AssetInput, CategoryInput, ListQuery, RoutineInput } from "./validation";
 
 const MOD = "assets";
@@ -30,6 +33,21 @@ export interface AssetView {
   serial: string | null;
   /** "2026-03-14". */
   purchasedOn: string | null;
+  warrantyEndsOn: string | null;
+  /** The soonest-ending warranty across it and its kit pieces (the list card's chip). */
+  warranty: WarrantyState;
+  supplier: string | null;
+  /** "349.00". */
+  purchasePrice: string | null;
+  replacementValue: string | null;
+  productUrl: string | null;
+  brandId: string | null;
+  categoryIcon: string | null;
+  partsEnabled: boolean;
+  docSetId: string | null;
+  /** Kit pieces, and its own manuals, links and documents. */
+  partCount: number;
+  documentCount: number;
   photoFileIds: string[];
   notes: string | null;
   fields: Record<string, FieldValue>;
@@ -59,6 +77,7 @@ export interface CategoryRoutineView {
 export interface CategoryView {
   id: string;
   name: string;
+  icon: string | null;
   fields: CategoryField[];
   /** Routines every asset in it follows (part 4). */
   routines: CategoryRoutineView[];
@@ -84,7 +103,15 @@ const asValues = (value: Prisma.JsonValue): Record<string, FieldValue> => {
 
 const dayText = (date: Date | null) => (date ? date.toISOString().slice(0, 10) : null);
 
-type AssetRow = Prisma.AssetGetPayload<{ include: { category: { select: { name: true } } } }>;
+type AssetRow = Prisma.AssetGetPayload<{ include: typeof include }>;
+
+/** The warranty worth showing: the soonest still running across the asset and its pieces, else the asset's own. */
+function soonestWarranty(row: AssetRow): WarrantyState {
+  const today = new Date().toISOString().slice(0, 10);
+  const ends = [row.warrantyEndsOn, ...row.parts.map((part) => part.warrantyEndsOn)].flatMap((date) => (date ? [date.toISOString().slice(0, 10)] : []));
+  const running = ends.filter((date) => date >= today).sort();
+  return warrantyState(running[0] ?? dayText(row.warrantyEndsOn));
+}
 
 function view(row: AssetRow, holder: Holder, due: Due | null = null): AssetView {
   return {
@@ -97,6 +124,18 @@ function view(row: AssetRow, holder: Holder, due: Due | null = null): AssetView 
     model: row.model,
     serial: row.serial,
     purchasedOn: dayText(row.purchasedOn),
+    warrantyEndsOn: dayText(row.warrantyEndsOn),
+    warranty: soonestWarranty(row),
+    supplier: row.supplier,
+    purchasePrice: row.purchasePrice ? row.purchasePrice.toFixed(2) : null,
+    replacementValue: row.replacementValue ? row.replacementValue.toFixed(2) : null,
+    productUrl: row.productUrl,
+    brandId: row.brandId,
+    categoryIcon: row.category ? (row.category.icon ?? guessIcon(row.category.name)) : null,
+    partsEnabled: row.partsEnabled,
+    docSetId: row.docSetId,
+    partCount: row.parts.length,
+    documentCount: row._count.documents,
     photoFileIds: row.photoFileIds,
     notes: row.notes,
     fields: asValues(row.fields),
@@ -112,7 +151,11 @@ function view(row: AssetRow, holder: Holder, due: Due | null = null): AssetView 
   };
 }
 
-const include = { category: { select: { name: true } } } as const;
+const include = {
+  category: { select: { name: true, icon: true } },
+  parts: { where: { deletedAt: null }, select: { warrantyEndsOn: true } },
+  _count: { select: { documents: { where: { deletedAt: null } } } },
+} as const;
 
 async function ownAsset(tx: Tx, companyId: string, id: string) {
   const row = await tx.asset.findFirst({ where: { id, companyId, deletedAt: null }, include });
@@ -230,6 +273,15 @@ export async function saveAsset(ctx: RequestContext, id: string | null, input: A
       model: input.model,
       serial: input.serial,
       purchasedOn: input.purchasedOn ? new Date(`${input.purchasedOn}T00:00:00Z`) : null,
+      warrantyEndsOn: input.warrantyEndsOn ? new Date(`${input.warrantyEndsOn}T00:00:00Z`) : null,
+      supplier: input.supplier,
+      purchasePrice: input.purchasePrice,
+      replacementValue: input.replacementValue,
+      productUrl: input.productUrl,
+      // The make links to the brand in Materials (made when it's new), so its support details show.
+      brandId: await brandForName(tx, companyId, ctx.userId, input.make),
+      // Track kit pieces stays on while it has any.
+      partsEnabled: (input.partsEnabled ?? before?.partsEnabled ?? false) || (before ? (await tx.assetPart.count({ where: { assetId: before.id, deletedAt: null } })) > 0 : false),
       photoFileIds: photos,
       notes: input.notes,
       fields: (category ? cleanValues(asFields(category.fields), input.fields) : {}) as Prisma.InputJsonValue,
@@ -286,6 +338,7 @@ export async function deleteAsset(ctx: RequestContext, id: string) {
   const before = await ownAsset(db, companyId, id);
   await db.$transaction(async (tx) => {
     for (const fileId of before.photoFileIds) await purgeStoredFile(tx, fileId);
+    await removeKitAndDocuments(tx, before);
     await tx.routeCode.updateMany({ where: { entityType: "Asset", entityId: id, revokedAt: null }, data: { revokedAt: new Date() } });
     await tx.asset.update({ where: { id }, data: { deletedAt: new Date(), photoFileIds: [], barcode: null } });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Asset", entityId: id, action: "deleted", diff: { number: before.number, name: before.name } });
@@ -336,7 +389,13 @@ export async function canReadAssetFile(ctx: RequestContext, fileId: string): Pro
     // A certificate, photo or invoice on a test or service (part 4).
     db.assetCheck.findFirst({ where: { companyId, fileIds: { has: fileId } }, select: { id: true } }),
   ]);
-  return !!(asset || fault || event || check);
+  if (asset || fault || event || check) return true;
+  // A kit piece's photo, or a manual or document (4b).
+  const [part, document] = await Promise.all([
+    db.assetPart.findFirst({ where: { companyId, photoFileId: fileId }, select: { id: true } }),
+    db.assetDocument.findFirst({ where: { companyId, fileId }, select: { id: true } }),
+  ]);
+  return !!(part || document);
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────
@@ -355,6 +414,7 @@ export async function listCategories(ctx: RequestContext): Promise<CategoryView[
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
+    icon: row.icon ?? guessIcon(row.name),
     fields: asFields(row.fields),
     routines: row.routines.map((routine) => ({ id: routine.id, name: routine.name, everyMonths: routine.everyMonths, mustPass: routine.mustPass, notes: routine.notes, interval: intervalText(routine.everyMonths) })),
     count: count.get(row.id) ?? 0,
@@ -399,12 +459,12 @@ export async function saveCategory(ctx: RequestContext, id: string | null, input
     if (id) {
       const before = await tx.assetCategory.findFirst({ where: { id, companyId, deletedAt: null } });
       if (!before) throw notFound("That category isn't there any more");
-      await tx.assetCategory.update({ where: { id }, data: { name: input.name, fields: fields as unknown as Prisma.InputJsonValue } });
+      await tx.assetCategory.update({ where: { id }, data: { name: input.name, icon: input.icon ?? guessIcon(input.name), fields: fields as unknown as Prisma.InputJsonValue } });
       if (input.routines) await syncRoutines(tx, companyId, id, input.routines);
       await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: id, action: "updated", diff: { name: input.name, fields: fields.map((field) => field.label), routines: input.routines?.map((routine) => routine.name), before: { name: before.name } } });
     } else {
       const last = await tx.assetCategory.aggregate({ where: { companyId }, _max: { sort: true } });
-      const row = await tx.assetCategory.create({ data: { companyId, name: input.name, fields: fields as unknown as Prisma.InputJsonValue, sort: (last._max.sort ?? 0) + 1 } });
+      const row = await tx.assetCategory.create({ data: { companyId, name: input.name, icon: input.icon ?? guessIcon(input.name), fields: fields as unknown as Prisma.InputJsonValue, sort: (last._max.sort ?? 0) + 1 } });
       if (input.routines?.length) await syncRoutines(tx, companyId, row.id, input.routines);
       await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: row.id, action: "created", diff: { name: input.name, fields: fields.map((field) => field.label), routines: input.routines?.map((routine) => routine.name) } });
     }
@@ -447,7 +507,7 @@ export async function addPresets(ctx: RequestContext, names: string[]) {
     const last = await tx.assetCategory.aggregate({ where: { companyId }, _max: { sort: true } });
     let sort = last._max.sort ?? 0;
     for (const preset of presets) {
-      const row = await tx.assetCategory.create({ data: { companyId, name: preset.name, fields: preset.fields as unknown as Prisma.InputJsonValue, sort: ++sort } });
+      const row = await tx.assetCategory.create({ data: { companyId, name: preset.name, icon: preset.icon, fields: preset.fields as unknown as Prisma.InputJsonValue, sort: ++sort } });
       for (const [index, routine] of preset.routines.entries()) await tx.assetRoutine.create({ data: { companyId, categoryId: row.id, name: routine.name, everyMonths: routine.everyMonths, mustPass: routine.mustPass, sort: index + 1 } });
       await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "AssetCategory", entityId: row.id, action: "created", diff: { name: preset.name, from: "starting set" } });
     }

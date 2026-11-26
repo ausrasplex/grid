@@ -11,7 +11,7 @@ export default defineBlock({
   name: "Assets",
   version: "1.0.0",
   description: "Your tools and gear with QR tags: who has what, faults and Do not use, test & tag and inspection due dates.",
-  dependsOn: ["companies", "templates", "projects"],
+  dependsOn: ["companies", "templates", "projects", "materials"],
   permissions: [
     { key: "assets.view", label: "See assets", description: "And scan their tags" },
     { key: "assets.custody", label: "Check gear out and in for yourself", description: "And take over gear someone else has" },

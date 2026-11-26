@@ -25,6 +25,19 @@ export interface AssetJson {
   model: string | null;
   serial: string | null;
   purchasedOn: string | null;
+  warrantyEndsOn: string | null;
+  /** The soonest-ending warranty across it and its kit pieces. */
+  warranty: WarrantyJson;
+  supplier: string | null;
+  purchasePrice: string | null;
+  replacementValue: string | null;
+  productUrl: string | null;
+  brandId: string | null;
+  categoryIcon: string | null;
+  partsEnabled: boolean;
+  docSetId: string | null;
+  partCount: number;
+  documentCount: number;
   photoFileIds: string[];
   notes: string | null;
   fields: Record<string, FieldValue>;
@@ -77,6 +90,7 @@ export interface CategoryRoutineJson {
 export interface CategoryJson {
   id: string;
   name: string;
+  icon: string | null;
   fields: CategoryField[];
   routines: CategoryRoutineJson[];
   count: number;
@@ -127,6 +141,17 @@ export function StatusBadge({ status }: { status: AssetStatus }) {
 /** "Makita DHP486 · SN 12345". */
 export const assetMeta = (asset: Pick<AssetJson, "make" | "model" | "serial" | "category">, withCategory = true) =>
   [withCategory ? asset.category : null, [asset.make, asset.model].filter(Boolean).join(" ") || null, asset.serial ? `SN ${asset.serial}` : null].filter(Boolean).join(" · ");
+
+export interface WarrantyJson {
+  tone: "ok" | "soon" | "expired" | "none";
+  text: string;
+  date: string | null;
+}
+/** Warranty chips, as Docket's: running, ending within 90 days, ended. */
+export const WARRANTY_TONE = { ok: "ok", soon: "soon", expired: "overdue", none: "none" } as const;
+
+/** "$349.00". */
+export const money = (amount: string | number | null) => (amount === null || amount === "" ? null : Number(amount).toLocaleString("en-AU", { style: "currency", currency: "AUD" }));
 
 export type DueTone = "ok" | "soon" | "overdue" | "none";
 export interface DueJson {

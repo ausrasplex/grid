@@ -103,6 +103,7 @@ Clients can open and download their handover sheet themselves, without Grid: a p
 ## 4. Data
 
 - `MaterialBrand` (was `PriceBrand`): `companyId`, `name`, `deletedAt`.
+- `MaterialBrand`: `companyId`, `name`, and (decided Nov 2026, for Assets) the maker's `website?`, `supportUrl?`, `supportPhone?`, `supportEmail?`, `notes?`, set once on the brand card of any asset of that make (`PUT /api/materials/brands/<id>/support`, `materials.manage`). Typing a new make on an asset adds the brand (`brandForName`).
 - `MaterialFamily`: `companyId`, `name`, `brandId?`, `deletedAt`.
 - `Material`: `companyId`, `name`, `itemType?`, `brandId?`, `familyId?`, `model?`, `finish?`, `size?`, `link?`, `trade`, `photoFileId?`, `swatch?` (hex colour), `notes?`, `catalogueModelId?`, `createdAt`, `updatedAt`, `deletedAt`.
 - `PriceItem.materialId?` (quotes).

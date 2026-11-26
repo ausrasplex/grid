@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addMonths, isOverdue, isTestAndTag, mostUrgent, nextInspectionDue, routineDue, tagColourFor } from "../due.ts";
+import { addMonths, isOverdue, isTestAndTag, mostUrgent, nextInspectionDue, routineDue, tagColourFor, warrantyState } from "../due.ts";
 
 const testAndTag = { id: "tt", everyMonths: 3, mustPass: true };
 const service = { id: "sv", everyMonths: 12, mustPass: false };
@@ -74,4 +74,12 @@ test("test & tag colours follow the season", () => {
   assert.equal(isTestAndTag("Test & tag"), true);
   assert.equal(isTestAndTag("Test and Tag"), true);
   assert.equal(isTestAndTag("Annual service"), false);
+});
+
+test("warranties read like Docket's: fine, ending within 90 days, ended", () => {
+  assert.deepEqual(warrantyState(null, "2026-11-26"), { tone: "none", text: "No warranty recorded", date: null });
+  assert.deepEqual(warrantyState("2029-11-26", "2026-11-26"), { tone: "ok", text: "Warranty to 26 Nov 2029", date: "26 Nov 2029" });
+  assert.equal(warrantyState("2026-12-17", "2026-11-26").text, "Warranty ends in 21 days");
+  assert.equal(warrantyState("2026-11-26", "2026-11-26").text, "Warranty ends today");
+  assert.deepEqual(warrantyState("2025-01-04", "2026-11-26"), { tone: "expired", text: "Warranty ended 4 Jan 2025", date: "4 Jan 2025" });
 });
