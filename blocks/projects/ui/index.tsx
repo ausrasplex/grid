@@ -277,6 +277,8 @@ async function JobPage({
   const finishLeavesSiteEmpty = job.status === "ACTIVE" && here.site.activeJobs <= 1;
   const plain = isHouse(site);
   const currentArea = area ? areas.find((entry) => same(entry, area)) : undefined;
+  // Things for the whole job (the checklist), from whichever Blocks are on.
+  const topPanels = await panels("job.top", { job: { id: job.id, name: job.name, status: job.status, archived: !!job.archivedAt } });
   // Photos, notes (and later plans) for the area you're in, from whichever Blocks are on.
   const areaPanels = await panels("job.area", {
     job: { id: job.id, name: job.name, status: job.status, siteId: site.id },
@@ -321,6 +323,8 @@ async function JobPage({
           job.status === "COMPLETED" &&
           job.completedAt && <Alert>Finished on {date(job.completedAt)}. It's listed under earlier jobs at {site.name}; reopen it to carry on.</Alert>
         )}
+
+        {topPanels}
 
         {areas.length > 1 && (
           <section aria-label="Other work areas">

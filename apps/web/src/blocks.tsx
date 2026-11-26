@@ -24,8 +24,9 @@ import plans from "@grid/block-plans/block";
 import markups from "@grid/block-markups/block";
 import documents from "@grid/block-documents/block";
 import signoffs from "@grid/block-signoffs/block";
+import checklists from "@grid/block-checklists/block";
 
-const definitions = [users, companies, clients, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs];
+const definitions = [users, companies, clients, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, checklists];
 
 /** Lazy page loaders, keyed by block id. */
 export const blockPages: Record<string, () => Promise<BlockPages>> = {
@@ -59,6 +60,7 @@ export const blockPanels: Record<string, () => Promise<BlockPanels>> = {
   quotes: async () => (await import("@grid/block-quotes/ui")).panels,
   documents: async () => (await import("@grid/block-documents/ui")).panels,
   signoffs: async () => (await import("@grid/block-signoffs/ui")).panels,
+  checklists: async () => (await import("@grid/block-checklists/ui")).panels,
 };
 
 /** Renders the panels every switched-on block offers for a slot, in block order. */

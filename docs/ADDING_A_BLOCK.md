@@ -109,6 +109,8 @@ export const panels: BlockPanels = {
 };
 ```
 
+For something about the whole job rather than one area (the Checklist), use **`job.top`** instead: it shows at the top of the job page, above the work areas, with `JobTopPanelProps` (`job: { id, name, status, archived }`).
+
 Register the loader in `apps/web/src/blocks.tsx` (`blockPanels`). Panels only render when the Block is on for the company. The props each slot passes are typed by the Block that owns the page (e.g. `JobAreaPanelProps` from `@grid/block-projects`).
 
 ## When a business is deleted
