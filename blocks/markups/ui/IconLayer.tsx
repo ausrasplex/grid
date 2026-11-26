@@ -20,6 +20,7 @@ import {
   FormActions,
   PlanLayer,
   PlanToolButton,
+  Scroller,
   SearchInput,
   Segmented,
   Sheet,
@@ -93,6 +94,17 @@ function writeSet(key: string, value: Set<string>) {
   }
 }
 
+/**
+ * The ring around an icon with a checklist: grey before anything is ticked,
+ * amber part way, green when it's all done. Drawing colours, like the inks
+ * and trade colours (they print and read the same on any theme).
+ */
+function progressColour(progress: { done: number; total: number }): string {
+  if (progress.done >= progress.total) return "#16a34a";
+  if (progress.done > 0) return "#f59e0b";
+  return "#9ca3af";
+}
+
 export function IconLayer({
   sheetId,
   projectId,
@@ -119,7 +131,7 @@ export function IconLayer({
 }) {
   const lookup = useMemo(() => iconLookup(customIcons), [customIcons]);
   const overlay = usePlanOverlay();
-  const { view, version, versions, isCurrent, hidden, setTool } = overlay;
+  const { view, version, versions, isCurrent, hidden, setTool, selectMarkup, setMarkupPanel, markupProgress } = overlay;
   const placing = overlay.tool === "markups.icon";
   const canPlace = canAdd && isCurrent;
 
@@ -272,8 +284,10 @@ export function IconLayer({
         if (!icon || !trade) return null;
         const [x, y] = entry.points[0]!;
         const numbered = numbersOf(entry.iconKey).length >= 2;
+        const progress = markupProgress[entry.id];
         return (
           <g key={entry.id} transform={`translate(${x - entry.size / 2} ${y - entry.size / 2}) scale(${entry.size / 24})`}>
+            {progress && progress.total > 0 && <circle cx={12} cy={12} r={15} fill="none" stroke={progressColour(progress)} strokeWidth={3} />}
             <IconShape icon={icon} colour={trade.colour} />
             {numbered && (
               <text x={23} y={2} fontSize={9} fontWeight={800} fontFamily="system-ui, sans-serif" fill={trade.colour} stroke="white" strokeWidth={2.5} paintOrder="stroke">
@@ -283,7 +297,7 @@ export function IconLayer({
           </g>
         );
       }),
-    [visible, numbersOf, lookup],
+    [visible, numbersOf, lookup, markupProgress],
   );
 
   const pickedIcon = picked ? lookup.icon(picked.iconKey) : null;
@@ -291,6 +305,14 @@ export function IconLayer({
   const pickedNumbers = picked ? numbersOf(picked.iconKey) : [];
   const selectedIcon = selected ? lookup.icon(selected.iconKey) : null;
   const selectedNumbers = selected ? numbersOf(selected.iconKey) : [];
+  const selectedName = selectedIcon ? `${selectedIcon.name}${selectedNumbers.length >= 2 ? ` ${selected!.iconNumber ?? 1}` : ""}` : null;
+
+  // Tell the other Blocks which icon is open, so its checklist and photos join the panel.
+  useEffect(() => {
+    selectMarkup(selected && selectedName && !placing ? { id: selected.id, name: selectedName } : null);
+  }, [selected?.id, selectedName, placing, selectMarkup]);
+  useEffect(() => () => selectMarkup(null), [selectMarkup]);
+
   const likeSelected = selected ? visible.filter((entry) => entry.iconKey === selected.iconKey && (entry.iconNumber ?? 1) === (selected.iconNumber ?? 1) && entry.canChange) : [];
 
   return (
@@ -365,19 +387,17 @@ export function IconLayer({
 
       {/* A placed icon, tapped. */}
       {selected && selectedIcon && !placing && (
-        <div className="pointer-events-auto absolute inset-x-2 bottom-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg">
+        <div className="pointer-events-auto absolute right-[4.5rem] bottom-2 left-2 mx-auto flex max-w-md flex-col gap-2 rounded-xl bg-card p-3 text-card-foreground shadow-lg sm:inset-x-2">
           <div className="flex items-center gap-2">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-white">
               <IconGlyph icon={selectedIcon} colour={lookup.trade(selected.iconKey)!.colour} className="size-7" />
             </span>
-            <p className="min-w-0 flex-1 font-semibold">
-              {selectedIcon.name}
-              {selectedNumbers.length >= 2 ? ` ${selected.iconNumber ?? 1}` : ""}
-            </p>
+            <p className="min-w-0 flex-1 font-semibold">{selectedName}</p>
             {documentsOn && (
               <Button variant="outline" size="sm" asChild>
-                <a href={`/documents/icon/${encodeURIComponent(selected.iconKey)}?name=${encodeURIComponent(selectedIcon.name)}&back=${encodeURIComponent(`/plans/sheet/${sheetId}`)}`}>
-                  <BookOpen /> Manuals
+                <a href={`/documents/icon/${encodeURIComponent(selected.iconKey)}?name=${encodeURIComponent(selectedIcon.name)}&back=${encodeURIComponent(`/plans/sheet/${sheetId}`)}`} aria-label="Manuals">
+                  {/* Just the book on phones, so the icon's name has room. */}
+                  <BookOpen /> <span className="hidden sm:inline">Manuals</span>
                 </a>
               </Button>
             )}
@@ -417,6 +437,10 @@ export function IconLayer({
             </>
           )}
           {selected.canChange && canPlace && <LayerPick layerId={selected.layerId} onChange={(layerId) => void moveToLayer(selected.id, layerId)} />}
+          {/* Other Blocks' parts of the panel: the icon's checklist and photos (PlanMarkupSection). */}
+          <Scroller className="-mx-3 max-h-[50vh] px-3">
+            <div ref={setMarkupPanel} className="flex flex-col gap-3 empty:hidden" />
+          </Scroller>
         </div>
       )}
 

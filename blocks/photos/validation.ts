@@ -23,10 +23,13 @@ export const addPhotoSchema = z
     tag: z.enum(["NONE", "BEFORE", "AFTER"]).default("NONE"),
     takenAt: z.coerce.date().optional(),
     pin: pin.optional(),
+    /** On a placed icon on a plan (a markup id) instead of a pin. */
+    markupId: uuid.optional(),
     /** The first note on the photo, typed when it was taken (e.g. when pinning it on a plan). */
     note: z.string().trim().max(10000).optional(),
   })
-  .strict();
+  .strict()
+  .refine((input) => !(input.pin && input.markupId), { message: "A photo goes on an icon or a pin, not both", path: ["markupId"] });
 
 export const updatePhotoSchema = z
   .object({
@@ -35,6 +38,8 @@ export const updatePhotoSchema = z
     ...area,
     /** Pin it to a spot on a plan, or null to take the pin off. */
     pin: pin.nullable(),
+    /** Null takes it off its icon (it stays in the job's photos). */
+    markupId: z.null(),
   })
   .partial()
   .strict();

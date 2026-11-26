@@ -177,6 +177,7 @@ export async function addPhoto(ctx: RequestContext, input: AddPhotoInput) {
   const takenAt = input.takenAt && input.takenAt.getTime() <= Date.now() + 5 * 60_000 ? input.takenAt : new Date();
   const upload = await db.storedFile.findUnique({ where: { id: input.fileId }, select: { mime: true } });
   if (upload && !upload.mime.startsWith("image/")) throw badRequest("Only photos can go here. Add PDFs to the job's plans.");
+  if (input.markupId) await iconOnJob(companyId, input.projectId, input.markupId);
 
   await db.$transaction(async (tx) => {
     try {
@@ -201,6 +202,7 @@ export async function addPhoto(ctx: RequestContext, input: AddPhotoInput) {
         takenAt,
         takenById: ctx.userId,
         ...(input.pin ? { planSheetId: input.pin.sheetId, planX: input.pin.x, planY: input.pin.y, planLayerId: input.pin.layerId ?? null } : {}),
+        markupId: input.markupId ?? null,
       },
     });
     if (input.note) {
@@ -214,7 +216,7 @@ export async function addPhoto(ctx: RequestContext, input: AddPhotoInput) {
       entityType: "JobPhoto",
       entityId: input.id,
       action: "added",
-      diff: { ...area, tag: input.tag, pinnedTo: input.pin?.sheetId },
+      diff: { ...area, tag: input.tag, pinnedTo: input.pin?.sheetId, onIcon: input.markupId },
     });
   });
   await emit("photos.added", { projectId: input.projectId, photoId: input.id }, ctx);
@@ -241,7 +243,7 @@ export async function updatePhoto(ctx: RequestContext, id: string, input: Update
   await db.$transaction(async (tx) => {
     await tx.jobPhoto.update({
       where: { id },
-      data: { caption: input.caption === undefined ? undefined : input.caption || null, tag: input.tag, ...area, ...pin },
+      data: { caption: input.caption === undefined ? undefined : input.caption || null, tag: input.tag, ...area, ...pin, ...(input.markupId === null ? { markupId: null } : {}) },
     });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId: photo.companyId, projectId: photo.projectId, entityType: "JobPhoto", entityId: id, action: "updated", diff: input as Prisma.InputJsonValue });
   });
@@ -299,6 +301,43 @@ export async function pinsForSheet(ctx: RequestContext, projectId: string, sheet
     x: photo.planX ?? 0,
     y: photo.planY ?? 0,
     layerId: photo.planLayerId,
+    caption: photo.caption,
+    tag: photo.tag,
+    at: photo.takenAt,
+    by: name.get(photo.takenById) ?? "Someone",
+    canChange: photo.companyId === companyId && (photo.takenById === ctx.userId || ctx.permissions.has("photos.manage")),
+    notes: notes.get(photo.id) ?? [],
+  }));
+}
+
+// ---------------------------------------------------------------------
+// Photos on a placed icon (docs/plans-block.md "Checklists and photos on
+// icons"): they show in the icon's panel instead of as a pin beside it.
+// ---------------------------------------------------------------------
+
+/**
+ * A placed icon of this business on this job, still on the plan. PlanMarkup
+ * is the markups Block's table: this only checks the photo is going on a
+ * real icon, so Photos doesn't need Markups to build.
+ */
+async function iconOnJob(companyId: string, projectId: string, markupId: string) {
+  const icon = await db.planMarkup.findFirst({ where: { id: markupId, companyId, projectId, kind: "ICON", deletedAt: null }, select: { id: true } });
+  if (!icon) throw badRequest("That icon isn't on this job's plans any more");
+}
+
+export type IconPhoto = Omit<PinnedPhoto, "x" | "y" | "layerId">;
+
+/** Photos on one placed icon, oldest first. */
+export async function photosOnIcon(ctx: RequestContext, markupId: string): Promise<IconPhoto[]> {
+  const companyId = requireCompany(ctx);
+  const icon = /^[0-9a-f-]{36}$/.test(markupId) ? await db.planMarkup.findFirst({ where: { id: markupId, companyId, kind: "ICON" }, select: { projectId: true } }) : null;
+  if (!icon || !(await canSeeJob(ctx, icon.projectId))) throw notFound("That icon isn't on the plan any more");
+  const photos = await db.jobPhoto.findMany({ where: { markupId, projectId: icon.projectId, deletedAt: null, ...visibleTo(companyId) }, orderBy: { takenAt: "asc" }, take: 500 });
+  const name = await userNames(photos.map((photo) => photo.takenById));
+  const notes = await notesFor(ctx, photos.map((photo) => photo.id));
+  return photos.map((photo) => ({
+    id: photo.id,
+    fileId: photo.fileId,
     caption: photo.caption,
     tag: photo.tag,
     at: photo.takenAt,

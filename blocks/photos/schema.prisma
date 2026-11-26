@@ -46,10 +46,14 @@ model JobPhoto {
   planY       Float?
   /// The sheet layer the pin is on (PlanLayer in plans), or null for Default.
   planLayerId String?
+  /// On a placed icon (a PlanMarkup in the markups Block) instead of a pin:
+  /// it shows in the icon's panel, not as a separate pin beside it.
+  markupId    String?
 
   @@index([projectId, takenAt])
   @@index([projectId, buildingId, levelId])
   @@index([planSheetId])
+  @@index([markupId])
 }
 
 model JobNote {

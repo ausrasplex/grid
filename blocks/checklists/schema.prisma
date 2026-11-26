@@ -11,10 +11,14 @@ model ChecklistItem {
   doneAt      DateTime?
   doneById    String?
   doneByName  String?
+  /// Set: this item is on a placed icon's own checklist (a PlanMarkup in the
+  /// markups Block), not on the job's list. Positions count per icon.
+  markupId    String?
   createdById String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([companyId, projectId, position])
   @@index([projectId])
+  @@index([markupId])
 }

@@ -50,27 +50,100 @@ async function itemFor(ctx: RequestContext, itemId: string) {
 export async function listItems(ctx: RequestContext, projectId: string): Promise<ChecklistItemJson[]> {
   const companyId = requireCompany(ctx);
   await jobFor(ctx, projectId, false);
-  const items = await db.checklistItem.findMany({ where: { companyId, projectId }, select: itemSelect, orderBy: { position: "asc" } });
+  // The job's own list: items on a placed icon show in that icon's panel instead.
+  const items = await db.checklistItem.findMany({ where: { companyId, projectId, markupId: null }, select: itemSelect, orderBy: { position: "asc" } });
   return items.map(toJson);
 }
 
 /** Adds an item, or several (one per line). They go at the end of the list. */
 export async function addItems(ctx: RequestContext, projectId: string, text: string): Promise<ChecklistItemJson[]> {
-  const companyId = requireCompany(ctx);
   await jobFor(ctx, projectId, true);
+  return addToList(ctx, projectId, null, text);
+}
+
+/** Adds the lines in `text` to the end of a list: the job's (markupId null) or a placed icon's. */
+async function addToList(ctx: RequestContext, projectId: string, markupId: string | null, text: string): Promise<ChecklistItemJson[]> {
+  const companyId = requireCompany(ctx);
   const texts = itemsFromText(text);
   if (!texts.length) throw badRequest("Type something to add");
   return db.$transaction(async (tx) => {
-    const last = await tx.checklistItem.findFirst({ where: { companyId, projectId }, orderBy: { position: "desc" }, select: { position: true } });
+    const last = await tx.checklistItem.findFirst({ where: { companyId, projectId, markupId }, orderBy: { position: "desc" }, select: { position: true } });
     let position = (last?.position ?? 0) + 1;
     const added: ChecklistItemJson[] = [];
     for (const itemText of texts) {
-      const item = await tx.checklistItem.create({ data: { companyId, projectId, text: itemText, position: position++, createdById: ctx.userId }, select: itemSelect });
-      await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "ChecklistItem", entityId: item.id, action: "added", diff: { text: itemText, projectId } });
+      const item = await tx.checklistItem.create({ data: { companyId, projectId, markupId, text: itemText, position: position++, createdById: ctx.userId }, select: itemSelect });
+      await audit(tx, {
+        blockId: MOD,
+        actorId: ctx.userId,
+        companyId,
+        entityType: "ChecklistItem",
+        entityId: item.id,
+        action: "added",
+        diff: { text: itemText, projectId, ...(markupId ? { markupId } : {}) },
+      });
       added.push(toJson(item));
     }
     return added;
   });
+}
+
+// ---------------------------------------------------------------------
+// A placed icon's own checklist (docs/plans-block.md "Checklists and
+// photos on icons"). Same items, same two permissions and the same tick,
+// rename and remove as the job's list; only where they show differs.
+// ---------------------------------------------------------------------
+
+/**
+ * One of this business's placed icons, still on the plan. PlanMarkup is the
+ * markups Block's table: this only reads which job it's on, so Checklist
+ * doesn't need Markups switched on to build (no icons, nothing to find).
+ */
+async function iconFor(ctx: RequestContext, markupId: string, forChange: boolean) {
+  const companyId = requireCompany(ctx);
+  const icon = /^[0-9a-f-]{36}$/.test(markupId)
+    ? await db.planMarkup.findFirst({ where: { id: markupId, companyId, kind: "ICON", deletedAt: null }, select: { id: true, projectId: true } })
+    : null;
+  if (!icon) throw notFound("That icon isn't on the plan any more");
+  await jobFor(ctx, icon.projectId, forChange);
+  return icon;
+}
+
+export async function listIconItems(ctx: RequestContext, markupId: string): Promise<ChecklistItemJson[]> {
+  const companyId = requireCompany(ctx);
+  const icon = await iconFor(ctx, markupId, false);
+  const items = await db.checklistItem.findMany({ where: { companyId, projectId: icon.projectId, markupId: icon.id }, select: itemSelect, orderBy: { position: "asc" } });
+  return items.map(toJson);
+}
+
+export async function addIconItems(ctx: RequestContext, markupId: string, text: string): Promise<ChecklistItemJson[]> {
+  const icon = await iconFor(ctx, markupId, true);
+  return addToList(ctx, icon.projectId, icon.id, text);
+}
+
+/** How far along each icon's checklist is on a plan sheet, for the ring around the icon. Icons with no checklist are left out. */
+export interface IconProgressJson {
+  markupId: string;
+  done: number;
+  total: number;
+}
+
+export async function sheetIconProgress(ctx: RequestContext, sheetId: string): Promise<IconProgressJson[]> {
+  const companyId = requireCompany(ctx);
+  const icons = await db.planMarkup.findMany({ where: { sheetId, companyId, kind: "ICON", deletedAt: null }, select: { id: true, projectId: true }, take: 5000 });
+  if (!icons.length) return [];
+  await jobFor(ctx, icons[0]!.projectId, false);
+  const items = await db.checklistItem.findMany({
+    where: { companyId, projectId: icons[0]!.projectId, markupId: { in: icons.map((icon) => icon.id) } },
+    select: { markupId: true, doneAt: true },
+  });
+  const byIcon = new Map<string, IconProgressJson>();
+  for (const item of items) {
+    const progress = byIcon.get(item.markupId!) ?? { markupId: item.markupId!, done: 0, total: 0 };
+    progress.total += 1;
+    if (item.doneAt) progress.done += 1;
+    byIcon.set(item.markupId!, progress);
+  }
+  return [...byIcon.values()];
 }
 
 export async function renameItem(ctx: RequestContext, itemId: string, text: string): Promise<ChecklistItemJson> {

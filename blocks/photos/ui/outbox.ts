@@ -18,6 +18,8 @@ export interface OutboxItem {
   takenAt: number;
   /** Pinned to a spot on a plan sheet (sheet units). */
   pin?: { sheetId: string; x: number; y: number; layerId?: string | null };
+  /** On a placed icon on a plan (its markup id) instead of a pin. */
+  markupId?: string;
   /** The first note on the photo, typed when it was taken. */
   note?: string;
   blob: Blob;
@@ -135,6 +137,7 @@ async function run() {
             caption: current.caption || undefined,
             takenAt: new Date(current.takenAt).toISOString(),
             pin: current.pin,
+            markupId: current.markupId,
             note: current.note || undefined,
           },
         });

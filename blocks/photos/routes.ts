@@ -26,6 +26,8 @@ export const routes: Routes = {
     permission: "photos.view",
     handler: (ctx, request) => svc.pinsForSheet(ctx, pinsQuery.parse(Object.fromEntries(request.query)).job, request.params.sheetId!),
   },
+  // Photos on a placed icon on a plan: /api/photos/icons/<markupId>
+  "GET /icons/:markupId": { permission: "photos.view", handler: (ctx, request) => svc.photosOnIcon(ctx, request.params.markupId!) },
   "POST /": { permission: "photos.add", handler: (ctx, request) => svc.addPhoto(ctx, addPhotoSchema.parse(request.body)) },
   "PATCH /:id": { permission: "photos.add", handler: (ctx, request) => svc.updatePhoto(ctx, request.params.id!, updatePhotoSchema.parse(request.body)) },
   "DELETE /:id": { permission: "photos.add", handler: (ctx, request) => svc.deletePhoto(ctx, request.params.id!) },

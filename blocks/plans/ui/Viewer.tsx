@@ -27,9 +27,11 @@ import {
   api,
   cn,
   useAction,
+  type MarkupProgress,
   type PlanOverlayValue,
   type PlanPointer,
   type PlanView,
+  type SelectedMarkup,
 } from "@grid/ui";
 import { DISCIPLINES, disciplineName } from "../parse";
 import { LayersPanel, useSheetLayers, type LayerJson } from "./Layers";
@@ -133,6 +135,10 @@ export function Viewer({
   }, []);
   const [hidden, setHidden] = useState(false);
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
+  // A placed icon tapped on the plan: Markups shows its panel, other Blocks add to it (checklist, photos).
+  const [selectedMarkup, selectMarkup] = useState<SelectedMarkup | null>(null);
+  const [markupPanel, setMarkupPanel] = useState<HTMLElement | null>(null);
+  const [markupProgress, setMarkupProgress] = useState<Record<string, MarkupProgress>>({});
   const listeners = useRef(new Set<(pointer: PlanPointer) => void>());
   const onPointer = useCallback((listener: (pointer: PlanPointer) => void) => {
     listeners.current.add(listener);
@@ -313,6 +319,7 @@ export function Viewer({
 
   // Put the tool down when you switch revision.
   useEffect(() => setTool(null), [version?.id, setTool]);
+  useEffect(() => selectMarkup(null), [version?.id]);
 
   const overlay = useMemo<PlanOverlayValue | null>(() => {
     if (!version) return null;
@@ -341,8 +348,14 @@ export function Viewer({
       layers: layerState.layers,
       onPointer,
       toolbar,
+      selectedMarkup,
+      selectMarkup,
+      markupPanel,
+      setMarkupPanel,
+      markupProgress,
+      setMarkupProgress,
     };
-  }, [sheet, version, isCurrent, view, tool, setTool, hidden, layerState.active, layerState.layerShown, layerState.layers, onPointer, toolbar]);
+  }, [sheet, version, isCurrent, view, tool, setTool, hidden, layerState.active, layerState.layerShown, layerState.layers, onPointer, toolbar, selectedMarkup, markupPanel, markupProgress]);
   const showOverlays = overlays.length > 0 && ready && overlay !== null;
 
   return (

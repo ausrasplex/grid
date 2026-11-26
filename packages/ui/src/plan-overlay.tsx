@@ -101,6 +101,32 @@ export interface PlanOverlayValue {
   onPointer: (listener: (pointer: PlanPointer) => void) => () => void;
   /** Where PlanToolButton puts tool buttons (the bar under the plan). */
   toolbar: HTMLElement | null;
+  /**
+   * The placed icon tapped on the plan (Markups sets it while its panel is
+   * open), so other Blocks can add their part to that panel with
+   * PlanMarkupSection: the icon's checklist, its photos.
+   */
+  selectedMarkup: SelectedMarkup | null;
+  selectMarkup: (markup: SelectedMarkup | null) => void;
+  /** Where PlanMarkupSection puts its parts (inside the open icon panel). Markups sets it. */
+  markupPanel: HTMLElement | null;
+  setMarkupPanel: (element: HTMLElement | null) => void;
+  /** Checklist progress per placed icon (by markup id), drawn as a ring around the icon. Checklist sets it. */
+  markupProgress: Record<string, MarkupProgress>;
+  setMarkupProgress: (progress: Record<string, MarkupProgress>) => void;
+}
+
+/** A placed icon picked on the plan. */
+export interface SelectedMarkup {
+  id: string;
+  /** What it's called, e.g. "Double power point 2". */
+  name: string;
+}
+
+/** How much of an icon's checklist is ticked off. */
+export interface MarkupProgress {
+  done: number;
+  total: number;
 }
 
 const PlanOverlayContext = createContext<PlanOverlayValue | null>(null);
@@ -138,6 +164,16 @@ export function PlanLayer({ children, className }: { children: ReactNode; classN
       <g transform={`scale(${view.scale}) translate(${-view.x} ${-view.y})`}>{children}</g>
     </svg>
   );
+}
+
+/**
+ * Another Block's part of the open icon panel (e.g. its checklist or photos).
+ * Shows only while an icon is picked; `order` sorts it among the others.
+ */
+export function PlanMarkupSection({ order = 100, children }: { order?: number; children: ReactNode }) {
+  const { markupPanel, selectedMarkup } = usePlanOverlay();
+  if (!markupPanel || !selectedMarkup) return null;
+  return createPortal(<div style={{ order }}>{children}</div>, markupPanel);
 }
 
 /** A button in the tool bar under the plan. `order` sorts it among other Blocks' buttons. */

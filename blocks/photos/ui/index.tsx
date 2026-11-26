@@ -2,7 +2,7 @@
 //   /photos/capture            the centre button's "Take a photo"
 //   /photos/report/<job>       printable before/after report
 //   panel "job.area"             Photos & notes on a job page
-//   panel "plans.viewer"         photo pins on a plan sheet (4b)
+//   panel "plans.viewer"         photo pins on a plan sheet (4b), and photos on a placed icon
 
 import { can, notFound } from "@grid/core";
 import { db, getStorageSettings } from "@grid/db";
@@ -12,6 +12,7 @@ import { feed, listDeleted, pinsForSheet, type PhotoItem } from "../service";
 import { DeletedList, type DeletedRowJson } from "./DeletedList";
 import { Capture } from "./Capture";
 import { JobFeed, type Feed } from "./JobFeed";
+import { IconPhotos } from "./IconPhotos";
 import { PhotoPins, type PinJson } from "./PhotoPins";
 import { Report } from "./Report";
 
@@ -50,7 +51,13 @@ export const panels: BlockPanels = {
     const { ctx, sheet, jobName } = props as typeof props & PlanViewerPanelProps;
     if (!can(ctx, "photos.view")) return null;
     const pins = await pinsForSheet(ctx, sheet.projectId, sheet.id);
-    return <PhotoPins projectId={sheet.projectId} jobName={jobName} initial={json<PinJson[]>(pins)} canAdd={can(ctx, "photos.add")} />;
+    return (
+      <>
+        <PhotoPins projectId={sheet.projectId} jobName={jobName} initial={json<PinJson[]>(pins)} canAdd={can(ctx, "photos.add")} />
+        {/* A placed icon's own photos, in its panel (needs Markups, which places icons). */}
+        {ctx.enabledBlocks.has("markups") && <IconPhotos projectId={sheet.projectId} jobName={jobName} canAdd={can(ctx, "photos.add")} />}
+      </>
+    );
   },
 
   // Settings › Storage: Recently deleted photos and notes (managers).

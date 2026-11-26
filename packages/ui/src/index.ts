@@ -54,16 +54,19 @@ export { Segmented, SearchInput, SelectRow, formatBytes, whenRemoved } from "./c
 // The plan viewer's overlay (Plans provides it; Markups and Photos draw on it)
 export {
   PlanLayer,
+  PlanMarkupSection,
   PlanOverlayProvider,
   PlanToolButton,
   toScreen,
   usePlanOverlay,
   usePlanPointer,
+  type MarkupProgress,
   type PlanOverlayValue,
   type PlanPointer,
   type PlanVersionInfo,
   type PlanView,
   type PlanViewerPanelProps,
+  type SelectedMarkup,
   type SheetPoint,
 } from "./plan-overlay";
 

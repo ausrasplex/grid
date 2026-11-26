@@ -79,7 +79,7 @@ Two kinds of leftover files build up, and a clean-up handles both every night (2
 
 ## Data
 
-- `JobPhoto`: `id` (from the phone), `projectId`, `companyId`, `buildingId?`, `levelId?`, `fileId`, `caption?`, `tag` (`NONE | BEFORE | AFTER`), `visibility` (`PRIVATE | SHARED`, default PRIVATE), `takenAt` (from the phone), `takenById`, `deletedAt`, and the photo pin (4b): `planSheetId?`, `planX?`, `planY?`.
+- `JobPhoto`: `id` (from the phone), `projectId`, `companyId`, `buildingId?`, `levelId?`, `fileId`, `caption?`, `tag` (`NONE | BEFORE | AFTER`), `visibility` (`PRIVATE | SHARED`, default PRIVATE), `takenAt` (from the phone), `takenById`, `deletedAt`, and the photo pin (4b): `planSheetId?`, `planX?`, `planY?`, or the placed icon it's on: `markupId?` (`docs/plans-block.md` "Checklists and photos on icons").
 - `JobNote`: `projectId`, `companyId`, area, `body`, `visibility`, `createdById`, `deletedAt`.
 - `PhotoComment` ("Notes" on a photo; named so it isn't mixed up with `JobNote`): `photoId`, `projectId`, `companyId`, `body`, `createdById`, `createdAt`, `updatedAt`, `deletedAt`. See "Notes on a photo" below.
 - **Visibility** is stored now (roadmap rule 6). Others on a job only see SHARED records. The choice appears once there's a contract chain (2b).

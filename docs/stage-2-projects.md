@@ -313,3 +313,4 @@ A to-do list on each job, ticked off as the work gets done. Its own optional Blo
 - **Edit** (top right of the list, for those who can manage it): rename in place (saves when you leave the box) and a Bin on each. No reordering yet.
 - **An archived job's list** is kept as it was: it can be read, not changed. A job's list goes when the job is deleted for good, and with a deleted business.
 - Every add, rename, tick, untick and removal is in the activity log. The list belongs to the business that wrote it (`ChecklistItem.companyId`), ready for shared jobs in the contract chain.
+- **Icons on plans have their own lists** (`ChecklistItem.markupId`), with the same permissions and the same ticking; they show in the icon's panel, not here. See "Checklists and photos on icons" in `docs/plans-block.md`.
