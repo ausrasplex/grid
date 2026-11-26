@@ -57,7 +57,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, clients, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, checklists (optional)
+blocks/        users, companies, themes, clients, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, checklists (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -96,6 +96,7 @@ prisma/        base, core and auth schemas; migrations
   **Phase 4c part 2** (the quote's Take-off section through the `quote.takeoff` slot, a price book item per icon number, Add to quote and "Take-off changed", Quoting jobs moved along by quote events) is done too; see "What part 2 built" under Phase 4c in `docs/roadmap.md`.
   **Phase 4c part 3** (custom icons built from a shape and letters in Settings › Custom icons, and manuals linked to an icon type at `/documents/icon/<key>`) is done too, which finishes Phase 4c.
   **Clients export and import** (Settings › Clients › Export & import: Excel/CSV export, import with a matching preview, Share our business card; contact cards only, never accounts) is done too; see "Export and import" in `docs/quotations-block.md`. `ClientBusiness.linkedCompanyId` and `Client.linkedUserId` wait for the contract chain.
+  **Your own themes** (core `themes` Block: Settings › Themes, simple key colours plus every colour under Advanced, Grid or Soft look, readability warnings, export/import, business themes for Owners) is done too; see "Your own themes" in `docs/visual-style.md`.
   **Pictures** (business picture in Settings › Business details, made from the Branding logo until one is uploaded; the team shows it until each person adds their own; "Share my photo on business cards", Private by default; client logos and photos; zip export and import with a pictures folder) are done too; see "Pictures" under "Export and import" in `docs/quotations-block.md`. Square pictures live at `pictures/…` and are served by `/api/pictures/…`.
   **Contact files** (Share my contact on Profile, Share contact on a client's page: a vCard 3.0 .vcf to the phone's Share menu or downloaded; the import takes .vcf 2.1/3.0/4.0) are done too; see "Contact files" in `docs/quotations-block.md`.
   **Job checklist** (the `checklists` Block: a to-do list at the top of each job via the `job.top` slot; tick records who and when; "Tick checklist items" for anyone who can see the job, "Add and remove checklist items" for Owner/Foreman/Employee, so an Apprentice custom role ticks only) is done too; see "Job checklist" in `docs/stage-2-projects.md`.

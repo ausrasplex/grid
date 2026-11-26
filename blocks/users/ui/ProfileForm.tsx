@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ActionButton, Alert, Button, EditablePicture, Field, FormActions, Loading, Section, Sheet, SheetContent, Stack, Switch, THEMES, api, cn, shareFile, themeAttributes, themeOf, useAction, useApi, type ThemeId } from "@grid/ui";
+import { ActionButton, Alert, Button, EditablePicture, Field, FormActions, Loading, Section, Sheet, SheetContent, Stack, Switch, THEMES, api, cn, resolveTokens, shareFile, showThemeNow, themeAttributes, tokensCss, useAction, useApi, type KeyColours, type ThemeId, type TokenOverrides } from "@grid/ui";
 import { Share2 } from "lucide-react";
 
 interface Me {
@@ -106,7 +106,7 @@ export function ProfileForm() {
           }}
         />
       </Section>
-      <Appearance initial={themeOf(data.settings?.theme)} />
+      <Appearance initial={typeof data.settings?.theme === "string" ? data.settings.theme : "grid"} />
     </Stack>
   );
 }
@@ -164,55 +164,95 @@ const SWATCHES: Record<ThemeId, string[]> = {
  * Settings › Profile › Appearance: Grid's look, for you on every device.
  * Soft is a trial (docs/visual-style.md "Themes"). Applies straight away.
  */
-function Appearance({ initial }: { initial: ThemeId }) {
-  const router = useRouter();
-  const [theme, setTheme] = useState<ThemeId>(initial);
-  const action = useAction();
+interface CustomTheme {
+  id: string;
+  name: string;
+  description: string;
+  look: "grid" | "soft";
+  keyColours: KeyColours;
+  overrides: TokenOverrides;
+  scope: "mine" | "business";
+}
 
-  const pick = async (next: ThemeId) => {
+/** Page, cards, main colour, and the tiles in the Soft look. */
+function customSwatches(theme: CustomTheme): string[] {
+  const tokens = resolveTokens(theme.keyColours, theme.look, theme.overrides);
+  return [tokens.background, tokens.card, tokens.primary, ...(theme.look === "soft" ? [tokens["tile-1"], tokens["tile-2"], tokens["tile-3"]] : [])];
+}
+
+/**
+ * Settings › Profile › Appearance: Grid's look, for you on every device.
+ * Soft is a trial (docs/visual-style.md "Themes"). Themes you or your
+ * business made (Settings › Themes) are listed after the built-in ones,
+ * as "custom:<id>". Applies straight away.
+ */
+function Appearance({ initial }: { initial: string }) {
+  const router = useRouter();
+  const [theme, setTheme] = useState<string>(initial);
+  const action = useAction();
+  const custom = useApi<{ mine: CustomTheme[]; business: CustomTheme[] }>("/themes");
+  const made = [...(custom.data?.mine ?? []), ...(custom.data?.business ?? [])];
+
+  const pick = async (next: string) => {
     if (next === theme) return;
     const previous = theme;
     setTheme(next);
     const ok = await action.run(() => api("/users/me", { method: "PATCH", body: { settings: { theme: next } } }));
     if (!ok) return setTheme(previous);
     // Show it now; the refresh brings the matching menus and Home.
-    const root = document.documentElement;
-    const attributes = themeAttributes(next);
-    if (attributes["data-theme"]) root.setAttribute("data-theme", attributes["data-theme"]);
-    else root.removeAttribute("data-theme");
-    root.setAttribute("data-look", attributes["data-look"]);
+    const mine = made.find((option) => `custom:${option.id}` === next);
+    if (mine) showThemeNow({ "data-theme": "custom", "data-look": mine.look }, tokensCss(resolveTokens(mine.keyColours, mine.look, mine.overrides)));
+    else showThemeNow(themeAttributes(next as ThemeId));
     router.refresh();
   };
 
-  return (
-    <Section title="Appearance" description="How Grid looks for you">
-      <div role="radiogroup" aria-label="Theme" className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
-        {THEMES.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            role="radio"
-            aria-checked={theme === option.id}
-            disabled={action.busy}
-            onClick={() => void pick(option.id)}
-            className={cn(
-              "flex min-h-touch items-center gap-3 rounded-xl border-2 px-3 py-2 text-left transition-colors",
-              theme === option.id ? "border-primary bg-accent text-accent-foreground" : "border-transparent bg-muted hover:border-input",
-            )}
-          >
-            <span aria-hidden className="flex shrink-0 -space-x-1.5">
-              {SWATCHES[option.id].map((colour, index) => (
-                <span key={index} className="size-5 rounded-full border-2 border-card" style={{ background: colour }} />
-              ))}
-            </span>
-            <span className="min-w-0">
-              <span className="block font-semibold">{option.label}</span>
-              {/* Only the one picked says what it is: the rest stay one line. */}
-              {theme === option.id && <span className="block text-sm opacity-80">{option.description}</span>}
-            </span>
-          </button>
+  const option = (id: string, label: string, description: string, swatches: string[]) => (
+    <button
+      key={id}
+      type="button"
+      role="radio"
+      aria-checked={theme === id}
+      disabled={action.busy}
+      onClick={() => void pick(id)}
+      className={cn(
+        "flex min-h-touch items-center gap-3 rounded-xl border-2 px-3 py-2 text-left transition-colors",
+        theme === id ? "border-primary bg-accent text-accent-foreground" : "border-transparent bg-muted hover:border-input",
+      )}
+    >
+      <span aria-hidden className="flex shrink-0 -space-x-1.5">
+        {swatches.map((colour, index) => (
+          <span key={index} className="size-5 rounded-full border-2 border-card" style={{ background: colour }} />
         ))}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate font-semibold">{label}</span>
+        {/* Only the one picked says what it is: the rest stay one line. */}
+        {theme === id && <span className="block truncate text-sm opacity-80">{description}</span>}
+      </span>
+    </button>
+  );
+
+  return (
+    <Section
+      title="Appearance"
+      description="How Grid looks for you"
+      actions={
+        <Button variant="ghost" size="sm" onClick={() => router.push("/themes/new")}>
+          Make your own
+        </Button>
+      }
+    >
+      <div role="radiogroup" aria-label="Theme" className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+        {THEMES.map((builtIn) => option(builtIn.id, builtIn.label, builtIn.description, SWATCHES[builtIn.id]))}
+        {made.map((madeTheme) =>
+          option(`custom:${madeTheme.id}`, madeTheme.name, madeTheme.description || (madeTheme.scope === "business" ? "The business's theme" : "Your theme"), customSwatches(madeTheme)),
+        )}
       </div>
+      <p className="mt-3 text-sm text-muted-foreground">
+        <a href="/themes" className="font-semibold text-primary underline-offset-4 hover:underline">
+          Manage your themes
+        </a>
+      </p>
       <Alert variant="error">{action.error}</Alert>
     </Section>
   );

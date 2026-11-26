@@ -5,7 +5,7 @@ import { cn } from "../lib/utils";
 
 // shadcn/ui button, sized for touch: default height is 44px, "lg" 52px.
 export const buttonVariants = cva(
-  "inline-flex shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-(--radius-button) text-base font-semibold transition-colors active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0",
+  "inline-flex shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-(--radius-button) text-base font-semibold transition-colors soft:text-sm active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

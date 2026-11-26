@@ -23,6 +23,7 @@
     "@grid/block-signoffs": "workspace:*",
     "@grid/block-sites": "workspace:*",
     "@grid/block-templates": "workspace:*",
+    "@grid/block-themes": "workspace:*",
     "@grid/block-users": "workspace:*",
     "@grid/core": "workspace:*",
     "@grid/db": "workspace:*",

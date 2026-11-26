@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { can } from "@grid/core";
-import { Alert, AttentionList, Button, Grid, Icon, LinkRow, List, PageHeader, Scroller, Section, Stack, buttonVariants, cn, lookOf } from "@grid/ui";
+import { Alert, AttentionList, Button, Grid, Icon, LinkRow, List, PageHeader, Scroller, Section, Stack, buttonVariants, cn } from "@grid/ui";
 import { activeJobCounts, myActiveJobs, onSiteNow } from "@grid/block-projects";
 import { JobRows } from "@grid/block-projects/components";
 import { getContext, type AppContext } from "@/lib/context";
@@ -27,7 +27,7 @@ export default async function HomePage() {
     );
   }
 
-  if (lookOf(ctx.user.theme) === "soft") return <SoftHome ctx={ctx} firstName={firstName} />;
+  if (ctx.user.look === "soft") return <SoftHome ctx={ctx} firstName={firstName} />;
 
   const [now, jobs] = await Promise.all([onSiteNow(ctx), myActiveJobs(ctx, 6)]);
   const canStart = can(ctx, "projects.create");

@@ -18,11 +18,16 @@
 // border. Nothing shows a scrollbar on phones/tablets (Scroller fades).
 // Everything respects iPhone/Android safe areas.
 //
-// The Soft look (look="soft", Settings › Profile › Appearance) keeps the
-// same structure with: no lines between menus and page, the business as a
-// white pill in the top bar and your picture at the top right on every size,
-// the centre button as a pill at the top of the desktop sidebar, the current
-// page as a white tile, Log out at the bottom, and content in a centred column.
+// The Soft look (look="soft", Settings › Profile › Appearance) copies
+// Docket's shell (docket/components/shell): a 224px sidebar with Grid's
+// mark and name, the centre button as a navy pill at the top of the list,
+// then the menu (14px semibold, 12px corners, the current page a white tile,
+// a faint ink wash on hover). The top bar sits over the content only, frosted
+// page colour with a line under it: the business as a white pill on the left,
+// your picture (initials on a pastel circle) on the right, both lined up with
+// the content's 1100px centred column. Sign out is in the sheet your picture
+// opens. Phones: the Grid mark at the top left, and a white bottom bar whose
+// current item is a tinted tile, with the round centre button raised.
 
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
@@ -99,10 +104,24 @@ function Mark({ className }: { className?: string }) {
   return <img src="/icon/96" alt="" width={36} height={36} className={cn("size-9 shrink-0 rounded-md", className)} />;
 }
 
-function UserAvatar({ name, src, className }: { name: string; src: string | null; className?: string }) {
+/** Soft look: initials sit on one of the three pastel tiles, picked from the name so it stays the same (as Docket). */
+const AVATAR_TILES = ["bg-tile-1", "bg-tile-2", "bg-tile-3"];
+
+function avatarTile(name: string) {
+  const total = [...name].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return AVATAR_TILES[total % AVATAR_TILES.length];
+}
+
+function UserAvatar({ name, src, soft, className }: { name: string; src: string | null; soft?: boolean; className?: string }) {
   if (src) return <img src={src} alt="" className={cn("size-9 shrink-0 rounded-full bg-muted object-cover", className)} />;
   return (
-    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground", className)}>
+    <span
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+        soft ? cn(avatarTile(name), "text-tile-foreground") : "bg-primary text-primary-foreground",
+        className,
+      )}
+    >
       {initials(name)}
     </span>
   );
@@ -223,20 +242,33 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
   );
 
   return (
-    <div className="min-h-dvh md:pl-rail lg:pl-sidebar">
-      {/* ---------- Top bar (flat, page colour, 1px line under it) ---------- */}
-      <header className={cn("fixed inset-x-0 top-0 z-40 bg-background/95 pt-safe backdrop-blur md:left-rail lg:left-sidebar", !soft && "border-b")}>
-        <div className={cn("flex h-topbar items-center gap-1 pl-safe pr-safe", soft && "lg:mx-auto lg:max-w-6xl lg:px-6 xl:px-8")}>
+    <div className={cn("min-h-dvh md:pl-rail", soft ? "lg:pl-56" : "lg:pl-sidebar")}>
+      {/* ---------- Top bar (flat, page colour, 1px line under it). Soft: frosted, over the content only ---------- */}
+      <header
+        className={cn(
+          "fixed inset-x-0 top-0 z-40 border-b pt-safe md:left-rail",
+          soft
+            ? "bg-[color-mix(in_srgb,var(--background)_72%,transparent)] backdrop-blur-[16px] backdrop-saturate-[1.4] lg:left-56 lg:px-8"
+            : "bg-background/95 backdrop-blur lg:left-sidebar",
+        )}
+      >
+        <div className={cn("flex h-topbar items-center gap-1 pl-safe pr-safe", soft && "lg:mx-auto lg:h-[4.5rem] lg:max-w-[1100px] lg:gap-2.5")}>
+          {/* Soft, phones: Grid's mark is the way Home (the tablet rail and desktop sidebar have their own) */}
+          {soft && (
+            <a href="/" aria-label="Home" className="ml-2 shrink-0 md:hidden">
+              <Mark className="size-10 rounded-[10px]" />
+            </a>
+          )}
           {/* Company switcher: phone and tablet (desktop has it in the sidebar); Soft: a pill everywhere */}
-          <div className={cn("flex min-w-0 flex-1 items-center px-2 md:px-4", !soft && "lg:invisible", soft && "lg:px-2")}>
+          <div className={cn("flex min-w-0 flex-1 items-center px-2 md:px-4", soft ? "lg:px-0" : "lg:invisible")}>
             {soft ? (
               <a
                 href={switcher?.href ?? "/"}
-                className="flex h-10 min-w-0 items-center gap-2 rounded-full bg-card px-4 text-sm font-semibold shadow-sm hover:bg-muted"
+                className="flex min-h-touch min-w-0 items-center gap-2 rounded-full bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted"
                 title={company ? `${company.name} · ${company.role}` : undefined}
               >
                 <span className="truncate">{company?.name ?? "Choose a business"}</span>
-                {switcher && <Icon name="chevron-down" className="size-4 shrink-0 text-muted-foreground" />}
+                {switcher && <Icon name="chevron-down" className="size-3.5 shrink-0 text-muted-foreground" />}
               </a>
             ) : (
               <a
@@ -257,8 +289,10 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
                 href={action.href}
                 aria-label="Jump to (Ctrl K)"
                 className={cn(
-                  "inline-flex size-touch items-center justify-center gap-2 text-nav-foreground hover:bg-muted md:mr-1 md:h-10 md:w-64 md:justify-start md:px-3 md:text-sm md:text-muted-foreground",
-                  soft ? "rounded-full md:bg-card md:shadow-sm" : "rounded-lg md:bg-muted",
+                  "inline-flex size-touch items-center justify-center gap-2 text-nav-foreground md:mr-1 md:w-64 md:justify-start md:px-3 md:text-sm md:text-muted-foreground",
+                  soft
+                    ? "rounded-full hover:bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] md:h-touch md:bg-card md:px-4 md:font-semibold md:hover:bg-muted lg:mr-0"
+                    : "rounded-lg hover:bg-muted md:h-10 md:bg-muted",
                 )}
               >
                 <Icon name="search" className="size-5" />
@@ -270,32 +304,35 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
                 key={action.id}
                 href={action.href}
                 aria-label={action.label}
-                className={cn("inline-flex size-touch items-center justify-center text-nav-foreground hover:bg-muted", soft ? "rounded-full" : "rounded-lg")}
+                className={cn(
+                  "inline-flex size-touch items-center justify-center text-nav-foreground",
+                  soft ? "rounded-full hover:bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] hover:text-foreground" : "rounded-lg hover:bg-muted",
+                )}
               >
                 <Icon name={action.icon} className="size-5" />
               </a>
             ),
           )}
 
-          {/* Avatar: phone only (tablet rail and desktop sidebar have their own); Soft: every size */}
+          {/* Avatar: phone only (tablet rail and desktop sidebar have their own); Soft: every size, 44px */}
           <AccountSheet
             user={user}
             account={account}
             switcher={switcher}
-            trigger={<UserAvatar name={user.name} src={user.avatarUrl} className={soft ? "md:size-10" : undefined} />}
-            triggerClassName={cn("mr-2 inline-flex size-touch items-center justify-center rounded-full", !soft && "md:hidden")}
+            trigger={<UserAvatar name={user.name} src={user.avatarUrl} soft={soft} className={soft ? "size-11 text-base" : undefined} />}
+            triggerClassName={cn("mr-2 inline-flex size-touch items-center justify-center rounded-full", soft ? "lg:mr-0" : "md:hidden")}
           />
-          <span className="hidden w-2 md:block" />
+          <span className={cn("hidden w-2 md:block", soft && "lg:hidden")} />
         </div>
       </header>
 
       {/* ---------- Tablet rail (768–1023px) ---------- */}
       <nav
         aria-label="Main"
-        className={cn("fixed inset-y-0 left-0 z-30 hidden w-rail flex-col items-center gap-1 bg-nav pt-safe pb-safe pl-safe md:flex lg:hidden", !soft && "border-r")}
+        className="fixed inset-y-0 left-0 z-30 hidden w-rail flex-col items-center gap-1 border-r bg-nav pt-safe pb-safe pl-safe md:flex lg:hidden"
       >
         <a href="/" aria-label="Home" className="mt-4 mb-3">
-          <Mark className="size-10" />
+          <Mark className={cn("size-10", soft && "rounded-[10px]")} />
         </a>
         {[home, ...primary].map((item) => {
           const active = isActive(pathname, item);
@@ -304,9 +341,9 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
               key={item.id}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={cn("flex w-full flex-col items-center gap-1 py-2 text-xs font-medium", active ? "text-nav-active" : "text-nav-foreground")}
+              className={railItem(active, soft)}
             >
-              <span className={cn("flex h-8 w-14 items-center justify-center rounded-full", active && (soft ? "bg-card text-foreground shadow-sm" : "bg-accent text-accent-foreground"))}>
+              <span className={railIcon(active, soft)}>
                 <Icon name={item.icon} className="size-6" />
               </span>
               <span className="max-w-full truncate px-1">{item.label}</span>
@@ -316,10 +353,10 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
         {compactMore.length > 0 && (
           <MoreSheet
             items={compactMore}
-            triggerClassName={cn("flex w-full flex-col items-center gap-1 py-2 text-xs font-medium", moreActive ? "text-nav-active" : "text-nav-foreground")}
+            triggerClassName={railItem(moreActive, soft)}
             trigger={
               <>
-                <span className={cn("flex h-8 w-14 items-center justify-center rounded-full", moreActive && "bg-accent text-accent-foreground")}>
+                <span className={railIcon(moreActive, soft)}>
                   <Icon name="more" className="size-6" />
                 </span>
                 More
@@ -330,16 +367,13 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
         <a
           href={scan.href}
           aria-label={scan.label}
-          className={cn("mt-3 flex size-14 items-center justify-center bg-primary text-primary-foreground active:opacity-90", soft ? "rounded-full shadow-md" : "rounded-xl")}
+          className={cn("mt-3 flex size-14 items-center justify-center bg-primary text-primary-foreground active:opacity-90", soft ? "rounded-full shadow-[0_6px_16px_rgba(0,0,0,.22)]" : "rounded-xl")}
         >
           <Icon name={scan.icon ?? "scan"} className="size-7" />
         </a>
         <span className="flex-1" />
-        {soft ? (
-          <button type="button" onClick={signOut} aria-label="Log out" className="mb-4 flex size-touch items-center justify-center rounded-full text-nav-foreground hover:bg-card">
-            <LogOut aria-hidden className="size-5" />
-          </button>
-        ) : (
+        {/* Soft: your picture is in the top bar instead (Sign out is in its sheet). */}
+        {!soft && (
           <AccountSheet
             user={user}
             account={account}
@@ -351,105 +385,96 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
       </nav>
 
       {/* ---------- Desktop sidebar (1024px+) ---------- */}
-      <nav
-        aria-label="Main"
-        className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden w-sidebar flex-col gap-4 bg-nav px-3 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] lg:flex",
-          soft ? "gap-5 px-4" : "border-r",
-        )}
-      >
-        {soft ? (
-          <>
-            <a href="/" className="flex min-h-touch items-center gap-2.5 px-2">
-              <Mark className="size-8 rounded-lg" />
-              <span className="text-lg font-semibold tracking-tight">Grid</span>
-            </a>
-            {/* The centre button, as the big pill at the top */}
-            <a
-              href={scan.href}
-              className="flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-foreground shadow-md transition-opacity hover:opacity-90"
-            >
-              <Icon name={scan.icon ?? "scan"} className="size-5" />
-              {scan.label}
-            </a>
-          </>
-        ) : (
-          <a
-            href={switcher?.href ?? "/"}
-            className="flex min-h-touch items-center gap-2.5 rounded-lg px-2 hover:bg-muted"
-            title={switcher?.label}
-          >
+      {soft ? (
+        // Docket's sidebar: 224px, 18px in from the sides, 28px top and bottom; the mark and name, then the list
+        // with the centre button as its first item.
+        <nav
+          aria-label="Main"
+          className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col gap-7 border-r bg-nav px-[18px] pt-[calc(env(safe-area-inset-top)+1.75rem)] pb-[calc(env(safe-area-inset-bottom)+1.75rem)] lg:flex"
+        >
+          <a href="/" aria-label="Grid home" className="flex items-center gap-2.5 px-2 text-lg font-bold tracking-tight text-foreground">
+            <Mark className="size-8 rounded-lg" />
+            Grid
+          </a>
+          <Scroller className="-mx-1 flex-1 px-1">
+            <ul className="flex flex-col gap-1.5">
+              <li className="mb-2.5">
+                {/* The centre button, as the pill at the top of the list */}
+                <a
+                  href={scan.href}
+                  className="flex min-h-touch w-full items-center justify-center gap-2.5 rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-[0_6px_16px_rgba(0,0,0,.22)] hover:shadow-[0_6px_16px_rgba(0,0,0,.22),inset_0_0_0_999px_color-mix(in_srgb,var(--primary-foreground)_14%,transparent)]"
+                >
+                  <Icon name={scan.icon ?? "scan"} className="size-5" />
+                  {scan.label}
+                </a>
+              </li>
+              {[home, ...primary, ...main].map((item) => (
+                <li key={item.id}>
+                  <SidebarLink item={item} active={isActive(pathname, item)} soft />
+                </li>
+              ))}
+              {/* Desktop shows every item: what's under More on phones and tablets follows, after a line. */}
+              {more.length > 0 && <li aria-hidden className="mx-3.5 my-1 border-t" />}
+              {more.map((item) => (
+                <li key={item.id}>
+                  <SidebarLink item={item} active={isActive(pathname, item)} soft />
+                </li>
+              ))}
+            </ul>
+          </Scroller>
+        </nav>
+      ) : (
+        <nav
+          aria-label="Main"
+          className="fixed inset-y-0 left-0 z-30 hidden w-sidebar flex-col gap-4 border-r bg-nav px-3 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)] lg:flex"
+        >
+          <a href={switcher?.href ?? "/"} className="flex min-h-touch items-center gap-2.5 rounded-lg px-2 hover:bg-muted" title={switcher?.label}>
             <Mark />
             {companyBlock}
           </a>
-        )}
-        <Scroller className="-mx-1 flex-1 px-1">
-          <ul className="flex flex-col gap-1">
-            {[home, ...primary, ...main].map((item) => {
-              const active = isActive(pathname, item);
-              return (
+          <Scroller className="-mx-1 flex-1 px-1">
+            <ul className="flex flex-col gap-1">
+              {[home, ...primary, ...main].map((item) => (
                 <li key={item.id}>
-                  <a
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className={sidebarItem(active, soft)}
-                  >
-                    <Icon name={item.icon} className="size-5" />
-                    <span className="truncate">{item.label}</span>
-                  </a>
+                  <SidebarLink item={item} active={isActive(pathname, item)} soft={false} />
                 </li>
-              );
-            })}
-            {/* Desktop shows every item: what's under More on phones and tablets follows, after a line. */}
-            {more.length > 0 && <li aria-hidden className="mx-3.5 my-1 border-t" />}
-            {more.map((item) => {
-              const active = isActive(pathname, item);
-              return (
+              ))}
+              {/* Desktop shows every item: what's under More on phones and tablets follows, after a line. */}
+              {more.length > 0 && <li aria-hidden className="mx-3.5 my-1 border-t" />}
+              {more.map((item) => (
                 <li key={item.id}>
-                  <a
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className={sidebarItem(active, soft)}
-                  >
-                    <Icon name={item.icon} className="size-5" />
-                    <span className="truncate">{item.label}</span>
-                  </a>
+                  <SidebarLink item={item} active={isActive(pathname, item)} soft={false} />
                 </li>
-              );
-            })}
-          </ul>
-        </Scroller>
-        {soft ? (
-          // The same look as the menu items above (sidebarItem), as a button.
-          <button type="button" onClick={signOut} className={cn(sidebarItem(false, true), "w-full text-left")}>
-            <LogOut aria-hidden className="size-5" />
-            <span className="truncate">Log out</span>
-          </button>
-        ) : (
-        <AccountSheet
-          user={user}
-          account={account}
-          switcher={switcher}
-          triggerClassName="flex min-h-touch items-center gap-2.5 rounded-lg px-2 text-left hover:bg-muted"
-          trigger={
-            <>
-              <UserAvatar name={user.name} src={user.avatarUrl} className="size-8 text-xs" />
-              <span className="min-w-0 truncate text-sm text-muted-foreground">
-                {user.name}
-                {company ? ` · ${company.role}` : ""}
-              </span>
-            </>
-          }
-        />
-        )}
-      </nav>
+              ))}
+            </ul>
+          </Scroller>
+          <AccountSheet
+            user={user}
+            account={account}
+            switcher={switcher}
+            triggerClassName="flex min-h-touch items-center gap-2.5 rounded-lg px-2 text-left hover:bg-muted"
+            trigger={
+              <>
+                <UserAvatar name={user.name} src={user.avatarUrl} className="size-8 text-xs" />
+                <span className="min-w-0 truncate text-sm text-muted-foreground">
+                  {user.name}
+                  {company ? ` · ${company.role}` : ""}
+                </span>
+              </>
+            }
+          />
+        </nav>
+      )}
 
       {/* ---------- Content ---------- */}
       <main
         className={cn(
           "mx-auto w-full max-w-5xl px-4 pt-shell pb-shell sm:px-6 md:pb-10",
-          // Soft: a centred column, lined up with the top bar's pill and picture.
-          soft ? "lg:max-w-6xl lg:px-8 xl:px-10" : "lg:mx-0 lg:max-w-[110rem] lg:px-10 xl:px-12",
+          // Soft: Docket's 1100px centred column with 32px either side, lined up with the top bar's pill and picture,
+          // the title 18px under the taller (72px) top bar.
+          soft
+            ? "lg:max-w-[calc(1100px+4rem)] lg:px-8 lg:pt-[calc(4.5rem+1px+env(safe-area-inset-top)+1.25rem)]"
+            : "lg:mx-0 lg:max-w-[110rem] lg:px-10 xl:px-12",
         )}
       >
         {settingsPage && <SettingsCrumbs page={settingsPage} />}
@@ -457,16 +482,22 @@ export function ShellNav({ home, primary, main, more, scan, headerActions, accou
       </main>
 
       {/* ---------- Phone bottom bar ---------- */}
-      <nav aria-label="Main" className={cn("fixed inset-x-0 bottom-0 z-40 bg-dock pb-safe md:hidden", soft ? "rounded-t-3xl shadow-[0_-4px_20px_rgb(0_0_0/0.06)]" : "border-t")}>
-        <ul className="grid h-bottomnav grid-cols-5 items-stretch pl-safe pr-safe">
+      {/* Soft: Docket's tab bar, white with a line above, 6px around the items */}
+      <nav aria-label="Main" className={cn("fixed inset-x-0 bottom-0 z-40 border-t bg-dock pb-safe md:hidden", soft && "pl-safe pr-safe")}>
+        <ul className={cn("grid grid-cols-5 items-stretch", soft ? "h-[4.5rem] gap-0.5 px-2 py-1.5" : "h-bottomnav pl-safe pr-safe")}>
           {phoneSlots.slice(0, 2).map((slot, index) => (
             <PhoneSlot key={index} slot={slot} pathname={pathname} more={phoneMore} moreActive={phoneMoreActive} soft={soft} />
           ))}
-          <li className="flex justify-center">
+          <li className={cn("flex justify-center", soft && "items-start")}>
             <a
               href={scan.href}
               aria-label={scan.label}
-              className={cn("-mt-6 flex size-16 items-center justify-center border-4 border-background bg-primary text-primary-foreground shadow-lg active:opacity-90", soft ? "rounded-full" : "rounded-2xl")}
+              className={cn(
+                "flex items-center justify-center bg-primary text-primary-foreground active:opacity-90",
+                soft
+                  ? "-mt-[18px] size-14 rounded-full shadow-[0_6px_16px_rgba(0,0,0,.22)]"
+                  : "-mt-6 size-16 rounded-2xl border-4 border-background shadow-lg",
+              )}
             >
               <Icon name={scan.icon ?? "scan"} className="size-7" />
             </a>
@@ -491,7 +522,7 @@ function PhoneSlot({ slot, pathname, more, moreActive, soft }: { slot: NavItem |
         triggerClassName={barItem(moreActive, soft, "w-full")}
         trigger={
           <>
-            <BarIcon name="more" active={moreActive} soft={soft} />
+            <BarIcon name="more" soft={soft} />
             More
           </>
         }
@@ -500,12 +531,28 @@ function PhoneSlot({ slot, pathname, more, moreActive, soft }: { slot: NavItem |
   );
 }
 
-/** A desktop sidebar item. Grid: highlighted in the accent colour. Soft: a white tile. */
+/** A desktop sidebar link. */
+function SidebarLink({ item, active, soft }: { item: NavItem; active: boolean; soft: boolean }) {
+  return (
+    <a href={item.href} aria-current={active ? "page" : undefined} className={sidebarItem(active, soft)}>
+      <Icon name={item.icon} className="size-5" />
+      <span className="truncate">{item.label}</span>
+    </a>
+  );
+}
+
+/** Ink at 7% over whatever is behind: Docket's hover for menu items and plain icon buttons. */
+const SOFT_HOVER = "hover:bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] hover:text-foreground";
+
+/**
+ * A desktop sidebar item. Grid: highlighted in the accent colour.
+ * Soft (Docket): 44px, 12px corners, 14px semibold; the current page a white tile with a hairline shadow.
+ */
 function sidebarItem(active: boolean, soft: boolean) {
   if (soft) {
     return cn(
-      "flex min-h-touch items-center gap-3 rounded-xl px-3.5 text-[15px] font-medium transition-colors",
-      active ? "bg-card font-semibold text-foreground shadow-sm" : "text-nav-foreground hover:bg-card/70",
+      "flex min-h-touch items-center gap-3 rounded-[12px] px-3.5 text-sm font-semibold",
+      active ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.08)]" : cn("text-muted-foreground", SOFT_HOVER),
     );
   }
   return cn(
@@ -514,9 +561,33 @@ function sidebarItem(active: boolean, soft: boolean) {
   );
 }
 
-/** Phone bar item. Grid: yellow bar across the top of the active one. Soft: a pill behind its icon. */
+/** A tablet rail item (Grid only has a rail; Soft gives it the sidebar's white tile and hover). */
+function railItem(active: boolean, soft: boolean) {
+  return cn(
+    "flex w-full flex-col items-center gap-1 py-2 text-xs",
+    soft ? "font-semibold" : "font-medium",
+    active ? (soft ? "text-foreground" : "text-nav-active") : soft ? "group text-muted-foreground hover:text-foreground" : "text-nav-foreground",
+  );
+}
+
+function railIcon(active: boolean, soft: boolean) {
+  return cn(
+    "flex h-8 w-14 items-center justify-center",
+    soft ? "rounded-[12px]" : "rounded-full",
+    active && (soft ? "bg-card shadow-[0_1px_2px_rgba(0,0,0,.08)]" : "bg-accent text-accent-foreground"),
+    !active && soft && "group-hover:bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)]",
+  );
+}
+
+/** Phone bar item. Grid: yellow bar across the top of the active one. Soft (Docket): the whole item is a tinted tile. */
 function barItem(active: boolean, soft: boolean, extra?: string) {
-  if (soft) return cn("flex h-full flex-col items-center justify-center gap-0.5 text-xs", active ? "font-bold text-nav-active" : "font-medium text-nav-foreground", extra);
+  if (soft) {
+    return cn(
+      "flex h-full flex-col items-center justify-center gap-0.5 rounded-[12px] px-0.5 text-[11px] font-semibold",
+      active ? "bg-accent text-foreground" : "text-muted-foreground",
+      extra,
+    );
+  }
   return cn(
     "-mt-px flex h-full flex-col items-center justify-center gap-0.5 border-t-[3px] text-xs",
     active ? "border-nav-active font-bold text-nav-active" : "border-transparent font-medium text-nav-foreground",
@@ -524,20 +595,15 @@ function barItem(active: boolean, soft: boolean, extra?: string) {
   );
 }
 
-function BarIcon({ name, active, soft }: { name?: string; active: boolean; soft: boolean }) {
-  if (!soft) return <Icon name={name} className="size-6" />;
-  return (
-    <span className={cn("flex h-7 w-12 items-center justify-center rounded-full", active && "bg-accent text-accent-foreground")}>
-      <Icon name={name} className="size-5" />
-    </span>
-  );
+function BarIcon({ name, soft }: { name?: string; soft: boolean }) {
+  return <Icon name={name} className={soft ? "size-5" : "size-6"} />;
 }
 
 function BarItem({ item, active, soft }: { item: NavItem; active: boolean; soft: boolean }) {
   return (
     <li className="min-w-0">
       <a href={item.href} aria-current={active ? "page" : undefined} className={barItem(active, soft)}>
-        <BarIcon name={item.icon} active={active} soft={soft} />
+        <BarIcon name={item.icon} soft={soft} />
         <span className="max-w-full truncate px-1">{item.label}</span>
       </a>
     </li>

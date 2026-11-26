@@ -71,13 +71,31 @@ Each person picks a theme in **Settings › Profile › Appearance** (`User.sett
 
 **The Soft look is a trial (decided Nov 2026, modelled on the owner's Folio app).** Same screens and structure; what changes with `data-look="soft"`:
 
-- **Shapes:** `--radius` 16px (inputs 12px, cards 20px, sheets 24px; Home's page cards 24px, hero 18px, tiles 16px) and pill buttons (`--radius-button`).
-- **Top bar:** no line under it; the business as a white pill ("Morelli ⌄") and your picture at the top right on every screen size; content and top bar share a centred column (max 1152px) on desktop.
-- **Desktop sidebar:** no line beside it; Grid's mark and name, then the centre button (Scan, or Take a photo) as a big navy pill; the current page is a white tile; **Log out** at the bottom.
-- **Tablet rail and phone bar:** the current item gets a pill behind its icon; the centre button is round; the phone bar has rounded top corners.
+**Matched to Docket (Nov 2026):** the Soft shell and shapes are copied from the owner's Docket app (`docket/app/globals.css`, `docket/components/shell`). Where this list and Docket differ, Docket wins.
+
+- **Shapes:** Docket's corner sizes, set as `--corner-*` in `styles.css`: `rounded-sm` 8px, `rounded-md` 12px (inputs, menu items), `rounded-lg` 14px, `rounded-xl` 16px (option rows, tiles), `rounded-2xl` 24px (sheets, dialogs); `Card` is 24px (`--card-radius`); pill buttons (`--radius-button`).
+- **Type:** Plus Jakarta Sans; body 14px at weight 500; page titles (`PageHeader`) 26px bold, −0.02em; buttons 14px semibold. Inputs stay 16px so phones don't zoom.
+- **Hover:** links and buttons ease their colour over 0.15s; menu items and plain icon buttons get the ink colour at 7% behind them; pills and boxes on white go to the light grey (`muted`).
+- **Top bar:** over the content only (not the sidebar), the page colour at 72% with a frosted blur and a line under it. The business is a white pill (44px, no shadow) on the left; your picture on the right on every screen size (44px, initials on a lilac, peach or lime circle picked from your name); Jump to is a white pill. On desktop the bar is 72px and its contents line up with the content column. On phones Grid's mark sits at the left as the way Home.
+- **Content:** a centred column, 1100px wide plus 32px either side on desktop (Docket's), with the title 18px under the top bar.
+- **Desktop sidebar:** 224px with a line beside it, 18px in from the sides and 28px from the top. Grid's mark (32px) and name, then the list: the centre button (Scan, or Take a photo) first as a 44px navy pill with a shadow, then the menu items 6px apart: 44px tall, 12px corners, 14px semibold, grey; the current page is a white tile with a hairline shadow. Items that are under More on smaller screens follow after a line. No Log out here: it's in the sheet your picture opens.
+- **Tablet rail:** keeps Grid's rail (Docket has none), with a line beside it; the current item's icon sits on a white tile with 12px corners, the others get the 7% ink hover; the centre button is round.
+- **Phone bar:** white with a line above it (Docket's tab bar); 11px semibold labels; the current item is a whole lilac-tinted tile (12px corners); the round centre button (56px) sits raised 12px above the bar with a shadow.
 - **Home:** "Good morning, Jesse" with the full date; a navy **hero card** ("3 active jobs on 2 sites.", On site now) with up to three numbered pastel tiles from the `home.tiles` panel slot (on phones the tiles scroll sideways and snap, at least 192px each, as in Folio) (Active jobs, Quotes out, Wallet); a **Needs attention** list from `home.attention` (tickets expired or due, sent quotes past their date); then Your jobs and Shortcuts side by side.
 
 **Exact Folio values (Nov 2026):** the colours are Folio's Lilac theme (light and dark) from Folio's `docs/SPEC.md` "Design system": page `#f1f1f4`, cards white, text `#1f1c3b`, hero and buttons `#2b2849`, tiles lilac `#b8a5fa`, peach `#fddcb4`, lime `#e8fb4f`, focus `#7b5cf5`; dark: page `#14122a`, cards `#1f1d3a`, hero `#34306a`, lilac buttons. Font **Plus Jakarta Sans** (400 to 700, self-hosted with `next/font`, only in the Soft look). Corners as Folio: page cards 24px, hero card 18px, tiles 16px, inputs 12px, pills for buttons; page title 26px bold. All in `styles.css` under "Soft look".
+
+## Your own themes (Nov 2026)
+
+People can make their own colour theme in **Settings › Themes** (`/themes`, the core `themes` Block). Decided Nov 2026:
+
+- **Who owns them:** both. **Your themes** belong to you (`CustomTheme.ownerUserId`, like the Wallet), so they follow you to every business. A business's themes (`companyId`) can be picked by everyone in it; only people with `themes.business.manage` (Owners by default) add, change or delete them. **Share with the business** copies one of yours into the business's; **Copy** makes your own copy of any theme you can see. While solo, the business section only shows once it has a theme in it.
+- **Picking one:** the Appearance list (Profile) and the Themes list both save `User.settings.theme = "custom:<id>"`. A deleted theme, or one from a business you've left, falls back to Grid.
+- **Simple + Advanced:** start from Grid, Grid light, Soft or Soft dark, pick the **look** (Grid or Soft shapes and font) and a few **key colours**: page, cards, text, main colour, and in the Soft look the Home card and three tiles. Grid works out every other token from those the way the built-in themes are put together (`deriveTokens` in `packages/ui/src/lib/custom-themes.ts`): lines, chips, quieter text, highlighted rows, menus, status colours (light or dark set from the page colour), and black or white text on buttons and tiles, whichever reads better. **Every colour (advanced)** lists all 32 tokens; one set by hand is saved in `overrides` and can be worked out again.
+- **Readability warnings:** the editor checks the pairs that matter (text on page, cards and chips, quieter text, button text, highlighted rows, menus, status colours on cards, and in Soft the Home card and tiles) against WCAG contrast: 4.5 : 1 for text, 3 : 1 for links and status marks. It only warns; saving still works.
+- **Export / import:** a theme saves as a small file (`<name>.grid-theme.json`, `{ format: "grid-theme", version: 1, theme }`) to bring into another Grid server, into your themes or (Owners) the business's.
+- **In the code:** the root layout puts `data-theme="custom"`, the theme's `data-look`, and a `<style>` with `:root[data-theme="custom"] { --background: …; … }` in the head. Only checked `#rrggbb` values are ever saved or written into that rule. The phone's status bar uses the theme's page colour. `ctx.user.look` is the look either way (use it, not `lookOf(ctx.user.theme)`). Paper areas and client-facing pages are unchanged.
+- A theme is one set of colours (no light and dark pair that follows the device, for now).
 
 ## App icon
 
