@@ -30,7 +30,7 @@ export function PageHeader({
   return (
     <header className="mb-4 flex items-start justify-between gap-3 sm:mb-6">
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{title}</h1>
+        <h1 className="text-2xl font-bold leading-tight tracking-tight break-words sm:text-3xl soft:text-[1.625rem] soft:tracking-[-0.02em] soft:sm:text-[1.625rem]">{title}</h1>
         {meta && <p className="mt-0.5 text-xs font-medium text-muted-foreground">{meta}</p>}
         {subtitle && <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">{subtitle}</p>}
       </div>
@@ -84,12 +84,15 @@ export function Section({
   return (
     <Card>
       {(title || description || actions) && (
-        <CardHeader className={cn("flex-row items-start justify-between gap-3", flush && "pb-3")}>
-          <div className="min-w-0">
-            {title && <CardTitle>{title}</CardTitle>}
-            {description && <CardDescription className="mt-1">{description}</CardDescription>}
-          </div>
-          {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+        <CardHeader className={cn(flush && "pb-3")}>
+          {/* The buttons sit level with the title; the description runs underneath. */}
+          {(title || actions) && (
+            <div className="flex items-center justify-between gap-3">
+              {title ? <CardTitle className="min-w-0">{title}</CardTitle> : <span />}
+              {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+            </div>
+          )}
+          {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
       )}
       {flush ? children : <CardContent>{children}</CardContent>}

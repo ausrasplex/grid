@@ -3,6 +3,7 @@ export {
   resolveAccess,
   listMyCompanies,
   getCurrentCompany,
+  listMembers,
   syncSystemRoles,
   isSolo,
   defaultCompanyId,

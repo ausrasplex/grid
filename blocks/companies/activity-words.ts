@@ -50,6 +50,7 @@ const THINGS: Record<string, string> = {
   CustomIcon: "custom icon",
   IconDocumentLink: "manual on an icon",
   SheetSignoffSettings: "sign-off match column",
+  CustomTheme: "theme",
 };
 
 /** Actions that read as "<did> a <thing>". Anything else reads "<Thing>: <action words>". */
@@ -99,6 +100,9 @@ const VERBS: Record<string, string> = {
   duplicated: "Duplicated",
   booked: "Booked",
   cancelled: "Cancelled",
+  shared: "Shared",
+  copied: "Copied",
+  imported: "Imported",
 };
 
 const words = (value: string) => value.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();

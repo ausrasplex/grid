@@ -35,6 +35,35 @@ export function themeAttributes(theme: ThemeId): { "data-theme"?: string; "data-
   return { ...(dataTheme ? { "data-theme": dataTheme } : {}), "data-look": lookOf(theme) };
 }
 
+/**
+ * A theme someone made (lib/custom-themes.ts) is saved in User.settings.theme
+ * as "custom:<id>". Returns the id, or null for a built-in theme.
+ */
+export function customThemeIdOf(value: unknown): string | null {
+  return typeof value === "string" && value.startsWith("custom:") && value.length > 7 ? value.slice(7) : null;
+}
+
+/**
+ * Puts a theme on the page straight away (Settings › Appearance), before the
+ * refresh brings the matching menus and Home. For a theme someone made, pass
+ * its stylesheet (tokensCss) too.
+ */
+export function showThemeNow(attributes: { "data-theme"?: string; "data-look": Look }, customCss?: string) {
+  const root = document.documentElement;
+  if (attributes["data-theme"]) root.setAttribute("data-theme", attributes["data-theme"]);
+  else root.removeAttribute("data-theme");
+  root.setAttribute("data-look", attributes["data-look"]);
+  let style = document.getElementById("grid-custom-theme");
+  if (customCss) {
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "grid-custom-theme";
+      document.head.appendChild(style);
+    }
+    style.textContent = customCss;
+  } else style?.remove();
+}
+
 /** The phone's status bar colour (matches the page background). */
 export function themeColour(theme: ThemeId): string {
   switch (theme) {

@@ -213,13 +213,12 @@ export const panels: BlockPanels = {
     if (!quote) {
       if (!can(ctx, "quotes.create")) return null;
       return (
-        <a href={`/quotes/upload/${job.id}`} className="flex min-h-touch items-center gap-3 rounded-xl border border-dashed px-4 py-3 text-muted-foreground hover:bg-muted">
-          <Icon name="file" className="size-5" />
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold text-foreground">Attach a quote PDF</span>
-            <span className="block text-sm">For a quote you made outside Grid</span>
-          </span>
-        </a>
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+          <a href={`/quotes/upload/${job.id}`} className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}>
+            <Icon name="file" /> Attach a quote PDF
+          </a>
+          <p className="text-center text-sm text-muted-foreground sm:text-left">For a quote you made outside Grid</p>
+        </div>
       );
     }
     return (

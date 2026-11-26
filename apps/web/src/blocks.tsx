@@ -15,6 +15,7 @@ import companies from "@grid/block-companies/block";
 import clients from "@grid/block-clients/block";
 import materials from "@grid/block-materials/block";
 import credentials from "@grid/block-credentials/block";
+import themes from "@grid/block-themes/block";
 import sites from "@grid/block-sites/block";
 import projects from "@grid/block-projects/block";
 import photos from "@grid/block-photos/block";
@@ -28,7 +29,7 @@ import signoffs from "@grid/block-signoffs/block";
 import handover from "@grid/block-handover/block";
 import assets from "@grid/block-assets/block";
 
-const definitions = [users, companies, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, handover, assets];
+const definitions = [users, companies, themes, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, handover, assets];
 
 /** Lazy page loaders, keyed by block id. */
 export const blockPages: Record<string, () => Promise<BlockPages>> = {
@@ -37,6 +38,7 @@ export const blockPages: Record<string, () => Promise<BlockPages>> = {
   clients: async () => (await import("@grid/block-clients/ui")).pages,
   materials: async () => (await import("@grid/block-materials/ui")).pages,
   credentials: async () => (await import("@grid/block-credentials/ui")).pages,
+  themes: async () => (await import("@grid/block-themes/ui")).pages,
   sites: async () => (await import("@grid/block-sites/ui")).pages,
   projects: async () => (await import("@grid/block-projects/ui")).pages,
   photos: async () => (await import("@grid/block-photos/ui")).pages,

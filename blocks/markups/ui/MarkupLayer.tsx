@@ -5,7 +5,8 @@
 // scale. Lives inside the Plans viewer through the plan overlay.
 //
 // Tools: pick one and draw with one finger (two fingers still move and
-// zoom). Tap a markup with no tool picked to select it. Markups save as
+// zoom). Tap a markup with no tool picked to select it. Press and hold a
+// text markup (or drag one that's selected) to move it. Markups save as
 // soon as they're drawn; Undo takes the last thing back.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -110,6 +111,8 @@ const tapsOnly = (tool: ToolId | string) => ({ tapsOnly: tool === "text" || TAP_
 const SNAPS: ToolId[] = ["line", "arrow", "length", "area", "scale"];
 /** Measurements whose points can be dragged, while drawing and after. */
 const MOVABLE_POINTS: MarkupKind[] = ["LENGTH", "AREA"];
+/** Markups moved whole: press and hold one (or drag it once it's selected). */
+const MOVABLE_WHOLE: MarkupKind[] = ["TEXT"];
 /** How close (screen pixels) a press must be to a point to grab it. */
 const GRAB = 24;
 
@@ -163,6 +166,8 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
   const selected = visible.find((markup) => markup.id === selectedId) ?? null;
   /** The selected measurement, when you may move its points. */
   const movable = selected && !tool && !hidden && canDraw && selected.canChange && MOVABLE_POINTS.includes(selected.kind) ? selected : null;
+  /** The selected text, when you may move it. */
+  const movableWhole = selected && !tool && !hidden && canDraw && selected.canChange && MOVABLE_WHOLE.includes(selected.kind) ? selected : null;
 
   // Errors fade after a few seconds.
   useEffect(() => {
@@ -295,10 +300,12 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
     };
   }, []);
 
-  const latest = useRef({ tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable, snapOn });
-  latest.current = { tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable, snapOn };
+  const latest = useRef({ tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable, movableWhole, snapOn });
+  latest.current = { tool, otherTool: !!overlay.tool && !tool, visible, view, hidden, canDraw, movable, movableWhole, snapOn };
   /** The point being dragged: in the measurement being drawn ("draft") or a saved one. */
   const grabbed = useRef<{ id: string; index: number; points: Point[]; before: Point[] } | null>(null);
+  /** A whole markup being moved (a text): where the finger started, and where it was before. */
+  const carried = useRef<{ markup: MarkupJson; start: Point; points: Point[] } | null>(null);
 
   const finishPoints = useCallback(
     (current: { tool: ToolId; points: Point[] }) => {
@@ -315,7 +322,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
 
   const onPointer = useCallback(
     (pointer: PlanPointer) => {
-      const { tool, otherTool, visible, view, hidden, canDraw, movable, snapOn } = latest.current;
+      const { tool, otherTool, visible, view, hidden, canDraw, movable, movableWhole, snapOn } = latest.current;
       const draft = stroke.current;
       const point = pointer.point;
       const snapping = (snapOn || shiftHeld.current) && !!tool && SNAPS.includes(tool);
@@ -323,6 +330,37 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
       const snapFrom = (from: Point | undefined) => (snapping && from ? snapAngle(from, point) : point);
       // Another Block's tool (a photo pin) has the taps.
       if (otherTool) return;
+
+      // Move a whole text: press and hold it, or press on it once it's selected.
+      const pickUp = (markup: MarkupJson) => {
+        pointer.claim?.();
+        carried.current = { markup, start: point, points: markup.points };
+        setSelectedId(markup.id);
+      };
+      if (!tool && pointer.kind === "press" && movableWhole && pickMarkup([movableWhole], point, 14 / view.scale)) {
+        pickUp(movableWhole);
+        return;
+      }
+      if (!tool && pointer.kind === "hold" && !hidden && canDraw) {
+        const target = pickMarkup(visible, point, 14 / view.scale);
+        if (target && target.canChange && MOVABLE_WHOLE.includes(target.kind)) pickUp(target);
+        return;
+      }
+      const moving = carried.current;
+      if (moving && (pointer.kind === "drag" || pointer.kind === "release" || pointer.kind === "cancel")) {
+        const shift: Point = [point[0] - moving.start[0], point[1] - moving.start[1]];
+        const points = moving.markup.points.map(([x, y]): Point => [x + shift[0], y + shift[1]]);
+        if (pointer.kind === "drag") {
+          moving.points = points;
+          setMovedPoints({ id: moving.markup.id, points });
+          return;
+        }
+        carried.current = null;
+        setMovedPoints(null);
+        // Let go: save where it landed, if it really moved (Undo puts it back).
+        if (pointer.kind === "release" && distance(moving.start, point) * view.scale > 2) void update(moving.markup, { points });
+        return;
+      }
 
       // Grab a point (of the area or run being drawn, or the selected one) and drag it.
       if (pointer.kind === "press") {
@@ -551,7 +589,7 @@ export function MarkupLayer({ sheetId, initial, canAdd, solo }: { sheetId: strin
         <SelectedCard
           markup={selected}
           label={measureLabel(selected, metresPerUnit)}
-          hint={movable ? (movable.kind === "AREA" ? "Drag a corner to move it." : "Drag a point to move it.") : null}
+          hint={movable ? (movable.kind === "AREA" ? "Drag a corner to move it." : "Drag a point to move it.") : movableWhole ? "Drag the text to move it." : null}
           fromRevision={selected.versionId !== version.id ? (versions.find((entry) => entry.id === selected.versionId)?.revision ?? "") : null}
           solo={solo}
           onClose={() => setSelectedId(null)}

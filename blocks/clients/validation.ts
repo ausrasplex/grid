@@ -41,3 +41,29 @@ export const businessSchema = z
   .strict();
 
 export type BusinessInput = z.infer<typeof businessSchema>;
+
+// --- export and import ---------------------------------------------------------
+
+export const formatSchema = z.enum(["xlsx", "csv"]).default("xlsx");
+
+/** Share our card: `members` is a comma-separated list of membership ids (none = just the business). */
+export const cardQuerySchema = z.object({
+  format: formatSchema,
+  members: z
+    .string()
+    .optional()
+    .transform((value) => (value ? value.split(",").filter(Boolean) : []))
+    .pipe(z.array(z.string().uuid())),
+});
+
+const decision = z.enum(["add", "update", "skip"]);
+
+export const importSchema = z
+  .object({
+    /** The first sheet of the file, row by row, as read on the phone or computer. */
+    cells: z.array(z.array(z.union([z.string(), z.number(), z.boolean(), z.null()]))),
+    decisions: z
+      .object({ businesses: z.record(z.string(), decision), people: z.record(z.string(), decision) })
+      .default({ businesses: {}, people: {} }),
+  })
+  .strict();

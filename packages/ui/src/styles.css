@@ -57,6 +57,15 @@
   --tile-3: var(--muted);
   --tile-foreground: var(--foreground);
   --radius-button: calc(var(--radius) - 4px);
+
+  /* Corner sizes (rounded-sm … rounded-2xl). Worked out from --radius here;
+     the Soft look sets Docket's own sizes instead. */
+  --corner-sm: calc(var(--radius) - 6px);
+  --corner-md: calc(var(--radius) - 4px);
+  --corner-lg: var(--radius);
+  --corner-xl: calc(var(--radius) + 4px);
+  --corner-2xl: calc(var(--radius) + 8px);
+  --card-radius: var(--corner-xl); /* the Card component */
 }
 
 /* ---------- Optional light theme (concept A palette) ----------
@@ -202,12 +211,23 @@
   }
 }
 :root[data-look="soft"] {
-  /* inputs 12px, menus and tiles 16px, cards 20px, sheets and page cards 24px */
-  --radius: 1rem;
+  /* Docket's shapes (docket/app/globals.css): chips 8px, inputs and menu
+     items 12px, list highlights 14px, option rows and tiles 16px, sheets,
+     dialogs and page cards 24px, pill buttons. */
+  --radius: 14px;
+  --corner-sm: 8px;
+  --corner-md: 12px;
+  --corner-lg: 14px;
+  --corner-xl: 16px;
+  --corner-2xl: 24px;
+  --card-radius: 24px;
   --radius-button: 9999px; /* pill buttons */
 }
+/* Docket's type: 14px body at weight 500, page titles 26px bold (PageHeader). */
 :root[data-look="soft"] body {
   font-family: var(--font-soft), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
 }
 /* Plans and PDFs stay on paper in every theme. */
 :root[data-look="soft"] .paper {
@@ -246,6 +266,9 @@
   }
 }
 
+/* soft:… classes apply only in the Soft look (data-look="soft" on <html>). */
+@custom-variant soft (&:where([data-look="soft"] *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -280,11 +303,13 @@
   --color-tile-3: var(--tile-3);
   --color-tile-foreground: var(--tile-foreground);
 
-  --radius-sm: calc(var(--radius) - 6px); /* 4px: badges, small chips */
-  --radius-md: calc(var(--radius) - 4px); /* 6px: inputs, small buttons */
-  --radius-lg: var(--radius); /* 10px: list highlights, menu items */
-  --radius-xl: calc(var(--radius) + 4px); /* 14px: cards */
-  --radius-2xl: calc(var(--radius) + 8px); /* 18px: sheets, hero cards */
+  /* Grid look: 4px badges, 6px inputs, 10px list highlights, 14px cards, 18px sheets.
+     Soft look: Docket's 8 / 12 / 14 / 16 / 24px (see "Soft look" above). */
+  --radius-sm: var(--corner-sm);
+  --radius-md: var(--corner-md);
+  --radius-lg: var(--corner-lg);
+  --radius-xl: var(--corner-xl);
+  --radius-2xl: var(--corner-2xl);
 
   /* Touch-target sizes used across components */
   --spacing-touch: 2.75rem; /* 44px: Apple/Google minimum */
@@ -317,6 +342,18 @@
   :focus-visible {
     outline: 2px solid var(--color-ring);
     outline-offset: 2px;
+  }
+
+  /* Soft look: links and buttons ease their hover colour over 0.15s, as Docket does. */
+  @media (hover: hover) {
+    :root[data-look="soft"] :is(a, button, summary) {
+      transition:
+        background-color 0.15s ease,
+        box-shadow 0.15s ease,
+        border-color 0.15s ease,
+        transform 0.15s ease,
+        color 0.15s ease;
+    }
   }
 
   /* Phones and tablets: no visible scrollbars. Scrollable areas show a

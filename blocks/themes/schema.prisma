@@ -1,0 +1,27 @@
+/// A colour theme someone made (Settings › Themes, docs/visual-style.md
+/// "Your own themes"). Either a person's own (ownerUserId: follows them to
+/// every business) or a business's (companyId: everyone in it can pick it).
+/// Picked with User.settings.theme = "custom:<id>".
+model CustomTheme {
+  id          String   @id @default(uuid())
+  /// Set for a business's theme.
+  companyId   String?
+  /// Set for a person's own theme.
+  ownerUserId String?
+  createdById String
+  name        String
+  description String   @default("")
+  /// "grid" or "soft": the shapes and font (data-look).
+  look        String   @default("grid")
+  /// The built-in theme it was started from (grid, grid-light, soft, soft-dark).
+  startedFrom String   @default("grid")
+  /// The simple editor's colours: { page, card, text, main, hero, tile1, tile2, tile3 } as "#rrggbb".
+  keyColours  Json
+  /// Advanced: single colours set by hand, { "border": "#2d3134" }. The rest are worked out.
+  overrides   Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerUserId])
+  @@index([companyId])
+}

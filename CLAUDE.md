@@ -58,7 +58,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, clients, materials, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, handover, assets (optional)
+blocks/        users, companies, themes, clients, materials, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, handover, assets (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -97,6 +97,8 @@ prisma/        base, core and auth schemas; migrations
   **Phase 4c part 1** (trade icon library by trade with search, placing icons on plans as ICON markups, numbered versions per job, counts per sheet, level and job, trade layers) is done too; see "What part 1 built" under Phase 4c in `docs/roadmap.md`.
   **Phase 4c part 2** (the quote's Take-off section through the `quote.takeoff` slot, a price list item per icon number, Add to quote and "Take-off changed", Quoting jobs moved along by quote events) is done too; see "What part 2 built" under Phase 4c in `docs/roadmap.md`.
   **Phase 4c part 3** (custom icons built from a shape and letters in Settings › Icons, and manuals linked to an icon type at `/documents/icon/<key>`) is done too, which finishes Phase 4c.
+  **Clients export and import** (Settings › Clients › Export & import: Excel/CSV export, import with a matching preview, Share our business card; contact cards only, never accounts) is done too; see "Export and import" in `docs/quotations-block.md`. `ClientBusiness.linkedCompanyId` and `Client.linkedUserId` wait for the contract chain.
+  **Your own themes** (core `themes` Block: Settings › Themes, simple key colours plus every colour under Advanced, Grid or Soft look, readability warnings, export/import, business themes for Owners) is done too; see "Your own themes" in `docs/visual-style.md`.
   **Materials part 1** (the core `materials` Block: Settings › Materials with photos or colour swatches, brands, families and trades; the price list's material items now point at a material and brands moved there) is done too; see "What part 1 built" in `docs/materials-block.md`.
   **Materials part 2** (the `handover` Block: a job's list by trade and room at `/handover/<job>`, the landscape Fixtures & Finishes Schedule PDF, Settings › Handover, the client's `/h/<token>` link with Email to client) is done too; see "What part 2 built" in `docs/materials-block.md`.
   **Materials part 3** (Bring in on the handover list: plan icons per level and accepted quotes, through the core `jobMaterials` and `priceItemMaterials` Block hooks; changed-by-hand lines left alone) is done too; see "What part 3 built" in `docs/materials-block.md`.

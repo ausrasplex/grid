@@ -7,14 +7,20 @@ import "server-only";
 import { cache } from "react";
 import type { RequestContext } from "@grid/core";
 import { avatarUrl, db } from "@grid/db";
-import { themeOf, type ThemeId } from "@grid/ui";
+import { lookOf, themeOf, type Look, type ThemeId } from "@grid/ui";
+import { appliedTheme, type AppliedTheme } from "@grid/block-themes";
 import { defaultCompanyId, resolveAccess } from "@grid/block-companies";
 import { registry } from "@/blocks";
 import { getActiveCompanyId, getSessionUserId } from "./session";
 
 export interface AppContext extends RequestContext {
-  /** avatarUrl: their picture, or null for initials. */
-  user: { id: string; name: string; email: string; serverAdmin: boolean; avatarUrl: string | null; theme: ThemeId; pinned: string[] };
+  /**
+   * avatarUrl: their picture, or null for initials.
+   * theme: the built-in theme picked ("grid" when they use one they made);
+   * customTheme: the one they or their business made, when they use it;
+   * look: the shapes and font either way (use this, not lookOf(theme)).
+   */
+  user: { id: string; name: string; email: string; serverAdmin: boolean; avatarUrl: string | null; theme: ThemeId; customTheme: AppliedTheme | null; look: Look; pinned: string[] };
   company: { id: string; name: string; role: string } | null;
 }
 
@@ -32,7 +38,20 @@ export const getContext = cache(async (): Promise<AppContext | null> => {
     select: { id: true, name: true, email: true, serverAdmin: true, avatarKey: true, image: true, settings: true },
   });
   if (!found) return null;
-  const user = { id: found.id, name: found.name, email: found.email, serverAdmin: found.serverAdmin, avatarUrl: avatarUrl(found), theme: themeOf((found.settings as { theme?: unknown } | null)?.theme), pinned: pinnedOf((found.settings as { pinned?: unknown } | null)?.pinned) };
+  const settings = (found.settings ?? {}) as { theme?: unknown; pinned?: unknown };
+  const theme = themeOf(settings.theme);
+  const customTheme = await appliedTheme(found.id, settings.theme);
+  const user = {
+    id: found.id,
+    name: found.name,
+    email: found.email,
+    serverAdmin: found.serverAdmin,
+    avatarUrl: avatarUrl(found),
+    theme,
+    customTheme,
+    look: customTheme?.look ?? lookOf(theme),
+    pinned: pinnedOf(settings.pinned),
+  };
 
   const required = registry.effectiveEnabled([]);
   const base: AppContext = {
