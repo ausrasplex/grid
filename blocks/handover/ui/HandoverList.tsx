@@ -114,7 +114,7 @@ export function HandoverList({
                     <div className="flex min-h-touch items-center gap-2 border-b px-4 sm:px-5">
                       <h3 className="flex-1 font-bold tracking-wide uppercase">{room.room ?? "General"}</h3>
                       {canEdit && (
-                        <Button variant="ghost" size="sm" onClick={() => setOpen({ kind: "pick", room: room.room })} aria-label={`Add to ${room.room ?? "General"}`}>
+                        <Button variant="ghost" onClick={() => setOpen({ kind: "pick", room: room.room })} aria-label={`Add to ${room.room ?? "General"}`}>
                           <Plus /> Add
                         </Button>
                       )}

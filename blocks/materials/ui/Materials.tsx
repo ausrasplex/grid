@@ -60,7 +60,7 @@ export function Materials({ initial, initialBrands, canManage }: { initial: Mate
                 aria-pressed={chip.id === trade}
                 onClick={() => setTrade(chip.id)}
                 className={cn(
-                  "flex h-10 shrink-0 items-center rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors",
+                  "flex h-touch shrink-0 items-center rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors",
                   chip.id === trade ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground",
                 )}
               >

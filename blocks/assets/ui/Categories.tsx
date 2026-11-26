@@ -115,7 +115,7 @@ function CategorySheet({ category, onClose, onSaved }: { category: Partial<Categ
             {fields.length === 0 && <p className="text-sm text-muted-foreground">None yet. Every asset has a name, number, make, model, serial number, date bought and notes already.</p>}
             {fields.map((field, index) => (
               <div key={`${field.key}-${index}`} className="flex flex-col gap-2 rounded-xl bg-muted/40 p-3">
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
                   <Field label="Label" placeholder="e.g. Rated load (kg)" value={field.label} onChange={(event) => change(index, { label: event.target.value })} />
                   <SelectField label="Type" value={field.type} onChange={(event) => change(index, { type: event.target.value as FieldType })} options={TYPES} />
                 </div>
@@ -141,7 +141,7 @@ function CategorySheet({ category, onClose, onSaved }: { category: Partial<Categ
             <p className="text-sm text-muted-foreground">Every asset in it follows these, like test & tag every 3 months. Changing one here changes it on all of them.</p>
             {routines.map((routine, index) => (
               <div key={routine.id ?? `new-${index}`} className="flex flex-col gap-2 rounded-xl bg-muted/40 p-3">
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem]">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem]">
                   <Field label="Name" placeholder="e.g. Test & tag" list="routine-names" value={routine.name} onChange={(event) => changeRoutine(index, { name: event.target.value })} />
                   <Field label="Every (months)" inputMode="numeric" placeholder="3" value={routine.everyMonths} onChange={(event) => changeRoutine(index, { everyMonths: event.target.value.replace(/\D/g, "") })} />
                 </div>

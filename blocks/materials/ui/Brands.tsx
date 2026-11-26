@@ -39,7 +39,7 @@ export function BrandChips({
       description={brands.length ? undefined : "Add the makes you buy (Clipsal, HPM, Beacon Lighting…) to sort your materials by brand."}
       actions={
         onManage && (
-          <Button variant="outline" size="sm" onClick={onManage}>
+          <Button variant="outline" onClick={onManage}>
             {brands.length ? <Pencil aria-hidden /> : <Plus aria-hidden />}
             {brands.length ? "Edit brands" : "Add brands"}
           </Button>
@@ -56,7 +56,7 @@ export function BrandChips({
               aria-pressed={chip.value === value}
               onClick={() => onChange(chip.value)}
               className={cn(
-                "flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors",
+                "flex h-touch shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors",
                 chip.value === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground",
               )}
             >

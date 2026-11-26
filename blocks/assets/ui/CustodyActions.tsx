@@ -269,37 +269,37 @@ export function CustodyActions({
       <h2 className="text-sm font-bold tracking-wide text-muted-foreground uppercase">Actions</h2>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
         {lost && canReport ? (
-          <Button size="lg" onClick={() => setOpen("recover")}>
+          <Button onClick={() => setOpen("recover")}>
             <PackageCheck /> Recovered
           </Button>
         ) : !canCustody ? null : mine ? (
-          <Button size="lg" onClick={() => setOpen("return")}>
+          <Button onClick={() => setOpen("return")}>
             <LogIn /> Return
           </Button>
         ) : withPerson && !blocked ? (
-          <Button size="lg" onClick={() => setOpen("take")}>
+          <Button onClick={() => setOpen("take")}>
             <Hand /> Take over
           </Button>
         ) : (
           <div className="flex flex-col gap-1">
-            <Button size="lg" disabled={!!blocked} onClick={() => setOpen("out")}>
+            <Button disabled={!!blocked} onClick={() => setOpen("out")}>
               <LogOut /> Check out
             </Button>
             {blocked && <p className="text-sm font-semibold text-destructive">{blocked}</p>}
           </div>
         )}
         {canReport && !retired && !lost && (
-          <Button size="lg" variant="outline" onClick={() => setOpen("fault")}>
+          <Button variant="outline" onClick={() => setOpen("fault")}>
             <AlertTriangle /> Fault
           </Button>
         )}
         {canReport && !retired && !lost && (
-          <Button size="lg" variant="outline" onClick={() => setOpen("lost")}>
+          <Button variant="outline" onClick={() => setOpen("lost")}>
             <SearchX /> Lost
           </Button>
         )}
         {canAssign && !lost && !retired && (
-          <Button size="lg" variant="ghost" onClick={() => setOpen(withPerson && !mine && !blocked ? "out" : "move")}>
+          <Button variant="ghost" onClick={() => setOpen(withPerson && !mine && !blocked ? "out" : "move")}>
             <ArrowRightLeft /> {withPerson && !mine && !blocked && !solo ? "Give to someone" : "Move"}
           </Button>
         )}

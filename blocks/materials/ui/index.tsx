@@ -41,7 +41,7 @@ async function MaterialPage({ ctx, materialId }: { ctx: RequestContext; material
         meta={[material.itemType, materialMeta(material)].filter(Boolean).join(" · ") || undefined}
         actions={!material.removed && can(ctx, "materials.manage") ? <MaterialActions material={material} /> : undefined}
       />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <Stack>
           {material.removed && <Alert>This material was removed from the list. Price list items and jobs that use it keep it.</Alert>}
           <Section title="Details" flush>

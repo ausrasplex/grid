@@ -125,7 +125,7 @@ export function MaterialSheet({
             <SwatchPicker value={swatch} onChange={setSwatch} />
           )}
           <Field label="Name" placeholder="e.g. Masson Accent Minitrim LED Downlight" value={form.name} onChange={(event) => set({ name: event.target.value })} required autoFocus={!material.id} />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field
               label="Item type"
               placeholder="e.g. Downlight"
@@ -141,7 +141,7 @@ export function MaterialSheet({
               options={MATERIAL_TRADES.map((option) => ({ value: option.id, label: option.name }))}
             />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <SelectField
               label="Brand"
               value={form.brandId}
@@ -155,7 +155,7 @@ export function MaterialSheet({
             )}
           </div>
           {form.brandId === NEW_BRAND && <Field label="Model" placeholder="e.g. 3042" value={form.model} onChange={(event) => set({ model: event.target.value })} />}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Colour / finish" placeholder="e.g. White with warm white bulb" list={`${ids}-finishes`} value={form.finish} onChange={(event) => set({ finish: event.target.value })} />
             <Field label="Size" placeholder="e.g. 90 mm cut-out" value={form.size} onChange={(event) => set({ size: event.target.value })} />
           </div>
