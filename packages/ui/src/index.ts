@@ -1,7 +1,29 @@
 export * from "./types";
 export { cn, newId } from "./lib/utils";
 export { describeDevice } from "./lib/devices";
-export { THEMES, themeOf, lookOf, themeAttributes, themeColour, type ThemeId, type Look } from "./lib/themes";
+export { THEMES, themeOf, lookOf, themeAttributes, themeColour, customThemeIdOf, showThemeNow, type ThemeId, type Look } from "./lib/themes";
+export {
+  KEY_COLOURS,
+  THEME_TOKENS,
+  STARTERS,
+  HEX_COLOUR,
+  CUSTOM_THEME_STYLE_ID,
+  starterOf,
+  deriveTokens,
+  resolveTokens,
+  readabilityWarnings,
+  tokenStyle,
+  tokensCss,
+  contrast,
+  isDark,
+  isTokenName,
+  type KeyColours,
+  type KeyColourName,
+  type TokenName,
+  type ThemeTokens,
+  type TokenOverrides,
+  type ReadabilityWarning,
+} from "./lib/custom-themes";
 
 // shadcn/ui components
 export { Button, buttonVariants, type ButtonProps } from "./components/button";
