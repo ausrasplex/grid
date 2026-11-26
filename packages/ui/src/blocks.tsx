@@ -67,7 +67,10 @@ export function Grid({ className, children }: { className?: string; children: Re
   return <div className={cn("grid gap-4 md:grid-cols-2 sm:gap-6 2xl:grid-cols-3", className)}>{children}</div>;
 }
 
-/** A card with an optional heading. `flush` removes padding for lists that run edge to edge. */
+/**
+ * A card with an optional heading. `flush` removes padding for lists that run edge to edge.
+ * Soft look: a flush card keeps a buffer at its sides instead, like Docket (styles.css "Soft look: lists in cards").
+ */
 export function Section({
   title,
   description,
@@ -82,7 +85,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <Card>
+    <Card data-flush={flush || undefined}>
       {(title || description || actions) && (
         <CardHeader className={cn(flush && "pb-3")}>
           {/* The buttons sit level with the title; the description runs underneath. */}
@@ -109,6 +112,7 @@ export function List({ variant = "rows", children }: { variant?: "rows" | "butto
   if (variant === "buttons") {
     return (
       <ul
+        data-variant="buttons"
         className={cn(
           "flex flex-col gap-2 px-3 pb-3 sm:px-4 sm:pb-4",
           // Each LinkRow's link becomes the button.

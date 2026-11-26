@@ -40,7 +40,7 @@ export function SettingsSections({ sections, pinned: initial }: { sections: Sett
       <Grid>
         {sections.map((section) => (
           <Section key={section.id} title={section.title} description={section.description} flush>
-            <ul className="flex flex-col gap-2 px-3 pb-3 sm:px-4 sm:pb-4">
+            <ul data-variant="buttons" className="flex flex-col gap-2 px-3 pb-3 sm:px-4 sm:pb-4">
               {section.items.map((item) => (
                 <SettingsRow key={item.id} item={item} pinned={pinned.includes(item.id)} onPin={() => toggle(item.id)} />
               ))}

@@ -234,6 +234,45 @@
   --radius-button: calc(var(--radius) - 4px);
 }
 
+/* Soft look: lists in cards (Docket's Recent Activity). A flush Section's
+   list stops 16px (20px from 640px) short of the card's sides, in line with
+   the heading, instead of running edge to edge: no line under the heading,
+   the lines between rows inset, row text lined up with the heading, and a
+   rounded hover tile that reaches 12px past the text (its right padding is
+   left alone, for rows with buttons laid over that side). Lists of filled
+   buttons (data-variant="buttons") just lose their own side padding.
+   Unlayered so it wins over the rows' own padding classes. */
+:root[data-look="soft"] [data-flush] > :not([data-slot="card-header"]) {
+  margin-inline: 16px;
+}
+:root[data-look="soft"] [data-flush] > :last-child:not([data-slot="card-header"]) {
+  margin-bottom: 8px;
+}
+@media (width >= 40rem) {
+  :root[data-look="soft"] [data-flush] > :not([data-slot="card-header"]) {
+    margin-inline: 20px;
+  }
+}
+:root[data-look="soft"] [data-flush] > ul {
+  border-top-width: 0;
+}
+:root[data-look="soft"] [data-flush] > ul[data-variant="buttons"] {
+  padding-inline: 0;
+  padding-bottom: 0;
+}
+:root[data-look="soft"] [data-flush] > ul:not([data-variant="buttons"]) > li {
+  padding-inline: 0;
+}
+:root[data-look="soft"] [data-flush] > ul:not([data-variant="buttons"]) > li > :not(a, button) {
+  padding-inline: 0;
+}
+:root[data-look="soft"] [data-flush] > ul:not([data-variant="buttons"]) > li > :is(a, button):first-child {
+  margin-inline: -12px;
+  padding-left: 12px;
+  border-radius: 12px;
+  width: calc(100% + 24px);
+}
+
 /* On paper, the accent is amber so selections and pins stay visible on white. */
 .paper {
   --primary: oklch(0.7 0.16 70);
