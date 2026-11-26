@@ -53,3 +53,4 @@ export interface BlocksChangedEvent {
   blockId: string;
   enabled: boolean;
 }
+export { uploadBusinessPicture, removeBusinessPicture, useBrandingLogo, businessPicture, businessPictureKey } from "./pictures";

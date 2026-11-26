@@ -11,7 +11,7 @@ import { Alert, Avatar, Icon, List, PageHeader, Section, Stack, type BlockPages,
 import { roleLine } from "../people";
 import { businessPage, clientPage, listBusinesses, listClients } from "../service";
 import type { ClientPagePanelProps } from "../index";
-import { BusinessActions, ClientActions } from "./ClientActions";
+import { BusinessActions, ClientActions, ShareContact } from "./ClientActions";
 import { Clients } from "./Clients";
 import { ImportClients } from "./ClientTransfer";
 
@@ -44,10 +44,15 @@ interface Detail {
   note?: string;
 }
 
-function Details({ details, empty }: { details: Detail[]; empty: string }) {
+function Details({ details, empty, picture }: { details: Detail[]; empty: string; picture?: { name: string; url: string | null } }) {
   const shown = details.filter((detail) => detail.value);
   return (
     <Section title="Details" flush>
+      {picture?.url && (
+        <div className="px-4 pb-3 sm:px-5">
+          <Avatar name={picture.name} src={picture.url} className="size-20 text-2xl" />
+        </div>
+      )}
       {shown.length === 0 ? (
         <p className="px-4 pb-4 text-muted-foreground sm:px-5">{empty}</p>
       ) : (
@@ -103,7 +108,14 @@ async function ClientPage({ ctx, clientId, panels }: { ctx: RequestContext; clie
       <PageHeader
         title={client.name}
         meta={[roleLine(client), client.contactName, phone].filter(Boolean).join(" · ") || undefined}
-        actions={!client.removed && can(ctx, "clients.edit") ? <ClientActions client={client} canRemove={can(ctx, "clients.manage")} /> : undefined}
+        actions={
+          client.removed ? undefined : (
+            <>
+              <ShareContact client={client} />
+              {can(ctx, "clients.edit") && <ClientActions client={client} canRemove={can(ctx, "clients.manage")} />}
+            </>
+          )
+        }
       />
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <Stack>
@@ -117,7 +129,7 @@ async function ClientPage({ ctx, clientId, panels }: { ctx: RequestContext; clie
           )}
         </Stack>
         <Stack>
-          <Details details={details} empty="No contact details yet." />
+          <Details details={details} empty="No contact details yet." picture={{ name: client.name, url: client.pictureUrl }} />
         </Stack>
       </div>
     </>
@@ -153,7 +165,7 @@ async function BusinessPage({ ctx, businessId, panels }: { ctx: RequestContext; 
                 {people.map((person) => (
                   <li key={person.id}>
                     <a href={`/clients/${person.id}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-2.5 hover:bg-muted active:bg-muted sm:px-5">
-                      <Avatar name={person.name} />
+                      <Avatar name={person.name} src={person.pictureUrl} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{person.name}</span>
                         <span className="block truncate text-sm text-muted-foreground">{[person.role, person.phone, person.email].filter(Boolean).join(" · ") || "No details yet"}</span>
@@ -175,6 +187,7 @@ async function BusinessPage({ ctx, businessId, panels }: { ctx: RequestContext; 
         <Stack>
           <Details
             empty="No details yet."
+            picture={{ name: business.name, url: business.logoUrl }}
             details={[
               { label: "ABN", value: business.abn },
               { label: "Phone", value: business.phone, href: phoneHref(business.phone), icon: "phone" },

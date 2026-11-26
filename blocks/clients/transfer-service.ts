@@ -3,48 +3,52 @@
 // "Export and import"). The layout and matching live in transfer.ts.
 
 import { randomUUID } from "node:crypto";
-import { badRequest, can, forbidden, requireCompany, type RequestContext } from "@grid/core";
-import { audit, db } from "@grid/db";
+import { badRequest, can, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
+import { audit, db, pictureFolder, readPicture, savePicture } from "@grid/db";
 import { getCurrentCompany, listMembers } from "@grid/block-companies";
 import { themeFor } from "@grid/block-templates";
 import { clientLabel } from "./people";
 import { emitRenamed } from "./service";
-import { hasChanges, planImport, readTable, toTable, updateFields, type BusinessCard, type Decision, type ImportPlan, type PersonCard } from "./transfer";
+import { toVCard, vcardFileName, type VCardContact } from "./vcard";
+import { addsPicture, hasChanges, planImport, readTable, toTable, updateFields, type BusinessCard, type Decision, type ImportPlan, type PersonCard } from "./transfer";
 
 const MOD = "clients";
 
 export type SheetFormat = "xlsx" | "csv";
+/** A zip carries the pictures too (Excel inside). */
+export type TransferFormat = SheetFormat | "zip";
 
-const businessCardSelect = { id: true, name: true, abn: true, phone: true, email: true, address: true, notes: true } as const;
-const personCardSelect = { id: true, businessId: true, name: true, role: true, contactName: true, phone: true, email: true, address: true, abn: true, notes: true } as const;
+const businessCardSelect = { id: true, name: true, abn: true, phone: true, email: true, address: true, notes: true, logoKey: true } as const;
+const personCardSelect = { id: true, businessId: true, name: true, role: true, contactName: true, phone: true, email: true, address: true, abn: true, notes: true, photoKey: true } as const;
 
-/** Everyone on the list (not removed ones), as contact cards. */
+/**
+ * Everyone on the list (not removed ones), as contact cards. `picture`
+ * is the stored picture's key here (any text means "has one", for matching).
+ */
 async function cardsOf(companyId: string): Promise<{ businesses: BusinessCard[]; people: PersonCard[] }> {
   const [businesses, people] = await Promise.all([
     db.clientBusiness.findMany({ where: { companyId, deletedAt: null }, select: businessCardSelect, orderBy: { name: "asc" } }),
     db.client.findMany({ where: { companyId, deletedAt: null }, select: personCardSelect, orderBy: { name: "asc" } }),
   ]);
-  return { businesses, people };
+  return {
+    businesses: businesses.map(({ logoKey, ...business }) => ({ ...business, picture: logoKey })),
+    people: people.map(({ photoKey, ...person }) => ({ ...person, picture: photoKey })),
+  };
 }
 
-/** A table as a download: Excel (one sheet) or CSV that Excel opens with the right characters. */
-async function sheetResponse(table: string[][], fileName: string, format: SheetFormat): Promise<Response> {
+/** A table as a file: Excel (one sheet) or CSV that Excel opens with the right characters. */
+async function sheetFile(table: string[][], format: SheetFormat): Promise<{ body: Uint8Array<ArrayBuffer>; type: string }> {
   const XLSX = await import("xlsx");
   const sheet = XLSX.utils.aoa_to_sheet(table);
   // Wide enough to read without dragging every column.
   sheet["!cols"] = table[0]!.map((_, column) => ({ wch: Math.min(40, Math.max(10, ...table.map((row) => (row[column] ?? "").length))) }));
-  let body: Uint8Array<ArrayBuffer>;
-  let type: string;
-  if (format === "csv") {
-    body = new TextEncoder().encode("﻿" + XLSX.utils.sheet_to_csv(sheet));
-    type = "text/csv; charset=utf-8";
-  } else {
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, sheet, "Clients");
-    body = new Uint8Array(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer);
-    type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-  }
-  const name = `${fileName}.${format}`;
+  if (format === "csv") return { body: new TextEncoder().encode("\uFEFF" + XLSX.utils.sheet_to_csv(sheet)), type: "text/csv; charset=utf-8" };
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Clients");
+  return { body: new Uint8Array(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer), type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
+}
+
+function download(body: Uint8Array<ArrayBuffer>, type: string, name: string) {
   return new Response(body, {
     headers: {
       "content-type": type,
@@ -56,30 +60,72 @@ async function sheetResponse(table: string[][], fileName: string, format: SheetF
 
 const fileDate = () => new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Melbourne" }); // 2026-11-26
 const safeName = (name: string) => name.replace(/[^\w .()&-]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Business";
+const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "picture";
 
-/** Settings › Clients › Export: the whole list. */
-export async function exportClients(ctx: RequestContext, format: SheetFormat) {
+/**
+ * The list as a download. A zip has the spreadsheet (Excel) and a pictures
+ * folder, with Business picture and Picture columns naming each row's.
+ * `picture` on the cards is the stored key; in the file it becomes a name.
+ */
+async function listFile(businesses: BusinessCard[], people: PersonCard[], baseName: string, format: SheetFormat | "zip") {
+  if (format !== "zip") {
+    const sheet = await sheetFile(toTable(businesses, people), format);
+    return download(sheet.body, sheet.type, `${baseName}.${format}`);
+  }
+  const { zipSync } = await import("fflate");
+  const files: Record<string, Uint8Array> = {};
+  const used = new Set<string>();
+  /** Adds a stored picture to the zip; returns its name there (or null if it can't be read). */
+  const addPicture = async (key: string | null | undefined, name: string) => {
+    if (!key) return null;
+    let fileName = `pictures/${slug(name)}.jpg`;
+    for (let count = 2; used.has(fileName); count++) fileName = `pictures/${slug(name)}-${count}.jpg`;
+    try {
+      files[fileName] = new Uint8Array(await readPicture(key));
+    } catch {
+      return null;
+    }
+    used.add(fileName);
+    return fileName;
+  };
+  const named = {
+    businesses: [] as BusinessCard[],
+    people: [] as PersonCard[],
+  };
+  for (const business of businesses) named.businesses.push({ ...business, picture: await addPicture(business.picture, business.name) });
+  for (const person of people) named.people.push({ ...person, picture: await addPicture(person.picture, person.name) });
+  const sheet = await sheetFile(toTable(named.businesses, named.people, { pictures: true }), "xlsx");
+  files[`${baseName}.xlsx`] = sheet.body;
+  const zipped = zipSync(files, { level: 6 });
+  return download(new Uint8Array(zipped), "application/zip", `${baseName}.zip`);
+}
+
+/** Settings › Clients › Export: the whole list (with its pictures, as a zip). */
+export async function exportClients(ctx: RequestContext, format: TransferFormat) {
   const companyId = requireCompany(ctx);
   const cards = await cardsOf(companyId);
   await db.$transaction((tx) =>
     audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "ClientList", entityId: companyId, action: "exported", diff: { businesses: cards.businesses.length, people: cards.people.length, format } }),
   );
-  return sheetResponse(toTable(cards.businesses, cards.people), `Clients ${fileDate()}`, format);
+  return listFile(cards.businesses, cards.people, `Clients ${fileDate()}`, format);
 }
 
 /**
  * Share our card: this business and the team members picked, in the same
  * layout, for another business to import as clients. Names, emails and
  * phones only; Role is left for them (a Grid role isn't a job title).
+ * Pictures (in a zip): the business picture, and each person's own photo
+ * only when they chose "Share my photo on business cards". Everyone else
+ * goes without, so the business that imports it shows the business picture.
  */
-export async function exportOurCard(ctx: RequestContext, membershipIds: string[], format: SheetFormat) {
+export async function exportOurCard(ctx: RequestContext, membershipIds: string[], format: TransferFormat) {
   const companyId = requireCompany(ctx);
   if (membershipIds.length && !can(ctx, "companies.members.view")) throw forbidden("You can't see the team");
   const [company, theme, members] = await Promise.all([getCurrentCompany(ctx), themeFor(companyId), membershipIds.length ? listMembers(ctx) : Promise.resolve([])]);
   const wanted = new Set(membershipIds);
   const picked = members.filter((member) => wanted.has(member.membershipId));
   if (picked.length !== wanted.size) throw badRequest("Someone picked isn't in the team");
-  const business: BusinessCard = { id: companyId, name: company.name, abn: company.abn, phone: theme.phone, email: theme.email, address: theme.address, notes: null };
+  const business: BusinessCard = { id: companyId, name: company.name, abn: company.abn, phone: theme.phone, email: theme.email, address: theme.address, notes: null, picture: company.logoKey };
   const people: PersonCard[] = picked.map((member) => ({
     id: member.user.id,
     businessId: companyId,
@@ -91,11 +137,20 @@ export async function exportOurCard(ctx: RequestContext, membershipIds: string[]
     address: null,
     abn: null,
     notes: null,
+    picture: member.user.sharePhotoOnCards ? member.user.ownPhotoKey : null,
   }));
   await db.$transaction((tx) =>
-    audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "ClientList", entityId: companyId, action: "sharedCard", diff: { people: picked.map((member) => member.user.name), format } }),
+    audit(tx, {
+      blockId: MOD,
+      actorId: ctx.userId,
+      companyId,
+      entityType: "ClientList",
+      entityId: companyId,
+      action: "sharedCard",
+      diff: { people: picked.map((member) => member.user.name), photosShared: picked.filter((member) => member.user.sharePhotoOnCards && member.user.ownPhotoKey).map((member) => member.user.name), format },
+    }),
   );
-  return sheetResponse(toTable([business], people), `${safeName(company.name)} business card`, format);
+  return listFile([business], people, `${safeName(company.name)} business card`, format);
 }
 
 /** What the preview needs: the plan, and what this person may do with it. */
@@ -105,15 +160,15 @@ export interface ImportPreview extends ImportPlan {
   canUpdate: boolean;
 }
 
-async function planFor(companyId: string, cells: unknown[][]) {
+async function planFor(companyId: string, cells: unknown[][], pictureNames: string[]) {
   const { rows, skipped, columnsFound } = readTable(cells);
   if (!columnsFound.length) throw badRequest("Grid couldn't find any columns it knows in that file. The first row needs headings like Business, Name, Phone and Email.");
-  return { plan: planImport(rows, await cardsOf(companyId), skipped), columnsFound };
+  return { plan: planImport(rows, await cardsOf(companyId), skipped, new Set(pictureNames)), columnsFound };
 }
 
-/** Import, step 1: what the file would do. Nothing is saved. */
-export async function previewImport(ctx: RequestContext, cells: unknown[][]): Promise<ImportPreview> {
-  const { plan, columnsFound } = await planFor(requireCompany(ctx), cells);
+/** Import, step 1: what the file would do. Nothing is saved. `pictureNames`: the pictures in a zip. */
+export async function previewImport(ctx: RequestContext, cells: unknown[][], pictureNames: string[] = []): Promise<ImportPreview> {
+  const { plan, columnsFound } = await planFor(requireCompany(ctx), cells, pictureNames);
   return { ...plan, columnsFound, canAdd: can(ctx, "clients.add"), canUpdate: can(ctx, "clients.edit") };
 }
 
@@ -136,9 +191,22 @@ export interface ImportResult {
  * the file and the list as they are now; `decisions` (by key) say what to do
  * with each, and anything not mentioned does what was suggested.
  */
-export async function applyImport(ctx: RequestContext, cells: unknown[][], decisions: ImportDecisions): Promise<ImportResult> {
+export async function applyImport(ctx: RequestContext, cells: unknown[][], decisions: ImportDecisions, pictures: Record<string, string> = {}): Promise<ImportResult> {
   const companyId = requireCompany(ctx);
-  const { plan } = await planFor(companyId, cells);
+  const { plan } = await planFor(companyId, cells, Object.keys(pictures));
+  /**
+   * Saves a picture from the zip (base64). A logo is kept whole, a photo
+   * fills the circle. One that isn't a picture is left out, not a failure.
+   */
+  const pictureFrom = async (name: string | null, fit: "cover" | "contain") => {
+    const data = name ? pictures[name] : undefined;
+    if (!data) return null;
+    try {
+      return await savePicture(pictureFolder.clients(companyId), Buffer.from(data, "base64"), fit);
+    } catch {
+      return null;
+    }
+  };
   const decide = (kind: keyof ImportDecisions, key: string, suggested: Decision) => decisions[kind][key] ?? suggested;
   const needAdd = () => {
     if (!can(ctx, "clients.add")) throw forbidden("You can't add clients");
@@ -166,7 +234,11 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
           businessIdOf.set(planned.key, planned.match.id);
           if (!hasChanges(planned)) continue;
           needUpdate();
-          const changes = updateFields(planned);
+          const changes: Record<string, unknown> = updateFields(planned);
+          if (addsPicture(planned)) {
+            const logoKey = await pictureFrom(planned.picture, "contain");
+            if (logoKey) changes.logoKey = logoKey;
+          }
           if (changes.name) {
             const people = await tx.client.findMany({ where: { companyId, businessId: planned.match.id }, select: { id: true, name: true } });
             for (const person of people) if (!labelsBefore.has(person.id)) labelsBefore.set(person.id, clientLabel({ name: person.name, business: { name: planned.match.name } }));
@@ -183,7 +255,7 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
         // New, or Add as new.
         needAdd();
         const id = randomUUID();
-        await tx.clientBusiness.create({ data: { id, companyId, ...planned.fields } });
+        await tx.clientBusiness.create({ data: { id, companyId, ...planned.fields, logoKey: await pictureFrom(planned.picture, "contain") } });
         await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "ClientBusiness", entityId: id, action: "created", diff: { imported: true, name: planned.fields.name } });
         businessIdOf.set(planned.key, id);
         result.businessesAdded++;
@@ -204,7 +276,8 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
           needUpdate();
           const before = await tx.client.findUniqueOrThrow({ where: { id: planned.match.id }, select: { name: true, business: { select: { name: true } } } });
           if (!labelsBefore.has(planned.match.id)) labelsBefore.set(planned.match.id, clientLabel(before));
-          await tx.client.update({ where: { id: planned.match.id }, data: { ...updateFields(planned), ...(moves ? { businessId } : {}) } });
+          const photoKey = addsPicture(planned) ? await pictureFrom(planned.picture, "cover") : null;
+          await tx.client.update({ where: { id: planned.match.id }, data: { ...updateFields(planned), ...(moves ? { businessId } : {}), ...(photoKey ? { photoKey } : {}) } });
           await audit(tx, {
             blockId: MOD,
             actorId: ctx.userId,
@@ -220,7 +293,7 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
         if (!planned.match && decision === "skip") continue;
         needAdd();
         const id = randomUUID();
-        await tx.client.create({ data: { id, companyId, ...planned.fields, businessId } });
+        await tx.client.create({ data: { id, companyId, ...planned.fields, businessId, photoKey: await pictureFrom(planned.picture, "cover") } });
         await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Client", entityId: id, action: "created", diff: { imported: true, name: planned.fields.name } });
         result.peopleAdded++;
       }
@@ -238,4 +311,60 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
     if (changed.length) await emitRenamed(ctx, companyId, changed);
   }
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Contact files (.vcf): one person, to send from a phone or save to Contacts
+// ---------------------------------------------------------------------------
+
+function vcardResponse(contact: VCardContact) {
+  return new Response(toVCard(contact), {
+    headers: {
+      "content-type": "text/vcard; charset=utf-8",
+      "content-disposition": `attachment; filename="${vcardFileName(contact.name).replace(/[^\w .()-]/g, "")}"; filename*=UTF-8''${encodeURIComponent(vcardFileName(contact.name))}`,
+      "cache-control": "private, no-store",
+    },
+  });
+}
+
+const pictureBytes = async (key: string | null | undefined) => (key ? new Uint8Array(await readPicture(key).catch(() => Buffer.alloc(0))) : null);
+
+/**
+ * Settings › Profile › Share my contact: you, at this business. Your own
+ * photo goes in only if you share it on business cards; otherwise the
+ * business picture, like Share our business card.
+ */
+export async function myContact(ctx: RequestContext) {
+  const companyId = requireCompany(ctx);
+  const [company, theme, members] = await Promise.all([getCurrentCompany(ctx), themeFor(companyId), listMembers(ctx)]);
+  const me = members.find((member) => member.user.id === ctx.userId);
+  if (!me) throw forbidden("You're not in this business");
+  const photoKey = me.user.sharePhotoOnCards && me.user.ownPhotoKey ? me.user.ownPhotoKey : company.logoKey;
+  return vcardResponse({
+    name: me.user.name,
+    phone: me.user.phone,
+    email: me.user.email,
+    business: { name: company.name, phone: theme.phone, email: theme.email, address: theme.address },
+    photo: await pictureBytes(photoKey),
+  });
+}
+
+/** A client's page › Share contact: them, their business, and their photo (else their business's logo). */
+export async function clientContact(ctx: RequestContext, clientId: string) {
+  const companyId = requireCompany(ctx);
+  const client = await db.client.findFirst({
+    where: { id: clientId, companyId, deletedAt: null },
+    select: { name: true, role: true, phone: true, email: true, address: true, notes: true, photoKey: true, business: { select: { name: true, phone: true, email: true, address: true, logoKey: true } } },
+  });
+  if (!client) throw notFound("Client not found");
+  return vcardResponse({
+    name: client.name,
+    role: client.role,
+    phone: client.phone,
+    email: client.email,
+    address: client.address,
+    notes: client.notes,
+    business: client.business,
+    photo: await pictureBytes(client.photoKey ?? client.business?.logoKey),
+  });
 }

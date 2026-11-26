@@ -150,6 +150,9 @@ importers:
       '@grid/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      fflate:
+        specifier: ^0.8
+        version: 0.8.3
       lucide-react:
         specifier: ^0.500
         version: 0.500.0(react@19.3.1)
@@ -539,6 +542,9 @@ importers:
 
   blocks/templates:
     dependencies:
+      '@grid/block-companies':
+        specifier: workspace:*
+        version: link:../companies
       '@grid/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -2178,6 +2184,9 @@ packages:
 
   fd-slicer@1.1.0:
     resolution: {integrity: sha512-cE1qsB/VwyQozZ+q1dGxR8LBYNZeofhEdUNGSMbQD3Gw2lAzX9Zb3uIU6Ebc/Fmyjo9AWWfnn0AUCHqtevs/8g==}
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   find-my-way@9.7.0:
     resolution: {integrity: sha512-f2JHn75x2JlwUwLenZypgczR7YWMb/uO9BvUXtus+JMgkbIkLADd38cI4EiV+OQqrGo1Zlq6V8wnqMJ8e62wUQ==}
@@ -4254,6 +4263,8 @@ snapshots:
   fd-slicer@1.1.0:
     dependencies:
       pend: 1.2.0
+
+  fflate@0.8.3: {}
 
   find-my-way@9.7.0:
     dependencies:

@@ -10,6 +10,7 @@ const publicFields = {
   name: true,
   phone: true,
   avatarKey: true,
+  sharePhotoOnCards: true,
   settings: true,
   createdAt: true,
 } as const;
@@ -63,6 +64,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
       data: {
         name: input.name,
         phone: input.phone,
+        sharePhotoOnCards: input.sharePhotoOnCards,
         settings: settings as Prisma.InputJsonValue | undefined,
       },
       select: publicFields,

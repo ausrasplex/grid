@@ -44,7 +44,8 @@ export type BusinessInput = z.infer<typeof businessSchema>;
 
 // --- export and import ---------------------------------------------------------
 
-export const formatSchema = z.enum(["xlsx", "csv"]).default("xlsx");
+/** A zip (the default) carries pictures too; Excel and CSV are the spreadsheet alone. */
+export const formatSchema = z.enum(["zip", "xlsx", "csv"]).default("zip");
 
 /** Share our card: `members` is a comma-separated list of membership ids (none = just the business). */
 export const cardQuerySchema = z.object({
@@ -65,5 +66,9 @@ export const importSchema = z
     decisions: z
       .object({ businesses: z.record(z.string(), decision), people: z.record(z.string(), decision) })
       .default({ businesses: {}, people: {} }),
+    /** Preview: the names of the pictures in a zip ("pictures/siemens.jpg"). */
+    pictureNames: z.array(z.string()).default([]),
+    /** Saving: the pictures themselves, base64, by name. */
+    pictures: z.record(z.string(), z.string()).default({}),
   })
   .strict();

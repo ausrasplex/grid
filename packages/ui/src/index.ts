@@ -61,3 +61,7 @@ export {
 
 // The quote editor's take-off slot (Quotes provides it; Markups fills it)
 export { QuoteTakeoffProvider, useQuoteTakeoff, type QuoteTakeoffPanelProps, type QuoteTakeoffValue, type TakeoffLine } from "./quote-slot";
+
+// Picking a picture for a business, a client or a client business
+export { EditablePicture, PicturePicker, sendPicture } from "./picture-picker";
+export { shareFile } from "./share-file";

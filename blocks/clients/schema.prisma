@@ -27,6 +27,8 @@ model Client {
   /// Later (contract chain): the Grid account this contact card is for,
   /// matched by email. Stored now, empty and unread until then.
   linkedUserId String?
+  /// Their photo (pictures/clients/<companyId>/…). None: their business's logo, then initials.
+  photoKey    String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -49,6 +51,8 @@ model ClientBusiness {
   /// Later (contract chain): the Grid business this contact card is for,
   /// matched by ABN. Stored now, empty and unread until then.
   linkedCompanyId String?
+  /// The business's logo (pictures/clients/<companyId>/…), also shown for its people without a photo.
+  logoKey   String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

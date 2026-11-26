@@ -10,6 +10,7 @@
     "./document": "./document.tsx"
   },
   "dependencies": {
+    "@grid/block-companies": "workspace:*",
     "@grid/core": "workspace:*",
     "@grid/db": "workspace:*",
     "@grid/ui": "workspace:*",

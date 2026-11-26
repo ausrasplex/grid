@@ -6,9 +6,32 @@
 // at the business.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus } from "lucide-react";
-import { ActionButton, Icon, Sheet, SheetContent, api } from "@grid/ui";
+import { Share2, UserPlus } from "lucide-react";
+import { ActionButton, Icon, Sheet, SheetContent, api, shareFile } from "@grid/ui";
 import { BusinessForm, ClientForm, type BusinessRowJson, type ClientJson } from "./ClientPicker";
+
+/** Share contact: their .vcf, to the phone's Share menu or downloaded. */
+export function ShareContact({ client }: { client: ClientJson }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <ActionButton
+      variant="outline"
+      icon={<Share2 />}
+      label={busy ? "Getting it…" : "Share contact"}
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await shareFile(`/api/clients/${client.id}/vcard`, `${client.name}.vcf`);
+        } catch (failure) {
+          window.alert(failure instanceof Error ? failure.message : String(failure));
+        } finally {
+          setBusy(false);
+        }
+      }}
+    />
+  );
+}
 
 export function ClientActions({ client, canRemove }: { client: ClientJson; canRemove: boolean }) {
   const router = useRouter();

@@ -3,9 +3,10 @@
 // Pick a client, or add one on the spot (name is enough to start). Used when
 // starting a job, in a job's details and on quotes. A client can be a person
 // at a business (Sam Lee, Project Manager at Honeywell).
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
-import { AddressField, Alert, Button, Field, FormActions, Label, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
+import { AddressField, Alert, Button, Field, FormActions, Label, PicturePicker, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
 
 export interface BusinessJson {
   id: string;
@@ -19,6 +20,8 @@ export interface BusinessJson {
 export interface BusinessRowJson extends BusinessJson {
   notes: string | null;
   peopleCount: number;
+  /** Its logo, or null. */
+  logoUrl: string | null;
 }
 
 export interface ClientJson {
@@ -35,6 +38,10 @@ export interface ClientJson {
   business: BusinessJson | null;
   /** "Sam Lee, Honeywell", or just the name. */
   label: string;
+  /** Their own photo, or null. */
+  photoUrl: string | null;
+  /** Their photo, else their business's logo, else null (initials). */
+  pictureUrl: string | null;
 }
 
 /** "Project Manager, Honeywell". */
@@ -162,6 +169,7 @@ export function ClientForm({
   });
   const [business, setBusiness] = useState<BusinessJson | null>(initial.business ?? null);
   const action = useAction();
+  const router = useRouter();
   const set = (field: keyof typeof form) => (event: { target: { value: string } }) => setForm({ ...form, [field]: event.target.value });
   return (
     <form
@@ -179,7 +187,18 @@ export function ClientForm({
         if (client) onSaved(client);
       }}
     >
-      <Field label="Name" hint={business ? "Their name" : "A person or a business"} value={form.name} onChange={set("name")} required autoFocus />
+      {initial.id && (
+        <PicturePicker
+          name={form.name || "Client"}
+          url={initial.photoUrl ?? null}
+          fallbackUrl={initial.pictureUrl && !initial.photoUrl ? initial.pictureUrl : null}
+          fallbackNote={business ? `Using ${business.name}'s logo` : undefined}
+          path={`/pictures/client/${initial.id}`}
+          label="Photo"
+          onChange={() => router.refresh()}
+        />
+      )}
+      <Field label="Name" hint={business ? "Their name" : "A person or a business"} value={form.name} onChange={set("name")} required autoFocus={!initial.id} />
       <BusinessField value={business} onChange={setBusiness} />
       {business ? (
         <Field label="Role" placeholder="e.g. Project Manager, Service Technician" value={form.role} onChange={set("role")} />
@@ -297,6 +316,7 @@ export function BusinessForm({ initial, onSaved, onDelete }: { initial: Partial<
     notes: initial.notes ?? "",
   });
   const action = useAction();
+  const router = useRouter();
   const set = (field: keyof typeof form) => (event: { target: { value: string } }) => setForm({ ...form, [field]: event.target.value });
   return (
     <form
@@ -310,7 +330,17 @@ export function BusinessForm({ initial, onSaved, onDelete }: { initial: Partial<
         if (business) onSaved(business);
       }}
     >
-      <Field label="Business name" placeholder="e.g. Honeywell" value={form.name} onChange={set("name")} required autoFocus />
+      {initial.id && (
+        <PicturePicker
+          name={form.name || "Business"}
+          url={initial.logoUrl ?? null}
+          path={`/pictures/business/${initial.id}`}
+          label="Logo"
+          hint="Shown for its people without a photo"
+          onChange={() => router.refresh()}
+        />
+      )}
+      <Field label="Business name" placeholder="e.g. Honeywell" value={form.name} onChange={set("name")} required autoFocus={!initial.id} />
       <Field label="ABN" value={form.abn} onChange={set("abn")} hint="Goes on quotes to anyone here" />
       <Field label="Main email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} hint="Used when a person here has none of their own" />
       <Field label="Main phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} />

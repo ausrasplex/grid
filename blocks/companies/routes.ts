@@ -1,7 +1,8 @@
 // HTTP routes, mounted at /api/companies. "current" always means the
 // user's active company (from the company switcher), never an id in the URL.
-import type { Routes } from "@grid/core";
+import { requireCompany, type Routes } from "@grid/core";
 import * as svc from "./service";
+import { businessPicture } from "./pictures";
 import { z } from "zod";
 import { listActivity } from "./activity";
 import { deleteCurrentCompany, deleteSummary, leaveCurrentCompany, listMyDeletedCompanies, restoreMyCompany } from "./deletion";
@@ -32,6 +33,8 @@ export const routes: Routes = {
 
   // --- Active company
   "GET /current": { handler: (ctx) => svc.getCurrentCompany(ctx) },
+  // Settings › Business details: the business picture (changed through /api/pictures/company).
+  "GET /current/picture": { handler: (ctx) => businessPicture(requireCompany(ctx)) },
   // Settings › Activity: the audit log, a page at a time (?before=<last id>&person=<user id>).
   "GET /current/activity": {
     permission: "companies.activity.view",
