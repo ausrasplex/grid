@@ -144,7 +144,7 @@ function AccountSheet({
   const items = switcher ? [...account, switcher] : account;
   return (
     <Sheet>
-      <SheetTrigger aria-label="Account" className={triggerClassName}>
+      <SheetTrigger aria-label="Account" className={cn("cursor-pointer", triggerClassName)}>
         {trigger}
       </SheetTrigger>
       {/* Phones: bottom sheet. Tablet and desktop: slides in from the right, under the avatar. */}
@@ -177,7 +177,7 @@ function AccountSheet({
 function MoreSheet({ items, trigger, triggerClassName }: { items: NavItem[]; trigger: ReactNode; triggerClassName?: string }) {
   return (
     <Sheet>
-      <SheetTrigger className={triggerClassName}>{trigger}</SheetTrigger>
+      <SheetTrigger className={cn("cursor-pointer", triggerClassName)}>{trigger}</SheetTrigger>
       <SheetContent title="More">
         <Scroller className="max-h-[60dvh]">
           <ul className="grid grid-cols-3 gap-2 p-1">
