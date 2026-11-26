@@ -38,6 +38,7 @@ The design canvas (https://claude.ai/artifact/TB5DBAto6SHu9pQWoxQTer, on claude.
 - Tokens: `packages/ui/src/styles.css`. Concept C on `:root`; `data-theme="light"` and `data-theme="system"` on `<html>` give the optional light theme; `.paper` keeps an area light.
 - Shell: `apps/web/src/components/ShellNav.tsx` (phone bar with Scan, tablet rail, desktop sidebar showing every item, no More). Menu placement comes from `MenuItem.prominence`.
 - Cards have no outline or shadow; inputs keep a border so fields are easy to find.
+- **Pointer cursor (Nov 2026):** everything clickable shows the hand pointer (buttons, `role="button"`, drop-downs, labels for checkboxes), but not when switched off. Set once in `styles.css` (base layer), so Blocks don't add `cursor-pointer` themselves.
 - **Drop-downs (decided Nov 2026):** every drop-down is Grid's own (`NativeSelect` / `SelectField` in `@grid/ui`, built on Radix Select), never the browser's list: the box is card colour with rounded corners and a chevron, and the list that opens is a rounded popover in the theme, with touch-size rows, the current choice ticked in yellow, and a yellow focus ring. Don't use a bare `<select>`.
 - **Gap under the top bar:** 20px on phones, 28px from tablets up (`pt-shell` in `styles.css`), so titles and breadcrumbs don't crowd the bar.
 - The top bar has a 1px line under it (`border-b`, the `--border` token), like the phone bottom bar has one above it.
