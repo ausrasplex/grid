@@ -58,7 +58,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, clients, materials, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, handover (optional)
+blocks/        users, companies, clients, materials, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, handover, assets (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -100,7 +100,8 @@ prisma/        base, core and auth schemas; migrations
   **Materials part 1** (the core `materials` Block: Settings › Materials with photos or colour swatches, brands, families and trades; the price list's material items now point at a material and brands moved there) is done too; see "What part 1 built" in `docs/materials-block.md`.
   **Materials part 2** (the `handover` Block: a job's list by trade and room at `/handover/<job>`, the landscape Fixtures & Finishes Schedule PDF, Settings › Handover, the client's `/h/<token>` link with Email to client) is done too; see "What part 2 built" in `docs/materials-block.md`.
   **Materials part 3** (Bring in on the handover list: plan icons per level and accepted quotes, through the core `jobMaterials` and `priceItemMaterials` Block hooks; changed-by-hand lines left alone) is done too; see "What part 3 built" in `docs/materials-block.md`.
-- Next: **Phase 5c** (Assets, `docs/assets-block.md`). OCR, product scanning and the product catalogue are later.
+  **Phase 5c part 1** (the `assets` Block: assets, categories with their own fields, QR tags as route codes, sticker sheets for common label paper and Custom, the one scanner at `/scan` with the `scanLookup` hook) is done too; see "What part 1 built" in `docs/assets-block.md`.
+- Next: **Phase 5c part 2** (custody: check out and in, movement history), then the rest of `docs/assets-block.md` §9. OCR, product scanning and the product catalogue are later.
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.
 - PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. To show a PDF inside the app (never a new tab: it leaves the installed app), turn it into page pictures with `renderPdfPages()` from `@grid/db` (into `cacheRoot()`) and show them with `PageViewer` from `@grid/ui`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.

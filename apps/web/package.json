@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@grid/block-assets": "workspace:*",
     "@grid/block-clients": "workspace:*",
     "@grid/block-materials": "workspace:*",
     "@grid/block-credentials": "workspace:*",
@@ -28,6 +29,8 @@
     "@grid/core": "workspace:*",
     "@grid/db": "workspace:*",
     "@grid/ui": "workspace:*",
+    "@zxing/browser": "0.1.5",
+    "@zxing/library": "0.21.3",
     "better-auth": "1.7.18",
     "lucide-react": "^0.500",
     "next": "^16",

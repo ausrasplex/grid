@@ -234,3 +234,14 @@ A vehicle is an asset in a built-in **Vehicle** category. Faults, custody, QR ta
 8. Pre-start checks.
 9. Containers (assets in vans), stocktake scan.
 10. Running costs.
+
+## What part 1 built (Nov 2026)
+
+- **The `assets` Block** (optional; depends on companies and templates). Permissions so far: `assets.view` (everyone) and `assets.manage` (Owner, Foreman). The rest of §5 come with their parts.
+- **/assets**: search (name, number, make, model, serial, barcode, tag code), a scan button, category chips, In use / Retired, and **Select → Print tags**. **/assets/<id>**: photos, details, the category's own fields, the QR tag and its typed code; Change, Print tag, New tag (the old sticker stops working), Retire / Put back, Delete (only for something added by mistake: its tag is revoked, its number isn't reused).
+- **Asset No.** is per business, next number by default, editable to match stickers already used. A **barcode it already has** can be linked; scanning it opens the asset.
+- **Tags** are route codes (`RouteCode`, entityType `Asset`), so `/go/<code>` opens the asset; the QR holds `routeCodeUrl(code)`.
+- **Sticker sheets** (decided Nov 2026, `sticker-layouts.ts`, tested): named by labels per sheet and size with the Avery code most brands say they match (8, 10, 14, 16, 21, 24, 40, 65 per A4 sheet), a 62 × 29 mm label printer, and **Custom** (typed off the packet: A4 sheet or label printer). **Start at label** for part-used sheets, a **Test page** (each label's outline, to hold against the sheet), and **Move everything** (mm) for a printer that prints a little off. Saved per business in `AssetSettings`. Small stickers show only the QR code, number and code. `renderPdf` gained `sheet` (every page an exact size, no margins).
+- **Settings › Asset categories**: categories with their own fields (text, number, date, yes or no), and the trade's starting set offered (`presets.ts`).
+- **The one scanner** (`/scan`, navigation.md §7a): the phone's own barcode reader, or ZXing on iPhone; `GET /api/scan?text=` resolves Grid's codes (any `/go/` link, a tag address, or typed), then each Block's new `scanLookup` hook (assets: barcodes), then this server's own links. The camera needs https; **Type it instead** always works.
+- **Not yet:** custody, faults, lost, inspections, the job tab and Home widgets, vehicles, the public tag page (parts 2 onwards, §9).

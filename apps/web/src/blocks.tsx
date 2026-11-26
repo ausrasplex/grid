@@ -26,8 +26,9 @@ import markups from "@grid/block-markups/block";
 import documents from "@grid/block-documents/block";
 import signoffs from "@grid/block-signoffs/block";
 import handover from "@grid/block-handover/block";
+import assets from "@grid/block-assets/block";
 
-const definitions = [users, companies, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, handover];
+const definitions = [users, companies, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, handover, assets];
 
 /** Lazy page loaders, keyed by block id. */
 export const blockPages: Record<string, () => Promise<BlockPages>> = {
@@ -45,6 +46,7 @@ export const blockPages: Record<string, () => Promise<BlockPages>> = {
   documents: async () => (await import("@grid/block-documents/ui")).pages,
   markups: async () => (await import("@grid/block-markups/ui")).pages,
   handover: async () => (await import("@grid/block-handover/ui")).pages,
+  assets: async () => (await import("@grid/block-assets/ui")).pages,
 };
 
 /** Lazy loaders for pages people see without signing in (/p/<block>/...). */

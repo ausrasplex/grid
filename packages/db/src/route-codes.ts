@@ -59,3 +59,29 @@ export function routeCodeUrl(code: string): string {
   const base = (process.env.PUBLIC_LINK_BASE || process.env.BETTER_AUTH_URL || "").replace(/\/$/, "");
   return `${base}/go/${code}`;
 }
+
+const CODE_RE = new RegExp(`^(?:[${ALPHABET}0-9]{2,8}-)?[${ALPHABET}]{4}-[${ALPHABET}]{4}$`);
+
+/**
+ * The route code in something the scanner read (docs/navigation.md §7a):
+ * a /go/<code> link from any server, a tag address (tag.example.com.au/<code>),
+ * or the code typed in. Null when it isn't one.
+ */
+export function codeFromScan(text: string): string | null {
+  const raw = text.trim();
+  let candidate = raw;
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parts = new URL(raw).pathname.split("/").filter(Boolean);
+      if (parts.length === 2 && parts[0]!.toLowerCase() === "go") candidate = parts[1]!;
+      else if (parts.length === 1) candidate = parts[0]!;
+      else return null;
+    } catch {
+      return null;
+    }
+    candidate = decodeURIComponent(candidate);
+  }
+  // Typed in: case, spaces and missing dashes don't matter.
+  const code = candidate.includes("-") ? candidate.toUpperCase().replace(/\s+/g, "") : normaliseRouteCode(candidate);
+  return CODE_RE.test(code) ? code : null;
+}

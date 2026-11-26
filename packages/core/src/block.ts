@@ -220,6 +220,13 @@ export interface BlockDefinition {
    */
   priceItemMaterials?: () => Promise<(companyId: string, priceItemIds: string[]) => Promise<Record<string, string>>>;
   /**
+   * The one scanner (docs/navigation.md §7a) read something that isn't one
+   * of Grid's own links: the page it opens (an asset whose barcode it is),
+   * or null when it isn't this block's. Asked only when the business has
+   * the block on. Lazy.
+   */
+  scanLookup?: () => Promise<(ctx: RequestContext, text: string) => Promise<string | null>>;
+  /**
    * Background work this block does, keyed by queue name, which must start
    * with the block id ("plans.render"). Lazy. Queue with app().jobs.send().
    */

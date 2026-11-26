@@ -1,0 +1,91 @@
+// Assets block (docs/assets-block.md): the business's tools and gear, with
+// QR tags. Part 1: assets, categories with their own fields, tags and the
+// sticker sheets, scan to open. Custody, faults, inspections and vehicles
+// add their tables in later parts.
+
+enum AssetStatus {
+  IN_SERVICE
+  FAULTY
+  OUT_OF_SERVICE
+  IN_REPAIR
+  RETIRED
+  LOST
+}
+
+/// A kind of gear (Power tools, Test equipment, Ladders…), per business.
+model AssetCategory {
+  id                     String    @id @default(uuid())
+  companyId              String
+  name                   String
+  /// The category's own fields, in order: [{ key, label, type: "text" | "number" | "date" | "yesno" }].
+  fields                 Json      @default("[]")
+  /// Inspections (part 4): every so many days, and what kind ("Test & tag").
+  inspectionIntervalDays Int?
+  inspectionType         String?
+  sort                   Int       @default(0)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+  assets                 Asset[]
+
+  @@index([companyId])
+}
+
+/// One thing the business owns and wants to keep track of.
+model Asset {
+  id                String         @id @default(uuid())
+  companyId         String
+  /// The friendly number on the sticker ("Asset No. 1234"), unique per business.
+  number            Int
+  categoryId        String?
+  category          AssetCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name              String
+  make              String?
+  model             String?
+  serial            String?
+  purchasedOn       DateTime?      @db.Date
+  /// StoredFile ids (block assets); the first is the main photo.
+  photoFileIds      String[]       @default([])
+  notes             String?
+  /// The category's fields, filled in: { [key]: string | number | boolean }.
+  fields            Json           @default("{}")
+  status            AssetStatus    @default(IN_SERVICE)
+  /// The QR tag's code (a RouteCode, blockId assets): random, unique across
+  /// every server. "New tag" replaces it and the old sticker stops working.
+  tagCode           String         @unique
+  /// A barcode sticker it already had, linked instead of (or as well as) the QR tag.
+  barcode           String?
+  /// Inspections (part 4) and "Not seen recently" (part 5).
+  nextInspectionDue DateTime?
+  lastSeenAt        DateTime?
+  /// Containers (vehicles, §11): the van or toolbox it's in.
+  parentAssetId     String?
+  createdById       String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  deletedAt         DateTime?
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([companyId, barcode])
+  @@index([categoryId])
+}
+
+/// A business's asset settings. Stored now for later parts (§2, §10).
+model AssetSettings {
+  companyId         String   @id
+  /// "Not seen recently" after this many days (part 5).
+  notSeenDays       Int      @default(30)
+  /// The public tag page (§10): on, whether Lost shows, and what it shows ("NAME" or "OWNER").
+  publicLookup      Boolean  @default(true)
+  showLostPublicly  Boolean  @default(true)
+  publicFields      String   @default("NAME")
+  /// The sticker layout picked last ("a4-21", "a4-65", "label-62x29", "custom"; sticker-layouts.ts).
+  stickerLayout     String   @default("a4-21")
+  /// A Custom layout typed off the packet (CustomLayoutInput).
+  stickerCustom     Json?
+  /// Moves every sticker, in mm, for a printer that prints a little off.
+  stickerOffsetX    Float    @default(0)
+  stickerOffsetY    Float    @default(0)
+  updatedAt         DateTime @updatedAt
+}

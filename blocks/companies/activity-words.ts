@@ -32,6 +32,8 @@ const THINGS: Record<string, string> = {
   HandoverSettings: "handover sheet settings",
   HandoverCompanySettings: "handover settings",
   HandoverShare: "client handover link",
+  AssetCategory: "asset category",
+  AssetSettings: "asset tag settings",
   TaxCode: "tax code",
   SignRequest: "signing link",
   QuoteUserSettings: "quote screen setting",
@@ -70,6 +72,8 @@ const VERBS: Record<string, string> = {
   renumbered: "Renumbered",
   converted: "Converted",
   brought_in: "Brought in",
+  retired: "Retired",
+  new_tag: "Made a new tag for",
 };
 
 const words = (value: string) => value.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();

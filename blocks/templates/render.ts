@@ -45,6 +45,11 @@ export interface PdfOptions {
   page?: { widthIn: number; heightIn: number };
   /** A4 on its side (the handover schedule). */
   landscape?: boolean;
+  /**
+   * Every page this size (inches), with no margins, header or footer, on
+   * white: label sheets (asset tags), where each sticker must land exactly.
+   */
+  sheet?: { widthIn: number; heightIn: number };
 }
 
 export async function renderPdf(html: string, options: PdfOptions = {}): Promise<Buffer> {
@@ -66,7 +71,14 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
           margin: { top: 0, bottom: 0, left: 0, right: 0 },
           pageRanges: "1",
         })
-      : await page.pdf({
+      : options.sheet
+        ? await page.pdf({
+            width: `${options.sheet.widthIn}in`,
+            height: `${options.sheet.heightIn}in`,
+            printBackground: true,
+            margin: { top: 0, bottom: 0, left: 0, right: 0 },
+          })
+        : await page.pdf({
       format: "A4",
       landscape: !!options.landscape,
       printBackground: true,
