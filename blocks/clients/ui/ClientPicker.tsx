@@ -4,9 +4,9 @@
 // starting a job, in a job's details and on quotes. A client can be a person
 // at a business (Sam Lee, Project Manager at Honeywell).
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Building2 } from "lucide-react";
-import { AddressField, Alert, Button, Field, FormActions, Label, PicturePicker, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
+import { AddressField, Alert, Button, Field, Label, PicturePicker, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
 
 export interface BusinessJson {
   id: string;
@@ -168,9 +168,12 @@ export function ClientForm({
     notes: initial.notes ?? "",
   });
   const [business, setBusiness] = useState<BusinessJson | null>(initial.business ?? null);
+  // Less-used fields fold away, open when they've got something in them.
+  const [moreOpen, setMoreOpen] = useState(!!(initial.contactName || initial.notes || (!initial.business && initial.abn)));
   const action = useAction();
   const router = useRouter();
   const set = (field: keyof typeof form) => (event: { target: { value: string } }) => setForm({ ...form, [field]: event.target.value });
+  const nameField = <Field label="Name" hint={business ? undefined : "A person or a business"} value={form.name} onChange={set("name")} required autoFocus={!initial.id} />;
   return (
     <form
       className="flex flex-col gap-3 px-2"
@@ -187,50 +190,61 @@ export function ClientForm({
         if (client) onSaved(client);
       }}
     >
+      {/* Their photo, centred at the top like Profile (once they're saved: a new client has nowhere to keep one yet). */}
       {initial.id && (
         <PicturePicker
           name={form.name || "Client"}
           url={initial.photoUrl ?? null}
           fallbackUrl={initial.pictureUrl && !initial.photoUrl ? initial.pictureUrl : null}
-          fallbackNote={business ? `Using ${business.name}'s logo` : undefined}
           path={`/pictures/client/${initial.id}`}
-          label="Photo"
           onChange={() => router.refresh()}
+          centred
         />
       )}
-      <Field label="Name" hint={business ? "Their name" : "A person or a business"} value={form.name} onChange={set("name")} required autoFocus={!initial.id} />
+      {nameField}
       <BusinessField value={business} onChange={setBusiness} />
-      {business ? (
-        <Field label="Role" placeholder="e.g. Project Manager, Service Technician" value={form.role} onChange={set("role")} />
+      {business && <Field label="Role" placeholder="e.g. Project Manager, Service Technician" value={form.role} onChange={set("role")} />}
+      {/* With a business, an empty box uses the business's: shown greyed in the box. */}
+      <Field label="Email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} placeholder={business?.email ? `${business.email} (${business.name})` : undefined} />
+      <Field label="Phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} placeholder={business?.phone ? `${business.phone} (${business.name})` : undefined} />
+      <AddressField label="Address" value={form.address} onChange={set("address")} placeholder={business?.address ? `Same as ${business.name}` : undefined} />
+      {moreOpen ? (
+        <>
+          {!business && <Field label="Contact person" value={form.contactName} onChange={set("contactName")} />}
+          {!business && <Field label="ABN" value={form.abn} onChange={set("abn")} />}
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Notes
+            <textarea rows={3} value={form.notes} onChange={set("notes")} placeholder="e.g. Gate code 4512, dog in the yard" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
+          </label>
+        </>
       ) : (
-        <Field label="Contact person" value={form.contactName} onChange={set("contactName")} />
+        <Button type="button" variant="ghost" className="self-start px-0 text-primary hover:bg-transparent hover:underline" onClick={() => setMoreOpen(true)}>
+          {business ? "Add notes" : "More details"}
+        </Button>
       )}
-      <Field label="Email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} hint={business?.email ? `Leave empty to use ${business.name}'s (${business.email})` : undefined} />
-      <Field label="Phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} hint={business?.phone ? `Leave empty to use ${business.name}'s (${business.phone})` : undefined} />
-      <AddressField label="Address" value={form.address} onChange={set("address")} hint={business?.address ? `Leave empty to use ${business.name}'s` : undefined} />
-      {!business && <Field label="ABN" hint="For business clients" value={form.abn} onChange={set("abn")} />}
-      <label className="flex flex-col gap-1.5 text-sm font-medium">
-        Notes
-        <textarea rows={3} value={form.notes} onChange={set("notes")} placeholder="e.g. Gate code 4512, dog in the yard" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
-      </label>
       <Alert variant="error">{action.error}</Alert>
-      <FormActions>
-        {onDelete && (
-          <Button type="button" variant="ghost" className="text-destructive" onClick={onDelete}>
-            Remove client
-          </Button>
-        )}
+      {onDelete && (
+        <Button type="button" variant="ghost" className="self-start px-0 text-destructive hover:bg-transparent hover:underline" onClick={onDelete}>
+          Remove client
+        </Button>
+      )}
+      <StickyActions>
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={onCancel}>
             Back
           </Button>
         )}
-        <Button type="submit" disabled={action.busy}>
+        <Button type="submit" className="flex-1 sm:flex-none" disabled={action.busy}>
           {action.busy ? "Saving…" : "Save client"}
         </Button>
-      </FormActions>
+      </StickyActions>
     </form>
   );
+}
+
+/** Save (and Back) pinned to the bottom of the dialog, so there's no scrolling down to find it. */
+function StickyActions({ children }: { children: ReactNode }) {
+  return <div className="sticky bottom-0 z-10 -mx-2 mt-1 flex gap-2 border-t bg-popover px-2 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-end">{children}</div>;
 }
 
 /**
@@ -266,7 +280,7 @@ function BusinessField({ value, onChange }: { value: BusinessJson | null; onChan
         <button type="button" onClick={() => setChoosing(true)} className="flex min-h-touch w-full items-center justify-between gap-2 rounded-md border border-input bg-card px-3 py-2 text-left">
           <span className="flex min-w-0 items-center gap-2">
             <Building2 className="size-4 shrink-0 text-muted-foreground" />
-            {value ? <span className="truncate font-medium">{value.name}</span> : <span className="text-muted-foreground">None (a homeowner, or the business itself)</span>}
+            {value ? <span className="truncate font-medium">{value.name}</span> : <span className="text-muted-foreground">None</span>}
           </span>
           <span className="text-sm font-semibold text-primary">{value ? "Change" : "Choose"}</span>
         </button>
@@ -330,15 +344,9 @@ export function BusinessForm({ initial, onSaved, onDelete }: { initial: Partial<
         if (business) onSaved(business);
       }}
     >
+      {/* The logo, centred at the top like Profile (also shown for its people without a photo). */}
       {initial.id && (
-        <PicturePicker
-          name={form.name || "Business"}
-          url={initial.logoUrl ?? null}
-          path={`/pictures/business/${initial.id}`}
-          label="Logo"
-          hint="Shown for its people without a photo"
-          onChange={() => router.refresh()}
-        />
+        <PicturePicker name={form.name || "Business"} url={initial.logoUrl ?? null} path={`/pictures/business/${initial.id}`} onChange={() => router.refresh()} centred />
       )}
       <Field label="Business name" placeholder="e.g. Honeywell" value={form.name} onChange={set("name")} required autoFocus={!initial.id} />
       <Field label="ABN" value={form.abn} onChange={set("abn")} hint="Goes on quotes to anyone here" />
@@ -350,16 +358,16 @@ export function BusinessForm({ initial, onSaved, onDelete }: { initial: Partial<
         <textarea rows={3} value={form.notes} onChange={set("notes")} placeholder="e.g. Purchase order needed before work starts" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
       </label>
       <Alert variant="error">{action.error}</Alert>
-      <FormActions>
-        {onDelete && (
-          <Button type="button" variant="ghost" className="text-destructive" onClick={onDelete}>
-            Remove business
-          </Button>
-        )}
-        <Button type="submit" disabled={action.busy}>
+      {onDelete && (
+        <Button type="button" variant="ghost" className="self-start px-0 text-destructive hover:bg-transparent hover:underline" onClick={onDelete}>
+          Remove business
+        </Button>
+      )}
+      <StickyActions>
+        <Button type="submit" className="flex-1 sm:flex-none" disabled={action.busy}>
           {action.busy ? "Saving…" : "Save business"}
         </Button>
-      </FormActions>
+      </StickyActions>
     </form>
   );
 }

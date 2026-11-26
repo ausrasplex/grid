@@ -93,6 +93,7 @@ export function PicturePicker({
   url,
   path,
   label = "Picture",
+  centred = false,
   hint,
   fallbackUrl = null,
   fallbackNote,
@@ -113,6 +114,8 @@ export function PicturePicker({
   fallbackNote?: ReactNode;
   canChange?: boolean;
   onChange?: (url: string | null) => void;
+  /** Centred on its own, larger, with no heading or note (the top of a dialog, like Profile). */
+  centred?: boolean;
 }) {
   const [current, setCurrent] = useState(url);
   const action = useAction();
@@ -125,12 +128,32 @@ export function PicturePicker({
     }
   };
   const note = !current && fallbackUrl && fallbackNote ? fallbackNote : hint;
+  const picture = (
+    <EditablePicture
+      name={name}
+      src={current ?? fallbackUrl}
+      canChange={canChange}
+      canRemove={!!current}
+      busy={action.busy}
+      onPick={(file) => void apply(file)}
+      onRemove={() => void apply(null)}
+      className={centred ? "size-32" : undefined}
+    />
+  );
+
+  if (centred)
+    return (
+      <div className="flex flex-col items-center gap-2">
+        {picture}
+        <Alert variant="error">{action.error}</Alert>
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-2">
       <span className="text-sm font-medium">{label}</span>
       <div className="flex items-center gap-4">
-        <EditablePicture name={name} src={current ?? fallbackUrl} canChange={canChange} canRemove={!!current} busy={action.busy} onPick={(file) => void apply(file)} onRemove={() => void apply(null)} />
+        {picture}
         {note && <p className="min-w-0 text-sm text-muted-foreground">{note}</p>}
       </div>
       <Alert variant="error">{action.error}</Alert>

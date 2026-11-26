@@ -1,10 +1,11 @@
 import { PageHeader, type BlockPages } from "@grid/ui";
-import { ProfileForm } from "./ProfileForm";
+import { ProfileForm, ShareMyContact } from "./ProfileForm";
 
 export const pages: BlockPages = {
-  profile: () => (
+  // Share my contact needs a business to put on the card.
+  profile: ({ ctx }) => (
     <>
-      <PageHeader title="Profile" subtitle="How you appear to your company and on every project." />
+      <PageHeader title="Profile" actions={ctx.companyId ? <ShareMyContact /> : undefined} />
       <ProfileForm />
     </>
   ),
