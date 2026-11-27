@@ -13,7 +13,7 @@ import { redirect } from "next/navigation";
 import { can, notFound, type RequestContext } from "@grid/core";
 import { Alert, Badge, HomeTile, Icon, LinkRow, List, PageHeader, Section, Stack, buttonVariants, cn, type BlockPages, type BlockPanels, type PanelRenderer } from "@grid/ui";
 import { SiteDetails, SiteNotes } from "@grid/block-sites/components";
-import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
+import { getClient, listLeadSources, type ClientPagePanelProps } from "@grid/block-clients";
 import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
 import { activeJobCounts, getProject, jobsAt, jobsForClient, recordArea, resumeOnSite, type Area } from "../service";
 import type { PlaceStartPanelProps } from "../index";
@@ -441,12 +441,29 @@ export const pages: BlockPages = {
     }
     if (sub === "settings") {
       const job = await getProject(ctx, jobId);
-      const client = job.clientId && can(ctx, "clients.view") ? await getClient(ctx, job.clientId) : null;
+      const seesClients = can(ctx, "clients.view");
+      const [client, sources] = await Promise.all([
+        job.clientId && seesClients ? getClient(ctx, job.clientId) : null,
+        seesClients ? listLeadSources(ctx, true) : null,
+      ]);
       return (
         <JobSettings
-          job={{ id: job.id, name: job.name, client: job.clientId ? (client ?? { id: job.clientId, name: job.clientName ?? "Client" }) : null, jobNumber: job.jobNumber, covers: job.covers }}
+          job={{
+            id: job.id,
+            name: job.name,
+            client: job.clientId ? (client ?? { id: job.clientId, name: job.clientName ?? "Client" }) : null,
+            leadSourceId: job.leadSourceId,
+            jobNumber: job.jobNumber,
+            covers: job.covers,
+          }}
           site={job.site}
           clients={clientAccess(ctx)}
+          leadSources={
+            sources && {
+              options: sources.filter((source) => !source.hidden || source.id === job.leadSourceId).map((source) => ({ id: source.id, name: source.name })),
+              clientSource: client?.leadSource?.name ?? null,
+            }
+          }
         />
       );
     }

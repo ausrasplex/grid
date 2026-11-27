@@ -8,6 +8,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Building2 } from "lucide-react";
 import { emptyAddress, parseAddress, type Address } from "@grid/core";
 import { AddressField, Alert, Button, Field, Label, PicturePicker, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
+import { LeadSourceField, type ReferrerJson } from "./LeadSourceField";
 
 export interface BusinessJson {
   id: string;
@@ -47,6 +48,10 @@ export interface ClientJson {
   photoUrl: string | null;
   /** Their photo, else their business's logo, else null (initials). */
   pictureUrl: string | null;
+  /** How they found you, or null. */
+  leadSource: { id: string; name: string; isReferral: boolean } | null;
+  /** Referral: the client who sent them. */
+  referredBy: ReferrerJson | null;
 }
 
 /** "Project Manager, Honeywell". */
@@ -173,6 +178,8 @@ export function ClientForm({
     notes: initial.notes ?? "",
   });
   const [business, setBusiness] = useState<BusinessJson | null>(initial.business ?? null);
+  const [leadSource, setLeadSource] = useState(initial.leadSource ?? null);
+  const [referredBy, setReferredBy] = useState(initial.referredBy ?? null);
   // Less-used fields fold away, open when they've got something in them.
   const [moreOpen, setMoreOpen] = useState(!!(initial.contactName || initial.notes || (!initial.business && initial.abn)));
   const action = useAction();
@@ -188,7 +195,13 @@ export function ClientForm({
         // a form the picker sits in (New quote). Keep it here.
         event.stopPropagation();
         // A person at a business: the business holds the ABN, and they're the contact themselves.
-        const body = { ...form, businessId: business?.id ?? null, ...(business ? { contactName: "", abn: initial.abn ?? "" } : { role: "" }) };
+        const body = {
+          ...form,
+          businessId: business?.id ?? null,
+          leadSourceId: leadSource?.id ?? null,
+          referredByClientId: leadSource?.isReferral ? (referredBy?.id ?? null) : null,
+          ...(business ? { contactName: "", abn: initial.abn ?? "" } : { role: "" }),
+        };
         const client = await action.run(() =>
           initial.id ? api<ClientJson>(`/clients/${initial.id}`, { method: "PUT", body }) : api<ClientJson>("/clients", { body }),
         );
@@ -213,6 +226,15 @@ export function ClientForm({
       <Field label="Email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} placeholder={business?.email ? `${business.email} (${business.name})` : undefined} />
       <Field label="Phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} placeholder={business?.phone ? `${business.phone} (${business.name})` : undefined} />
       <AddressField label="Address" value={form.address} onChange={(address) => setForm({ ...form, address })} placeholder={business?.address ? `Same as ${business.name}` : undefined} />
+      <LeadSourceField
+        value={leadSource}
+        referrer={referredBy}
+        clientId={initial.id}
+        onChange={(source, referrer) => {
+          setLeadSource(source);
+          setReferredBy(referrer);
+        }}
+      />
       {moreOpen ? (
         <>
           {!business && <Field label="Contact person" value={form.contactName} onChange={set("contactName")} />}

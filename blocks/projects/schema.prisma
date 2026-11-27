@@ -45,6 +45,10 @@ model Project {
   clientName    String?
   description   String?
   status        ProjectStatus  @default(ACTIVE)
+  /// How this job came in, when it's different from the client's own (a repeat
+  /// client who found you again on Google). Null: the client's. A LeadSource id
+  /// (clients block); no relation across Blocks.
+  leadSourceId  String?
   listing       ProjectListing @default(UNLISTED)
   startedAt     DateTime       @default(now())
   completedAt   DateTime?

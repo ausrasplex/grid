@@ -6,6 +6,7 @@
 
 import { addressData, addressSelect, app, badRequest, conflict, notFound, requireCompany, withAddressParts, type Address, type AddressColumns, type RequestContext } from "@grid/core";
 import { audit, db, pictureUrl, type Tx } from "@grid/db";
+import { requireLeadSource } from "./lead-sources";
 import { clientLabel, type BusinessDetails } from "./people";
 import type { BusinessInput, ClientInput } from "./validation";
 
@@ -32,6 +33,10 @@ export interface ClientRow {
   photoUrl: string | null;
   /** What to show for them: their photo, else their business's logo, else null (initials). */
   pictureUrl: string | null;
+  /** How they found you (docs/quotations-block.md "Lead source"), or null. */
+  leadSource: { id: string; name: string; isReferral: boolean } | null;
+  /** Referral: the client who sent them, as "Sam Lee, Honeywell". */
+  referredBy: { id: string; label: string } | null;
 }
 
 const businessDetailsSelect = { id: true, name: true, abn: true, email: true, phone: true, ...addressSelect } as const;
@@ -48,14 +53,20 @@ const clientSelect = {
   notes: true,
   photoKey: true,
   business: { select: { ...businessDetailsSelect, logoKey: true } },
+  leadSource: { select: { id: true, name: true, isReferral: true } },
+  referredBy: { select: { id: true, name: true, business: { select: { name: true } } } },
 } as const;
 
 /** The address columns as read from the database. */
 type AddressRecord = Omit<AddressColumns, "address"> & { address: string | null };
 type BusinessRecord = Omit<BusinessDetails, "addressParts"> & AddressRecord;
-type ClientRecord = Omit<ClientRow, "label" | "photoUrl" | "pictureUrl" | "business" | "addressParts"> &
-  AddressRecord & { photoKey: string | null; business: (BusinessRecord & { logoKey: string | null }) | null };
-const toRow = ({ photoKey, business: businessRecord, ...record }: ClientRecord): ClientRow => {
+type ClientRecord = Omit<ClientRow, "label" | "photoUrl" | "pictureUrl" | "business" | "addressParts" | "referredBy"> &
+  AddressRecord & {
+    photoKey: string | null;
+    business: (BusinessRecord & { logoKey: string | null }) | null;
+    referredBy: { id: string; name: string; business: { name: string } | null } | null;
+  };
+const toRow = ({ photoKey, business: businessRecord, referredBy, ...record }: ClientRecord): ClientRow => {
   const client = withAddressParts(record);
   const business = businessRecord ? withAddressParts(businessRecord) : null;
   const { logoKey, ...details } = business ?? { logoKey: null };
@@ -65,8 +76,36 @@ const toRow = ({ photoKey, business: businessRecord, ...record }: ClientRecord):
     label: clientLabel({ name: client.name, business }),
     photoUrl: pictureUrl(photoKey),
     pictureUrl: pictureUrl(photoKey ?? logoKey),
+    referredBy: referredBy ? { id: referredBy.id, label: clientLabel(referredBy) } : null,
   };
 };
+
+/**
+ * Checks how they found you and who referred them, for saving. Left out
+ * keeps what's there; a lead source that isn't Referral clears who referred
+ * them. Returns only the columns to change.
+ */
+async function leadSourceData(
+  tx: Tx,
+  companyId: string,
+  clientId: string | null,
+  input: Pick<ClientInput, "leadSourceId" | "referredByClientId">,
+  current: { leadSourceId: string | null; referredByClientId: string | null } = { leadSourceId: null, referredByClientId: null },
+) {
+  const leadSourceId = input.leadSourceId === undefined ? current.leadSourceId : input.leadSourceId;
+  const source = leadSourceId ? await requireLeadSource(tx, companyId, leadSourceId, current.leadSourceId) : null;
+  let referredByClientId = input.referredByClientId === undefined ? current.referredByClientId : input.referredByClientId;
+  if (!source?.isReferral) referredByClientId = null;
+  if (referredByClientId) {
+    if (referredByClientId === clientId) throw badRequest("A client can't refer themselves");
+    // Keeping a referrer since removed from the list is fine; picking one isn't.
+    if (referredByClientId !== current.referredByClientId) {
+      const referrer = await tx.client.findFirst({ where: { id: referredByClientId, companyId, deletedAt: null }, select: { id: true } });
+      if (!referrer) throw badRequest("Pick who referred them from your clients");
+    }
+  }
+  return { leadSourceId, referredByClientId };
+}
 
 /**
  * Payload of "clients.renamed": jobs keep a copy of the client's label for
@@ -126,14 +165,15 @@ export async function saveClient(ctx: RequestContext, id: string | null, input: 
   let relabelled = false;
   const client = await db.$transaction(async (tx) => {
     // Left out keeps the business they're at; a new client starts with none.
-    const { businessId: wanted, ...fields } = input;
+    const { businessId: wanted, leadSourceId: _leadSourceId, referredByClientId: _referredByClientId, ...fields } = input;
     if (id) {
       const before = await tx.client.findFirst({ where: { id, companyId, deletedAt: null }, select: clientSelect });
       if (!before) throw notFound("Client not found");
       // Keeping a business that's since been removed is fine; picking one isn't.
       if (wanted && wanted !== before.businessId) await requireBusiness(tx, companyId, wanted);
       const { address, ...rest } = fields;
-      const data = { ...rest, ...addressData(address), ...(wanted === undefined ? {} : { businessId: wanted }) };
+      const lead = await leadSourceData(tx, companyId, id, input, { leadSourceId: before.leadSource?.id ?? null, referredByClientId: before.referredBy?.id ?? null });
+      const data = { ...rest, ...addressData(address), ...lead, ...(wanted === undefined ? {} : { businessId: wanted }) };
       const client = toRow(await tx.client.update({ where: { id }, data, select: clientSelect }));
       relabelled = toRow(before).label !== client.label;
       await audit(tx, {
@@ -143,14 +183,26 @@ export async function saveClient(ctx: RequestContext, id: string | null, input: 
         entityType: "Client",
         entityId: id,
         action: "updated",
-        diff: { before: { name: before.name, business: before.business?.name ?? null, role: before.role, email: before.email, phone: before.phone } },
+        diff: {
+          before: { name: before.name, business: before.business?.name ?? null, role: before.role, email: before.email, phone: before.phone, leadSource: before.leadSource?.name ?? null },
+          leadSource: client.leadSource?.name ?? null,
+        },
       });
       return client;
     }
     if (wanted) await requireBusiness(tx, companyId, wanted);
     const { address, ...rest } = fields;
-    const client = toRow(await tx.client.create({ data: { companyId, ...rest, ...addressData(address ?? null), businessId: wanted ?? null }, select: clientSelect }));
-    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Client", entityId: client.id, action: "created", diff: { name: client.name, business: client.business?.name ?? null } });
+    const lead = await leadSourceData(tx, companyId, null, input);
+    const client = toRow(await tx.client.create({ data: { companyId, ...rest, ...addressData(address ?? null), ...lead, businessId: wanted ?? null }, select: clientSelect }));
+    await audit(tx, {
+      blockId: MOD,
+      actorId: ctx.userId,
+      companyId,
+      entityType: "Client",
+      entityId: client.id,
+      action: "created",
+      diff: { name: client.name, business: client.business?.name ?? null, leadSource: client.leadSource?.name ?? null, referredBy: client.referredBy?.label ?? null },
+    });
     return client;
   });
   if (relabelled) await emitRenamed(ctx, companyId, [client]);

@@ -31,6 +31,8 @@ export const updateProjectSchema = z
   .object({
     name: z.string().trim().min(1).max(160),
     clientId: z.string().uuid().nullable(),
+    /** How this job came in, when it's not the client's own; null: the client's. */
+    leadSourceId: z.string().uuid().nullable(),
     description: z.string().trim().max(5000).nullable(),
     jobNumber: z.string().trim().min(1).max(40),
     listing: z.enum(["LISTED", "UNLISTED"]),
