@@ -9,6 +9,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { ActionButton, Alert, Button, Checkbox, EmptyState, Field, List, PageHeader, SelectField, Section, Sheet, SheetContent, Stack, Switch, TapRow, api, useAction } from "@grid/ui";
 import { CATEGORY_ICONS } from "../category-icons";
 import { CategoryTile, ICON_COMPONENTS } from "./CategoryTile";
+import { Reminders } from "./Sightings";
 import type { CategoryField, CategoryJson, CategoryRoutineJson, FieldType } from "./shared";
 
 interface Preset {
@@ -235,7 +236,7 @@ function Presets({ onAdded }: { onAdded: (rows: CategoryJson[]) => void }) {
   );
 }
 
-export function Categories({ initial }: { initial: CategoryJson[] }) {
+export function Categories({ initial, reminders }: { initial: CategoryJson[]; reminders?: { notSeenDays: number; stillGotItDays: number } }) {
   const [rows, setRows] = useState(initial);
   const [open, setOpen] = useState<Partial<CategoryJson> | null>(null);
   return (
@@ -265,6 +266,7 @@ export function Categories({ initial }: { initial: CategoryJson[] }) {
             </List>
           )}
         </Section>
+        {reminders && <Reminders initial={reminders} />}
       </Stack>
       {open && (
         <CategorySheet

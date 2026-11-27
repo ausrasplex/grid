@@ -1,6 +1,6 @@
 # Assets block: agreed design
 
-Status: **agreed, not built yet.** Block id `assets`, depends on `companies`.
+Status: **parts 1–5 built (Nov 2026); vehicles (§11) and the public tag page (§10) next.** Block id `assets`, depends on `companies`.
 Uses `projects` (stage 2) for site locations when switched on, and stage 6 notifications for alerts; the core works without them.
 Suggested placement: alongside stage 3b (Documents).
 
@@ -126,7 +126,7 @@ All tables get UUIDs, `updatedAt` and soft delete, following the sync convention
 2. Custody: check out/in, movement history.
 3. Fault reporting + Do-not-use + workflow.
 4. Inspections and due dates.
-5. Project tab, not-seen alerts, home widgets.
+5. Project tab, not-seen alerts, home widgets. (Built: see "What part 5 built".)
 
 ## 10. Public QR lookup and lost-and-found (anyone can scan)
 
@@ -296,3 +296,25 @@ Docket's Fixtures layout and options, brought across in Grid's look (concept C t
 - **`@grid/ui`:** `DropdownMenu` (every ⋯ menu and "Checked ▾") and a pinned `footer` on `SheetContent`.
 - **Not changed:** the custody, fault and lost sheets keep their short centred dialogs (they're quick questions, not forms to fill in; Docket has nothing like them).
 - **Not yet:** Works With (batteries shared across tools), price tracking, and the insurance pack with receipts (a ZIP, like Docket's).
+
+## What part 5 built (Nov 2026)
+
+Decided Nov 2026: **Not seen after 30 days** and **"Do you still have it?" after 14 days**, both changeable per business.
+
+- **Scanning counts as seeing it.** Every move already set `lastSeenAt` (part 2). Now a scan does too: a tag opened by the phone camera (`/go/<code>`) or the one scanner (`/scan`, including a linked barcode) opens `/assets/<id>?scanned=1`, and the page (`ScanSeen`, `ui/Sightings.tsx`) calls `POST /api/assets/<id>/seen` once and takes the `?scanned=1` off, so a refresh doesn't count again. Opening the asset from the list doesn't count: only a scan or a move means someone actually had it in front of them. Each sighting is in the activity log ("seen").
+- **Not seen** (`sighting.ts`, tested; `seen.ts`): nothing has moved or scanned it for the business's **Not seen after** days (`AssetSettings.notSeenDays`, default 30). Gear never moved counts from when it was added. Retired and lost gear never count (they have their own state).
+  - A **Not seen since 19 Oct** chip on the list card, a **Not seen** view on the list (`?show=notseen`, beside Due), and a line under Where it is on the asset page.
+  - Needs attention (for whoever manages faults): "3 assets not seen lately", opening the Not seen view.
+  - One email to Owners and Foremen the morning an asset crosses the line (when the server has email set up).
+- **"Do you still have it?"** (the nudge, §3a step 6): gear **with you**, or that **you left on a job** (Return → On a job, so a sole trader's Hilti left at Smith St counts), not seen for **Ask "Do you still have it?" after** days (`AssetSettings.stillGotItDays`, new, default 14).
+  - A row in Needs attention for that person, with **Yes** (counts as seeing it; the row goes) and **No** (opens the asset with `?report=lost`, which opens the Lost sheet straight away).
+  - One email to that person the morning it starts. Push comes with stage 6.
+  - Gear in the workshop or a van isn't asked about (nobody's holding it); it shows as Not seen instead.
+- **Test & tag reminder emails** (left over from part 4): Owners and Foremen get one email **14 days before** a must-pass routine is due (`REMINDER_DAYS_BEFORE`), so there's time to book it in. The Overdue email on the day stays as it was.
+- **The morning run** (`assets.morning`, 6 am): the overdue check, then the 14-day reminders, then Not seen and "still got it?" emails. Each email goes on the one morning its line is crossed (`crossesToday`), so nothing repeats and there's no sent-log table; a morning the server was off is missed (Home still shows everything).
+- **Assets on site** on the job page (panel slot `job.top`, beside the job checklist): gear left on the job, or with someone who took it there, each with who has it, the building or level, and since when; a chip for Do not use, Overdue and the like. Shown only when there's something there, and not on Quoting / Not won jobs.
+- **Home** (`home.widgets` in §6 became Needs attention): the Soft look's **Needs attention** gets Not seen and the "still got it?" rows; the Grid look now shows the same Assets rows as a **Needs attention** card at the top of Home (`home.top`), which it didn't before.
+- **Settings › Asset categories › Reminders** (`assets.manage`): the two numbers of days (`GET`/`PUT /api/assets/settings/reminders`, 1–365).
+- **Formatting helpers moved to `ui/format.ts`** (no "use client"): the asset page is a server page and called `when()`, `dayText()` and `money()` from `ui/shared.tsx`, a "use client" file, which Next refuses ("Attempted to call dayText() from the server"). `shared.tsx` re-exports them for the client components.
+- **Not yet:** push and quiet hours (stage 6); sightings from the public tag page (§10); a "seen on" place when scanning (the scan only records the time).
+

@@ -6,16 +6,16 @@
 // people), each card with its picture, name, number and make, and chips
 // for what needs a look: Do not use, a test due, the warranty, kit
 // pieces, documents. Search, scan, category chips and In use / With me /
-// Due / Retired above. Asset register and Select → Print tags in the header.
+// Due / Not seen / Retired above. Asset register and Select → Print tags in the header.
 import { useEffect, useMemo, useState } from "react";
-import { CheckSquare, ChevronRight, FileText, Plus, Printer, Puzzle, ScanLine, ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
+import { CheckSquare, ChevronRight, EyeOff, FileText, Plus, Printer, Puzzle, ScanLine, ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
 import { ActionButton, Alert, Button, Checkbox, EmptyState, PageHeader, Scroller, SearchInput, Segmented, Stack, api, buttonVariants, cn, useAction } from "@grid/ui";
 import { AssetSheet } from "./AssetSheet";
 import { CategoryTile } from "./CategoryTile";
 import { PrintTagsSheet, download } from "./PrintTagsSheet";
-import { Chip, WARRANTY_TONE, statusWords, type AssetJson, type CategoryJson, type WarrantyJson } from "./shared";
+import { Chip, WARRANTY_TONE, shortDay, statusWords, type AssetJson, type CategoryJson, type WarrantyJson } from "./shared";
 
-type Show = "active" | "mine" | "due" | "retired";
+type Show = "active" | "mine" | "due" | "notseen" | "retired";
 
 interface Group {
   key: string;
@@ -78,9 +78,15 @@ function AssetCard({ row, withWho, selecting, picked, onToggle }: { row: AssetJs
         </span>
         {!selecting && <ChevronRight aria-hidden className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />}
       </div>
-      {(row.status !== "IN_SERVICE" || row.due || row.warranty.tone !== "none" || row.partCount > 0 || row.documentCount > 0) && (
+      {(row.status !== "IN_SERVICE" || row.due || row.notSeenSince || row.warranty.tone !== "none" || row.partCount > 0 || row.documentCount > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           <StatusChip status={row.status} />
+          {row.notSeenSince && (
+            <Chip tone="soon" title={`Nothing has moved or scanned it since ${shortDay(row.notSeenSince)}`}>
+              <EyeOff aria-hidden />
+              Not seen since {shortDay(row.notSeenSince)}
+            </Chip>
+          )}
           {row.due && row.status !== "OVERDUE" && <Chip tone={row.due.tone}>{row.due.text}</Chip>}
           {row.warranty.tone !== "none" && (
             <Chip tone={WARRANTY_TONE[row.warranty.tone]} title={row.warranty.text}>
@@ -129,10 +135,11 @@ export function Assets({ initial, categories, canManage, userId }: { initial: As
   const [first, setFirst] = useState(true);
   const register = useAction();
 
-  // Home's "overdue for a test" opens this with ?show=due; Add asset in a menu with ?add=1.
+  // Home's "overdue for a test" opens this with ?show=due, "not seen" with ?show=notseen; Add asset in a menu with ?add=1.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("show") === "due") setShow("due");
+    if (params.get("show") === "notseen") setShow("notseen");
     if (params.get("add") === "1" && canManage) setAdding(true);
   }, [canManage]);
 
@@ -167,7 +174,7 @@ export function Assets({ initial, categories, canManage, userId }: { initial: As
     <>
       <PageHeader
         title="Assets"
-        meta={`${rows.length} ${rows.length === 1 ? "asset" : "assets"}${show === "retired" ? " retired" : show === "mine" ? " with you" : show === "due" ? " due" : ""}`}
+        meta={`${rows.length} ${rows.length === 1 ? "asset" : "assets"}${show === "retired" ? " retired" : show === "mine" ? " with you" : show === "due" ? " due" : show === "notseen" ? " not seen" : ""}`}
         actions={
           canManage && (
             <>
@@ -220,6 +227,7 @@ export function Assets({ initial, categories, canManage, userId }: { initial: As
               { value: "active", label: "In use" },
               { value: "mine", label: "With me" },
               { value: "due", label: "Due" },
+              { value: "notseen", label: "Not seen" },
               { value: "retired", label: "Retired" },
             ]}
           />
@@ -237,7 +245,7 @@ export function Assets({ initial, categories, canManage, userId }: { initial: As
         )}
         {rows.length === 0 ? (
           <div className="rounded-xl bg-card">
-            <EmptyState title={filtered ? "Nothing matches" : show === "retired" ? "Nothing retired" : show === "mine" ? "You haven't got anything checked out" : show === "due" ? "Nothing due in the next 30 days" : "No assets yet"}>
+            <EmptyState title={filtered ? "Nothing matches" : show === "retired" ? "Nothing retired" : show === "mine" ? "You haven't got anything checked out" : show === "due" ? "Nothing due in the next 30 days" : show === "notseen" ? "Everything's been seen lately" : "No assets yet"}>
               {!filtered && show === "active" && canManage && "Add your tools and gear: a photo, the make and model, the serial number. Each can have kit pieces (the batteries, charger and case), with their own serials and warranties. Then print QR tags to stick on them."}
             </EmptyState>
           </div>

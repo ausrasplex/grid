@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowRightLeft, Hand, LogIn, LogOut, PackageCheck, SearchX } from "lucide-react";
 import { Alert, Button, Field, FormActions, Label, Segmented, SelectField, Sheet, SheetContent, api, useAction } from "@grid/ui";
 import { FaultSheet, LostSheet, type OpenFault } from "./ReportSheets";
+import { dropParam } from "./Sightings";
 import type { AssetJson } from "./shared";
 
 interface Places {
@@ -257,6 +258,12 @@ export function CustodyActions({
   lostOpen: boolean;
 }) {
   const [open, setOpen] = useState<"out" | "return" | "move" | "take" | "recover" | "fault" | "lost" | null>(null);
+  // "No" on Home's "Do you still have it?" opens this with ?report=lost (part 5).
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("report") !== "lost") return;
+    dropParam("report");
+    if (canReport && !lostOpen && asset.status !== "RETIRED") setOpen("lost");
+  }, [canReport, lostOpen, asset.status]);
   const done = () => window.location.reload();
   const lost = lostOpen;
   const blocked = BLOCKED[asset.status];

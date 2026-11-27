@@ -362,4 +362,33 @@ export async function morningCheck(): Promise<void> {
   }
 }
 
+/** How long before a must-pass routine is due the reminder email goes (part 5). */
+export const REMINDER_DAYS_BEFORE = 14;
+
+/**
+ * Every morning, after the overdue check: one email per business to
+ * Owners and Foremen for gear whose test & tag (or another must-pass
+ * routine) is due in exactly 14 days, so there's time to book it in.
+ * Exactly 14, so each reminder goes once.
+ */
+export async function dueSoonReminders(): Promise<void> {
+  const remindOn = new Date(`${today()}T00:00:00Z`);
+  remindOn.setUTCDate(remindOn.getUTCDate() + REMINDER_DAYS_BEFORE);
+  const rows = await db.asset.findMany({
+    where: { deletedAt: null, nextInspectionDue: remindOn, status: { notIn: ["RETIRED", "LOST"] } },
+    select: { companyId: true, number: true, name: true, tagCode: true },
+    orderBy: { number: "asc" },
+  });
+  const byCompany = new Map<string, typeof rows>();
+  for (const row of rows) byCompany.set(row.companyId, [...(byCompany.get(row.companyId) ?? []), row]);
+  const dueText = new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(remindOn);
+  for (const [companyId, assets] of byCompany) {
+    const lines = assets.map((asset) => `- Asset No. ${asset.number}, ${asset.name}: ${routeCodeUrl(asset.tagCode)}`);
+    await tellManagers(companyId, "", {
+      subject: assets.length === 1 ? `Test due ${dueText}: Asset No. ${assets[0]!.number}, ${assets[0]!.name}` : `${assets.length} assets due for a test on ${dueText}`,
+      text: `These are due for test & tag (or another test or inspection they must pass) on ${dueText}, in ${REMINDER_DAYS_BEFORE} days. Book them in so they don't go Overdue:\n\n${lines.join("\n")}\n`,
+    });
+  }
+}
+
 export type { RoutineLike };

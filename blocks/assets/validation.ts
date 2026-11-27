@@ -97,9 +97,17 @@ export const presetSchema = z.object({ names: z.array(z.string().trim().min(1).m
 export const listQuery = z.object({
   q: z.string().optional(),
   category: z.union([uuid, z.literal("none")]).optional(),
-  /** "active" (default: everything not retired), "mine" (what you have now), "retired" or "all". */
-  show: z.enum(["active", "mine", "due", "retired", "all"]).optional(),
+  /** "active" (default: everything not retired), "mine" (what you have now), "due", "notseen" (part 5), "retired" or "all". */
+  show: z.enum(["active", "mine", "due", "notseen", "retired", "all"]).optional(),
 });
+
+/** Settings › Asset categories › Reminders (part 5). */
+export const reminderSettingsSchema = z
+  .object({
+    notSeenDays: z.coerce.number().int().min(1, "At least 1 day").max(365, "A year at most"),
+    stillGotItDays: z.coerce.number().int().min(1, "At least 1 day").max(365, "A year at most"),
+  })
+  .strict();
 
 export const statusSchema = z.object({ status: z.enum(["IN_SERVICE", "RETIRED"]) }).strict();
 
@@ -261,6 +269,7 @@ export type BookingInput = z.infer<typeof bookingSchema>;
 export type AssetInput = z.infer<typeof assetSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
 export type ListQuery = z.infer<typeof listQuery>;
+export type ReminderSettingsInput = z.infer<typeof reminderSettingsSchema>;
 export type StickerQuery = z.infer<typeof stickerQuery>;
 export type StickerSettingsInput = z.infer<typeof stickerSettingsSchema>;
 export type CheckOutInput = z.infer<typeof checkOutSchema>;

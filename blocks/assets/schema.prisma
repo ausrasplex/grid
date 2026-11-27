@@ -4,7 +4,8 @@
 // and the movement history. Part 3: faults (Do not use, the repair steps)
 // and lost or stolen. Part 4: inspections and servicing (routines, the log
 // of checks done, bookings). Part 4b: Docket's layout (warranty, value, brand, kit pieces,
-// manuals and documents, copies). Vehicles add their tables later.
+// manuals and documents, copies). Part 5: not seen, "still got it?" and
+// the job's assets on site. Vehicles add their tables later.
 
 enum AssetStatus {
   IN_SERVICE
@@ -109,6 +110,8 @@ model AssetSettings {
   companyId         String   @id
   /// "Not seen recently" after this many days (part 5).
   notSeenDays       Int      @default(30)
+  /// "Do you still have it?" on Home after this many days with you, or left on a job by you (part 5).
+  stillGotItDays    Int      @default(14)
   /// The public tag page (§10): on, whether Lost shows, and what it shows ("NAME" or "OWNER").
   publicLookup      Boolean  @default(true)
   showLostPublicly  Boolean  @default(true)
