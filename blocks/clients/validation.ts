@@ -28,10 +28,24 @@ export const clientSchema = z
     address: optAddress,
     abn: optText(40),
     notes: optText(5000),
+    /** How they found you (a LeadSource of this business), null for not known; left out keeps it. */
+    leadSourceId: z.string().uuid().nullable().optional(),
+    /** Referral: the client who referred them; ignored (cleared) for other lead sources. */
+    referredByClientId: z.string().uuid().nullable().optional(),
   })
   .strict();
 
 export type ClientInput = z.infer<typeof clientSchema>;
+
+/** Settings › Clients › Lead sources: add one (name), or rename, hide or show one. */
+export const leadSourceSchema = z
+  .object({
+    name: z.string().trim().min(1, "Give it a name").max(60).optional(),
+    hidden: z.boolean().optional(),
+  })
+  .strict();
+
+export type LeadSourceInput = z.infer<typeof leadSourceSchema>;
 
 export const businessSchema = z
   .object({

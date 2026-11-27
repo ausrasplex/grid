@@ -5,11 +5,14 @@
 //   /clients/business/<id>   one business: its details, its people, and everyone's
 //                            jobs and quotes (the same "client.page" panels)
 //   /clients/import          import from a CSV or Excel file, with a preview first
+//   /clients/lead-sources    how clients find you: the business's list (Settings › Clients)
 
 import { can, notFound, type RequestContext } from "@grid/core";
 import { Alert, Avatar, Icon, List, PageHeader, Section, Stack, type BlockPages, type PanelRenderer } from "@grid/ui";
 import { roleLine } from "../people";
 import { businessPage, clientPage, listBusinesses, listClients } from "../service";
+import { listLeadSources } from "../lead-sources";
+import { LeadSources } from "./LeadSources";
 import type { ClientPagePanelProps } from "../index";
 import { BusinessActions, ClientActions, ShareContact } from "./ClientActions";
 import { Clients } from "./Clients";
@@ -18,6 +21,10 @@ import { ImportClients } from "./ClientTransfer";
 export const pages: BlockPages = {
   "": async ({ ctx, params: [first, second], panels }) => {
     if (first === "business" && second) return <BusinessPage ctx={ctx} businessId={second} panels={panels} />;
+    if (first === "lead-sources" && !second) {
+      if (!can(ctx, "clients.view")) throw notFound("Page not found");
+      return <LeadSources initial={await listLeadSources(ctx, true)} canManage={can(ctx, "clients.manage")} />;
+    }
     if (first === "import" && !second) {
       if (!can(ctx, "clients.add")) throw notFound("Page not found");
       return <ImportClients />;
@@ -100,6 +107,7 @@ async function ClientPage({ ctx, clientId, panels }: { ctx: RequestContext; clie
     { label: "Email", value: email, href: email ? `mailto:${email}` : undefined, icon: "mail", note: client.email ? undefined : from },
     { label: "Address", value: client.address ?? business?.address ?? null, note: client.address ? undefined : from },
     { label: "ABN", value: business?.abn ?? client.abn, note: business?.abn ? from : undefined },
+    { label: "Found you", value: client.leadSource?.name ?? null, note: client.referredBy ? `Referred by ${client.referredBy.label}` : undefined },
     { label: "Notes", value: client.notes },
   ];
 

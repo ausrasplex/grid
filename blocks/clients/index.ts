@@ -14,4 +14,5 @@ export interface ClientPagePanelProps {
 
 export { listClients, getClient, requireClient, clientsById, clientIdsNamed, type ClientRow, type ClientRenamedEvent } from "./service";
 export { clientLabel, roleLine, quoteDetails, type BusinessDetails } from "./people";
+export { listLeadSources, requireLeadSource, leadSourceNames, type LeadSourceRow } from "./lead-sources";
 export { setClientPicture, canSeeClientPicture, type PictureOwner } from "./pictures";

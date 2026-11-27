@@ -42,12 +42,43 @@ model Client {
   linkedUserId String?
   /// Their photo (pictures/clients/<companyId>/…). None: their business's logo, then initials.
   photoKey    String?
+  /// How they found you (Google, Word of mouth, Referral…): the business's own list, LeadSource.
+  /// Optional. Feeds the Analytics Block's Lead sources (docs/quotations-block.md "Lead source").
+  leadSourceId String?
+  leadSource   LeadSource? @relation(fields: [leadSourceId], references: [id], onDelete: SetNull)
+  /// Referral: the client who sent them your way.
+  referredByClientId String?
+  referredBy         Client?  @relation("ClientReferrals", fields: [referredByClientId], references: [id], onDelete: SetNull)
+  referred           Client[] @relation("ClientReferrals")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
   @@index([companyId, name])
   @@index([businessId])
+  @@index([leadSourceId])
+  @@index([referredByClientId])
+}
+
+/// How clients find a business: one editable list per business, started with
+/// Google, Facebook/Instagram, Word of mouth, Referral, Van signage, Builder,
+/// Repeat client and Other the first time it's needed. Hidden, not deleted, so
+/// past clients and jobs keep theirs (docs/quotations-block.md "Lead source").
+model LeadSource {
+  id         String    @id @default(uuid())
+  companyId  String
+  name       String
+  /// The one that asks "Who referred them?" (a client of yours).
+  isReferral Boolean   @default(false)
+  sortOrder  Int       @default(0)
+  /// Hidden from the list for new clients; kept on the ones that already have it.
+  hiddenAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  clients    Client[]
+
+  @@unique([companyId, name])
+  @@index([companyId, sortOrder])
 }
 
 /// A business some of your clients work for (Honeywell). Holds what's the

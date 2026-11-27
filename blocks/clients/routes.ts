@@ -2,7 +2,8 @@
 import type { Routes } from "@grid/core";
 import * as svc from "./service";
 import * as transfer from "./transfer-service";
-import { businessSchema, cardQuerySchema, clientSchema, formatSchema, importSchema } from "./validation";
+import * as leadSources from "./lead-sources";
+import { businessSchema, cardQuerySchema, clientSchema, formatSchema, importSchema, leadSourceSchema } from "./validation";
 
 export const routes: Routes = {
   // Export and import (docs/quotations-block.md "Export and import"). Before "/:id".
@@ -31,6 +32,10 @@ export const routes: Routes = {
       return transfer.applyImport(ctx, input.cells, input.decisions, input.pictures);
     },
   },
+  // Lead sources (Settings › Clients › Lead sources). ?all=1 includes hidden ones.
+  "GET /lead-sources": { permission: "clients.view", handler: (ctx, request) => leadSources.listLeadSources(ctx, request.query.get("all") === "1") },
+  "POST /lead-sources": { permission: "clients.manage", handler: (ctx, request) => leadSources.saveLeadSource(ctx, null, leadSourceSchema.parse(request.body)) },
+  "PUT /lead-sources/:id": { permission: "clients.manage", handler: (ctx, request) => leadSources.saveLeadSource(ctx, request.params.id!, leadSourceSchema.parse(request.body)) },
   "GET /": { permission: "clients.view", handler: (ctx, request) => svc.listClients(ctx, request.query.get("q") ?? "") },
   "POST /": { permission: "clients.add", handler: (ctx, request) => svc.saveClient(ctx, null, clientSchema.parse(request.body)) },
   // Businesses some clients work for (Honeywell → its Project Manager).

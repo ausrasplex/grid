@@ -4,7 +4,7 @@
 // quotes. Businesses (Honeywell) are listed first, with how many people are
 // at each; then every client, people at a business showing their role there.
 import { useEffect, useState } from "react";
-import { ArrowDownUp, Building2, Plus } from "lucide-react";
+import { ArrowDownUp, Building2, Megaphone, Plus } from "lucide-react";
 import { ActionButton, Avatar, EmptyState, List, PageHeader, SearchInput, Section, Segmented, Sheet, SheetContent, Stack, TapRow, api } from "@grid/ui";
 import { BusinessForm, ClientForm, roleAt, type BusinessRowJson, type ClientJson } from "./ClientPicker";
 import { TransferSheet } from "./ClientTransfer";
@@ -75,6 +75,7 @@ export function Clients({
           (canAdd || canManage) && (
             <>
               <ActionButton variant="outline" icon={<ArrowDownUp />} label="Export & import" onClick={() => setTransferOpen(true)} />
+              <ActionButton variant="outline" icon={<Megaphone />} label="Lead sources" onClick={() => (window.location.href = "/clients/lead-sources")} />
               {canAdd && (
                 <>
                   <ActionButton icon={<Building2 />} label="Add business" onClick={() => setAddingBusiness(true)} />

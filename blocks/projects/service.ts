@@ -18,7 +18,7 @@ import {
   syncCompanySite,
   type SiteStructure,
 } from "@grid/block-sites";
-import { requireClient, type ClientRenamedEvent } from "@grid/block-clients";
+import { requireClient, requireLeadSource, type ClientRenamedEvent } from "@grid/block-clients";
 import type { LevelDeletedEvent } from "@grid/block-sites";
 import type { CoverInput, CreateProjectInput, UpdateProjectInput } from "./validation";
 
@@ -349,6 +349,8 @@ function toSummary(row: SummaryRow, siteName: string): JobSummary {
 }
 
 export interface JobView extends JobSummary {
+  /** How this job came in, when it's not the client's own (a LeadSource id), or null. */
+  leadSourceId: string | null;
   /** The quote it came from ("Q-1042"), when it did. */
   quoteNumber: string | null;
   description: string | null;
@@ -372,6 +374,7 @@ export async function getProject(ctx: RequestContext, projectId: string): Promis
     name: project.name,
     clientId: project.clientId,
     clientName: project.clientName,
+    leadSourceId: project.leadSourceId,
     description: project.description,
     status: project.status,
     listing: project.listing,
@@ -554,6 +557,8 @@ export async function updateProject(ctx: RequestContext, projectId: string, inpu
     // A different client (or none). Keeping the same one is fine even if it's since been removed from the list.
     const client =
       input.clientId === undefined || input.clientId === project.clientId ? undefined : input.clientId ? await requireClient(tx, companyId, input.clientId) : null;
+    // How this job came in, when it's not the client's own. Keeping one that's since been hidden is fine.
+    if (input.leadSourceId) await requireLeadSource(tx, companyId, input.leadSourceId, project.leadSourceId);
     if (input.jobNumber !== undefined) {
       const value = input.jobNumber.trim();
       await assertJobNumberFree(tx, companyId, value, projectId);
@@ -577,6 +582,7 @@ export async function updateProject(ctx: RequestContext, projectId: string, inpu
         name: input.name,
         ...(client === undefined ? {} : { clientId: client?.id ?? null, clientName: client?.label ?? null }),
         description: input.description === undefined ? undefined : input.description || null,
+        leadSourceId: input.leadSourceId,
         listing: input.listing,
       },
     });
