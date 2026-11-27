@@ -4,6 +4,7 @@
 // change it, add from the price book, totals update as you type, and it
 // saves itself. Once sent it's read-only: revisions, PDF, accept/decline.
 
+import { addressOf, isEmptyAddress, type Address } from "@grid/core";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Copy, FileText, FolderInput, ListPlus, Plus, Send, Star, ToggleLeft, Trash2, type LucideIcon } from "lucide-react";
 import { AddressField, Alert,
@@ -55,7 +56,9 @@ export interface QuoteJson {
   title: string;
   status: string;
   client: ClientJson | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
   siteAddress: string | null;
+  siteAddressParts: Address | null;
   clientView: "ITEMISED" | "SECTIONS" | "LUMP";
   pricesIncludeTax: boolean;
   validUntil: string;
@@ -142,7 +145,7 @@ export function QuoteEditor({
   const [form, setForm] = useState({
     title: initial.title,
     client: initial.client,
-    siteAddress: initial.siteAddress ?? "",
+    siteAddress: addressOf({ address: initial.siteAddress, addressParts: initial.siteAddressParts }),
     clientView: initial.clientView,
     pricesIncludeTax: initial.pricesIncludeTax,
     validUntil: dateInput(initial.validUntil),
@@ -514,8 +517,8 @@ export function QuoteEditor({
             <Section title="Details">
               <div className="flex flex-col gap-4">
                 <Field label="What's the job?" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
-                <ClientPicker value={form.client} onChange={(value) => setForm({ ...form, client: value, siteAddress: form.siteAddress || value?.address || "" })} />
-                <AddressField label="Site address" value={form.siteAddress} onChange={(event) => setForm({ ...form, siteAddress: event.target.value })} />
+                <ClientPicker value={form.client} onChange={(value) => setForm({ ...form, client: value, siteAddress: isEmptyAddress(form.siteAddress) ? addressOf(value) : form.siteAddress })} />
+                <AddressField label="Site address" value={form.siteAddress} onChange={(siteAddress) => setForm({ ...form, siteAddress })} />
                 <Field label="Valid until" type="date" value={form.validUntil} onChange={(event) => setForm({ ...form, validUntil: event.target.value })} />
                 <div className="flex flex-col gap-2">
                   <Label>What the client sees</Label>

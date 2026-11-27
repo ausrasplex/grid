@@ -1,5 +1,5 @@
 // Branding on documents (DocTheme), and what documents need to show it.
-import { badRequest, requireCompany, type RequestContext } from "@grid/core";
+import { addressData, addressFromColumns, badRequest, requireCompany, type Address, type RequestContext } from "@grid/core";
 import { attachFile, audit, db, openStoredFile, readStoredFile } from "@grid/db";
 import { useBrandingLogo } from "@grid/block-companies";
 import type { ThemeInput } from "./validation";
@@ -14,7 +14,9 @@ export interface Theme {
   accentColor: string;
   phone: string | null;
   email: string | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
   address: string | null;
+  addressParts: Address | null;
   website: string | null;
   licenceLabel: string | null;
   licenceNumber: string | null;
@@ -45,6 +47,7 @@ export async function themeFor(companyId: string): Promise<Theme> {
     phone: theme?.phone ?? null,
     email: theme?.email ?? null,
     address: theme?.address ?? null,
+    addressParts: theme?.address ? addressFromColumns(theme) : null,
     website: theme?.website ?? null,
     licenceLabel: theme?.licenceLabel ?? null,
     licenceNumber: theme?.licenceNumber ?? null,
@@ -68,9 +71,10 @@ export async function updateTheme(ctx: RequestContext, input: ThemeInput) {
         throw badRequest("That logo upload can't be used. Try uploading it again.");
       }
     }
-    const data = { ...input };
+    const { address, ...rest } = input;
+    const data = { ...rest, ...addressData(address ?? null) };
     await tx.docTheme.upsert({ where: { companyId }, create: { companyId, ...data }, update: data });
-    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "DocTheme", entityId: companyId, action: "updated", diff: input });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "DocTheme", entityId: companyId, action: "updated", diff: { ...rest, address: data.address ?? null } });
     return previous?.logoFileId ?? null;
   });
   // A new logo makes the business picture, unless the business uploaded its own.

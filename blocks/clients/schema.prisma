@@ -20,7 +20,20 @@ model Client {
   role        String?
   email       String?
   phone       String?
+  /// The address in parts (docs/stage-2-projects.md "Addresses"); `address` is the one line made from them.
   address     String?
+  /// Unit, number and street: "2/12 Smith St".
+  street      String?
+  suburb      String?
+  /// "VIC".
+  state       String?
+  postcode    String?
+  /// "Australia", or another country's name.
+  country     String?
+  /// Google's id for the place, when picked from Google.
+  placeId     String?
+  latitude    Float?
+  longitude   Float?
   /// Business number (ABN etc.) for business clients.
   abn         String?
   notes       String?
@@ -46,7 +59,20 @@ model ClientBusiness {
   abn       String?
   email     String?
   phone     String?
+  /// The address in parts (docs/stage-2-projects.md "Addresses"); `address` is the one line made from them.
   address   String?
+  /// Unit, number and street: "2/12 Smith St".
+  street    String?
+  suburb    String?
+  /// "VIC".
+  state     String?
+  postcode  String?
+  /// "Australia", or another country's name.
+  country   String?
+  /// Google's id for the place, when picked from Google.
+  placeId   String?
+  latitude  Float?
+  longitude Float?
   notes     String?
   /// Later (contract chain): the Grid business this contact card is for,
   /// matched by ABN. Stored now, empty and unread until then.

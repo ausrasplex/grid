@@ -3,6 +3,7 @@
 // Start a quote: what it's for, who for, where. Lines come next.
 // "Where" is an existing site (then its building and floor), or just an
 // address. With a site, the job it becomes when accepted goes there.
+import { addressOf, isEmptyAddress } from "@grid/core";
 import { useState } from "react";
 import { AddressField, Alert, Button, Field, FormActions, PageHeader, Section, api, useAction } from "@grid/ui";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
@@ -27,7 +28,7 @@ export function NewQuote({
   const [title, setTitle] = useState(job?.name ?? "");
   const [client, setClient] = useState<ClientJson | null>(jobClient);
   const [place, setPlace] = useState<PlaceValue | null>(startPlace ?? null);
-  const [address, setAddress] = useState(job?.address ?? startPlace?.site.address ?? "");
+  const [address, setAddress] = useState(() => addressOf(job ?? startPlace?.site));
   const [touched, setTouched] = useState(!!job || !!startPlace);
   const action = useAction();
   const building = place?.site.buildings.find((candidate) => candidate.id === place.buildingId);
@@ -49,7 +50,7 @@ export function NewQuote({
                 body: {
                   title,
                   clientId: client?.id ?? null,
-                  siteAddress: address || null,
+                  siteAddress: isEmptyAddress(address) ? null : address,
                   projectId: job?.id ?? null,
                   ...(place && !job ? { siteId: place.site.id, buildingId: place.buildingId, levelId: place.levelId } : {}),
                 },
@@ -64,7 +65,7 @@ export function NewQuote({
             canAdd={canAddClient}
             onChange={(value) => {
               setClient(value);
-              if (value?.address && !touched) setAddress(value.address);
+              if (value?.address && !touched) setAddress(addressOf(value));
             }}
           />
           {/* A quote for an existing job is already placed: the job says where. */}
@@ -74,7 +75,7 @@ export function NewQuote({
               hint="If it's at a site you've set up, pick it (and the building and floor). Otherwise just type the address below."
               onChange={(next) => {
                 setPlace(next);
-                if (next && (!touched || !address.trim())) setAddress(next.site.address);
+                if (next && (!touched || isEmptyAddress(address))) setAddress(addressOf(next.site));
               }}
             />
           )}
@@ -88,7 +89,7 @@ export function NewQuote({
             label="Site address"
             hint={place ? "On the quote. Filled in from the site; change it if the quote needs to say something different." : "Where the work is. Needed to make the job when it's accepted."}
             value={address}
-            onChange={(event) => (setAddress(event.target.value), setTouched(true))}
+            onChange={(next) => (setAddress(next), setTouched(true))}
           />
           <Alert variant="error">{action.error}</Alert>
           <FormActions>

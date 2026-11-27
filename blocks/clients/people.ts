@@ -1,5 +1,7 @@
 // People at a business: how a client reads in lists, and whose details go on
-// a quote. No imports, so it runs anywhere and is unit-tested.
+// a quote. Only a type import, so it runs anywhere and is unit-tested.
+
+import type { Address } from "@grid/core";
 
 export interface BusinessDetails {
   id: string;
@@ -7,7 +9,9 @@ export interface BusinessDetails {
   abn: string | null;
   email: string | null;
   phone: string | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
   address: string | null;
+  addressParts: Address | null;
 }
 
 export interface ClientDetails {
@@ -17,6 +21,7 @@ export interface ClientDetails {
   email: string | null;
   phone: string | null;
   address: string | null;
+  addressParts: Address | null;
   abn: string | null;
   business: BusinessDetails | null;
 }
@@ -46,6 +51,7 @@ export function quoteDetails(client: ClientDetails) {
     email: client.email ?? business?.email ?? null,
     phone: client.phone ?? business?.phone ?? null,
     address: client.address ?? business?.address ?? null,
+    addressParts: client.address ? client.addressParts : (business?.addressParts ?? null),
     abn: business?.abn ?? client.abn ?? null,
   };
 }

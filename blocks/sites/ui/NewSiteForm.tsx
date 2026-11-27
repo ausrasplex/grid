@@ -5,11 +5,12 @@
 // its site automatically.) Shown to sole traders as well as teams.
 
 import { useState } from "react";
+import { emptyAddress } from "@grid/core";
 import { AddressField, Alert, Button, Field, FormActions, PageHeader, Section, api, useAction } from "@grid/ui";
 
 export function NewSiteForm() {
   const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(emptyAddress);
   const action = useAction();
   return (
     <>
@@ -30,7 +31,7 @@ export function NewSiteForm() {
           <AddressField
             label="Address"
             value={address}
-            onChange={(event) => setAddress(event.target.value)}
+            onChange={setAddress}
             sites
             hint="If it's already one of your sites, it shows first: pick it to open it instead of making a second one."
             onSite={(match) => (window.location.href = `/sites/${match.id}`)}

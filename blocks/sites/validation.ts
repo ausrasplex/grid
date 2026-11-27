@@ -1,7 +1,12 @@
 import { z } from "zod";
+import { formatAddress, toAddress } from "@grid/core";
 
 const name = z.string().trim().min(1).max(120);
-const address = z.string().trim().min(3).max(300);
+/** An address in parts ({ street, suburb, state, postcode… }), or one line that's split up. */
+const address = z
+  .union([z.string(), z.record(z.string(), z.unknown())])
+  .transform(toAddress)
+  .refine((value) => formatAddress(value).length >= 3, "Give the address");
 
 export const createSiteSchema = z.object({ name, address }).strict();
 

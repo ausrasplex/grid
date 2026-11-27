@@ -5,6 +5,7 @@
 // with its history. For a managed site, pick the buildings and levels.
 
 import { useEffect, useState } from "react";
+import { emptyAddress, formatAddress, isEmptyAddress } from "@grid/core";
 import { AddressField, Alert, Button, Field, FormActions, Icon, PageHeader, Section, Stack, api, useAction, useApi } from "@grid/ui";
 import { ClientPicker, type ClientJson } from "@grid/block-clients/components";
 import { CoversPicker, type Cover } from "./CoversPicker";
@@ -44,7 +45,7 @@ export function NewJobForm({
   const [name, setName] = useState("");
   const [client, setClient] = useState<ClientJson | null>(null);
   const [jobNumber, setJobNumber] = useState("");
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(emptyAddress);
   // The site: from the page, or picked from "Your sites" in the address box.
   const [site, setSite] = useState<Site | null>(startSite);
   const [covers, setCovers] = useState<Cover[]>(cover ? [cover] : defaultCovers(startSite));
@@ -52,17 +53,18 @@ export function NewJobForm({
   const action = useAction();
 
   // "You've worked here before": look the address up as it's typed.
+  const addressLine = formatAddress(address);
   useEffect(() => {
-    if (site || address.trim().length < 6) return setCheck(null);
+    if (site || addressLine.length < 6) return setCheck(null);
     const timer = setTimeout(async () => {
       try {
-        setCheck(await api<AddressCheck | null>(`/projects/address-check?address=${encodeURIComponent(address.trim())}`));
+        setCheck(await api<AddressCheck | null>(`/projects/address-check?address=${encodeURIComponent(addressLine)}`));
       } catch {
         setCheck(null);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [address, site]);
+  }, [addressLine, site]);
 
   const needsCovers = !!site && !(site.buildings.length === 1 && site.buildings[0]!.kind === "SINGLE");
 
@@ -98,7 +100,7 @@ export function NewJobForm({
                   label="Address"
                   placeholder="12 Smith St, Brunswick VIC 3056"
                   value={address}
-                  onChange={(event) => setAddress(event.target.value)}
+                  onChange={setAddress}
                   sites
                   onSite={async (match) => {
                     // A house's address is enough (the job finds its site). A precinct or centre
@@ -132,7 +134,7 @@ export function NewJobForm({
                   onChange={(picked) => {
                     setClient(picked);
                     // Their address is often the job's.
-                    if (picked?.address && !site && !address.trim()) setAddress(picked.address);
+                    if (picked?.addressParts && !site && isEmptyAddress(address)) setAddress(picked.addressParts);
                   }}
                 />
               )}

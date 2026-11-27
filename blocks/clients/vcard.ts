@@ -6,7 +6,14 @@
 // open. Reading takes 2.1 (older Android), 3.0 and 4.0, and any number of
 // contacts in one file.
 
+import { emptyAddress, formatAddress, parseAddress, shortState } from "@grid/core";
 import { COLUMNS, PICTURE_COLUMNS } from "./transfer.ts";
+
+/** ADR's parts: PO box; extended; street; town; state; postcode; country. Grid's one line is made from parts, so it splits cleanly. */
+function addressParts(line: string): string {
+  const address = parseAddress(line);
+  return ["", "", address.street, address.suburb, address.state, address.postcode, address.country].map(escapeText).join(";");
+}
 
 /** One contact to write. */
 export interface VCardContact {
@@ -69,9 +76,9 @@ export function toVCard(contact: VCardContact): string {
   if (contact.business?.phone && contact.business.phone !== contact.phone) lines.push(`TEL;TYPE=WORK,VOICE:${escapeText(contact.business.phone)}`);
   if (contact.email) lines.push(`EMAIL;TYPE=INTERNET:${escapeText(contact.email)}`);
   if (contact.business?.email && contact.business.email !== contact.email) lines.push(`EMAIL;TYPE=INTERNET,WORK:${escapeText(contact.business.email)}`);
-  // Grid keeps an address as one line: it goes in the street part.
-  if (contact.address) lines.push(`ADR;TYPE=HOME:;;${escapeText(contact.address)};;;;`);
-  if (contact.business?.address && contact.business.address !== contact.address) lines.push(`ADR;TYPE=WORK:;;${escapeText(contact.business.address)};;;;`);
+  // Addresses go in their parts, so phones file them properly.
+  if (contact.address) lines.push(`ADR;TYPE=HOME:${addressParts(contact.address)}`);
+  if (contact.business?.address && contact.business.address !== contact.address) lines.push(`ADR;TYPE=WORK:${addressParts(contact.business.address)}`);
   if (contact.notes) lines.push(`NOTE:${escapeText(contact.notes)}`);
   if (contact.photo?.length) lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${toBase64(contact.photo)}`);
   lines.push("END:VCARD");
@@ -205,14 +212,14 @@ const tidy = (value: string | undefined | null) => {
   const trimmed = (value ?? "").replace(/\s+\n/g, "\n").trim();
   return trimmed ? trimmed : null;
 };
-/** ADR parts (PO box; extended; street; town; state; postcode; country) as one line. */
-const addressLine = (value: string) =>
-  tidy(
-    splitParts(value, ";")
-      .map((part) => unescapeText(part).replace(/\n/g, ", ").trim())
-      .filter(Boolean)
-      .join(", "),
-  );
+/** ADR parts (PO box; extended; street; town; state; postcode; country) as Grid's one line ("12 Smith St, Brunswick VIC 3056"). */
+const addressLine = (value: string) => {
+  const parts = splitParts(value, ";").map((part) => unescapeText(part).replace(/\n/g, ", ").trim());
+  const [poBox = "", extended = "", street = "", suburb = "", state = "", postcode = "", country = ""] = parts;
+  // Some phones put the whole address in the street part: split that up instead.
+  if (!suburb && !state && !postcode) return tidy(formatAddress(parseAddress([poBox, extended, street, country].filter(Boolean).join(", "))));
+  return tidy(formatAddress({ ...emptyAddress, street: [poBox, extended, street].filter(Boolean).join(", "), suburb, state: shortState(state), postcode, country }));
+};
 
 function photoOf(property: Property): Uint8Array | null {
   const value = property.value.trim();

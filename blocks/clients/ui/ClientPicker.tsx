@@ -6,6 +6,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Building2 } from "lucide-react";
+import { emptyAddress, parseAddress, type Address } from "@grid/core";
 import { AddressField, Alert, Button, Field, Label, PicturePicker, SearchInput, Sheet, SheetContent, api, useAction } from "@grid/ui";
 
 export interface BusinessJson {
@@ -14,7 +15,9 @@ export interface BusinessJson {
   abn: string | null;
   email: string | null;
   phone: string | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
   address: string | null;
+  addressParts: Address | null;
 }
 
 export interface BusinessRowJson extends BusinessJson {
@@ -32,7 +35,9 @@ export interface ClientJson {
   role: string | null;
   email: string | null;
   phone: string | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
   address: string | null;
+  addressParts: Address | null;
   abn: string | null;
   notes: string | null;
   business: BusinessJson | null;
@@ -163,7 +168,7 @@ export function ClientForm({
     role: initial.role ?? "",
     email: initial.email ?? "",
     phone: initial.phone ?? "",
-    address: initial.address ?? "",
+    address: initial.addressParts ?? (initial.address ? parseAddress(initial.address) : emptyAddress),
     abn: initial.abn ?? "",
     notes: initial.notes ?? "",
   });
@@ -207,7 +212,7 @@ export function ClientForm({
       {/* With a business, an empty box uses the business's: shown greyed in the box. */}
       <Field label="Email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} placeholder={business?.email ? `${business.email} (${business.name})` : undefined} />
       <Field label="Phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} placeholder={business?.phone ? `${business.phone} (${business.name})` : undefined} />
-      <AddressField label="Address" value={form.address} onChange={set("address")} placeholder={business?.address ? `Same as ${business.name}` : undefined} />
+      <AddressField label="Address" value={form.address} onChange={(address) => setForm({ ...form, address })} placeholder={business?.address ? `Same as ${business.name}` : undefined} />
       {moreOpen ? (
         <>
           {!business && <Field label="Contact person" value={form.contactName} onChange={set("contactName")} />}
@@ -326,7 +331,7 @@ export function BusinessForm({ initial, onSaved, onDelete }: { initial: Partial<
     abn: initial.abn ?? "",
     email: initial.email ?? "",
     phone: initial.phone ?? "",
-    address: initial.address ?? "",
+    address: initial.addressParts ?? (initial.address ? parseAddress(initial.address) : emptyAddress),
     notes: initial.notes ?? "",
   });
   const action = useAction();
@@ -352,7 +357,7 @@ export function BusinessForm({ initial, onSaved, onDelete }: { initial: Partial<
       <Field label="ABN" value={form.abn} onChange={set("abn")} hint="Goes on quotes to anyone here" />
       <Field label="Main email" type="email" inputMode="email" autoComplete="off" value={form.email} onChange={set("email")} hint="Used when a person here has none of their own" />
       <Field label="Main phone" type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} />
-      <AddressField label="Office address" value={form.address} onChange={set("address")} />
+      <AddressField label="Office address" value={form.address} onChange={(address) => setForm({ ...form, address })} />
       <label className="flex flex-col gap-1.5 text-sm font-medium">
         Notes
         <textarea rows={3} value={form.notes} onChange={set("notes")} placeholder="e.g. Purchase order needed before work starts" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
