@@ -15,6 +15,8 @@ import { dueChips, intervalText, refreshCategory, refreshDue, setServiceEnabled 
 import { warrantyState, type Due, type WarrantyState } from "./due";
 import { presetCategories, type CategoryField } from "./presets";
 import { guessIcon } from "./category-icons";
+import { notSeenIds, reminderSettings } from "./seen";
+import { notSeenSince } from "./sighting";
 import type { AssetInput, CategoryInput, ListQuery, RoutineInput } from "./validation";
 
 const MOD = "assets";
@@ -61,6 +63,8 @@ export interface AssetView {
   /** "Track tests and servicing". */
   serviceEnabled: boolean;
   lastSeenAt: Date | null;
+  /** The day it was last seen, once nothing has moved or scanned it for the business's notSeenDays (part 5). */
+  notSeenSince: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -113,7 +117,7 @@ function soonestWarranty(row: AssetRow): WarrantyState {
   return warrantyState(running[0] ?? dayText(row.warrantyEndsOn));
 }
 
-function view(row: AssetRow, holder: Holder, due: Due | null = null): AssetView {
+function view(row: AssetRow, holder: Holder, due: Due | null = null, notSeenDays: number | null = null): AssetView {
   return {
     id: row.id,
     number: row.number,
@@ -146,6 +150,7 @@ function view(row: AssetRow, holder: Holder, due: Due | null = null): AssetView 
     due,
     serviceEnabled: row.serviceEnabled,
     lastSeenAt: row.lastSeenAt,
+    notSeenSince: notSeenDays ? notSeenSince(row, notSeenDays) : null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -173,6 +178,7 @@ export async function listAssets(ctx: RequestContext, query: ListQuery = {}): Pr
   const where: Prisma.AssetWhereInput = { companyId, deletedAt: null };
   if (query.show !== "all") where.status = query.show === "retired" ? "RETIRED" : { not: "RETIRED" };
   if (query.show === "mine") where.id = { in: await heldBy(companyId, ctx.userId) };
+  if (query.show === "notseen") where.id = { in: await notSeenIds(companyId) };
   if (query.category) where.categoryId = query.category === "none" ? null : query.category;
   const text = query.q?.trim();
   if (text) {
@@ -202,8 +208,8 @@ export async function listAssets(ctx: RequestContext, query: ListQuery = {}): Pr
 
 async function withHolders(companyId: string, rows: AssetRow[]) {
   const ids = rows.map((row) => row.id);
-  const [holders, dues] = await Promise.all([holdersFor(companyId, ids), dueChips(companyId, ids)]);
-  return rows.map((row) => view(row, holders.get(row.id)!, dues.get(row.id) ?? null));
+  const [holders, dues, settings] = await Promise.all([holdersFor(companyId, ids), dueChips(companyId, ids), reminderSettings(companyId)]);
+  return rows.map((row) => view(row, holders.get(row.id)!, dues.get(row.id) ?? null, settings.notSeenDays));
 }
 
 export async function getAsset(ctx: RequestContext, id: string) {
@@ -374,7 +380,8 @@ export async function scanLookup(ctx: RequestContext, text: string): Promise<str
     where: { companyId: ctx.companyId, deletedAt: null, OR: [{ barcode: { equals: barcode, mode: "insensitive" } }, ...(code ? [{ tagCode: code }, { tagCode: { endsWith: `-${code}` } }] : [])] },
     select: { id: true },
   });
-  return row ? `/assets/${row.id}` : null;
+  // ?scanned=1: the page counts it as seen (part 5).
+  return row ? `/assets/${row.id}?scanned=1` : null;
 }
 
 /** /api/files asks this: an asset's photos are seen by anyone in the business who can see assets. */

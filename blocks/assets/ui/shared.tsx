@@ -5,6 +5,11 @@
 import type { ReactNode } from "react";
 import { Wrench } from "lucide-react";
 import { Badge, Label, cn } from "@grid/ui";
+import { dayText, fieldText, money, photoUrl, shortDay, statusWords, when, WARRANTY_TONE } from "./format";
+
+// The formatting helpers live in format.ts so server pages can call them
+// too (a "use client" file's functions can't be called on the server).
+export { dayText, fieldText, money, photoUrl, shortDay, statusWords, when, WARRANTY_TONE };
 
 export type FieldType = "text" | "number" | "date" | "yesno";
 export interface CategoryField {
@@ -49,6 +54,8 @@ export interface AssetJson {
   due: DueJson | null;
   serviceEnabled: boolean;
   lastSeenAt: string | null;
+  /** "2026-10-03" once it hasn't been seen for the business's Not seen days. */
+  notSeenSince: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,7 +83,6 @@ export interface MoveJson {
 }
 
 /** "Tue 3 Mar, 7:02 am". */
-export const when = (at: string) => new Date(at).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 export interface CategoryRoutineJson {
   id: string;
@@ -96,7 +102,6 @@ export interface CategoryJson {
   count: number;
 }
 
-export const photoUrl = (fileId: string, variant: "thumb" | "display" | "original" = "display") => `/api/files/${fileId}?v=${variant}`;
 
 /** Sends a photo to /api/files; returns its id. */
 export async function uploadPhoto(file: File): Promise<string> {
@@ -120,16 +125,6 @@ export function AssetPicture({ asset, className }: { asset: Pick<AssetJson, "pho
   );
 }
 
-const STATUS_WORDS: Record<AssetStatus, string> = {
-  IN_SERVICE: "In service",
-  FAULTY: "Faulty",
-  OUT_OF_SERVICE: "Do not use",
-  IN_REPAIR: "In repair",
-  RETIRED: "Retired",
-  LOST: "Lost",
-  OVERDUE: "Overdue",
-};
-export const statusWords = (status: AssetStatus) => STATUS_WORDS[status];
 
 /** Nothing for gear in service; a chip for anything else. */
 export function StatusBadge({ status }: { status: AssetStatus }) {
@@ -147,11 +142,7 @@ export interface WarrantyJson {
   text: string;
   date: string | null;
 }
-/** Warranty chips, as Docket's: running, ending within 90 days, ended. */
-export const WARRANTY_TONE = { ok: "ok", soon: "soon", expired: "overdue", none: "none" } as const;
 
-/** "$349.00". */
-export const money = (amount: string | number | null) => (amount === null || amount === "" ? null : Number(amount).toLocaleString("en-AU", { style: "currency", currency: "AUD" }));
 
 export type DueTone = "ok" | "soon" | "overdue" | "none";
 export interface DueJson {
@@ -216,16 +207,8 @@ export function SubHeading({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-/** "3 Mar 2027" from "2027-03-03". */
-export const dayText = (day: string | null) => (day ? new Date(`${day}T00:00:00Z`).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : null);
+
 
 /** Today's date as "2026-11-26", on this phone. */
 export const todayHere = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 
-/** How a filled-in field reads. */
-export function fieldText(field: CategoryField, value: FieldValue | undefined) {
-  if (value === null || value === undefined || value === "") return null;
-  if (field.type === "yesno") return value === true ? "Yes" : "No";
-  if (field.type === "date") return new Date(`${value}T00:00:00`).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
-  return String(value);
-}

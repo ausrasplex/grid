@@ -42,11 +42,21 @@ export default defineBlock({
   },
   levelUsage: async () => (await import("./purge")).levelUsage,
   jobs: async () => ({
-    // Every morning: gear whose test & tag (or another must-pass routine) went past due becomes Overdue, and Owners and Foremen get one email.
-    "assets.morning": { handler: async () => (await import("./inspections")).morningCheck(), schedule: "0 6 * * *" },
+    // Every morning: gear whose test & tag (or another must-pass routine) went past due becomes Overdue, and Owners and Foremen
+    // get one email; then reminders 14 days before a test is due, gear just gone "not seen", and "still got it?" (part 5).
+    "assets.morning": {
+      handler: async () => {
+        const inspections = await import("./inspections");
+        await inspections.morningCheck();
+        await inspections.dueSoonReminders();
+        await (await import("./seen")).morningSightings();
+      },
+      schedule: "0 6 * * *",
+    },
   }),
   // A scanned tag (/go/<code>) opens the asset.
   routeTargets: {
-    Asset: (id) => `/assets/${id}`,
+    // ?scanned=1: the page counts it as seen (part 5).
+    Asset: (id) => `/assets/${id}?scanned=1`,
   },
 });

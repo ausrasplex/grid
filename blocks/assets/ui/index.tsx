@@ -6,12 +6,15 @@
 //                                and tag; then Inspections and servicing, Faults, Manuals and documents, History
 //   /assets/<id>/file/<fileId>   a manual, certificate or photo shown inside Grid
 //   /assets/faults               every open fault
-//   /assets/categories           Settings › Asset categories
+//   /assets/categories           Settings › Asset categories (and Reminders, part 5)
+// Panels: Needs attention (Soft look's home.attention, and a card in the
+// Grid look's home.top), and the job page's Assets on site (job.top).
 
 import type { ReactNode } from "react";
 import { ChevronLeft, ExternalLink, LifeBuoy, Phone } from "lucide-react";
 import { can, notFound, type RequestContext } from "@grid/core";
-import { Alert, AttentionRow, PageViewer, Section, Stack, buttonVariants, cn, type BlockPages, type BlockPanels } from "@grid/ui";
+import { Alert, AttentionList, AttentionRow, PageViewer, Section, Stack, buttonVariants, cn, type BlockPages, type BlockPanels } from "@grid/ui";
+import type { JobTopPanelProps } from "@grid/block-projects";
 import { brandsById } from "@grid/block-materials";
 import { getAsset, listAssets, listCategories } from "../service";
 import { tagSvg } from "../stickers";
@@ -21,6 +24,8 @@ import { currentLoss } from "../lost";
 import { dueCounts, serviceFor } from "../inspections";
 import { documentsFor, partsFor } from "../kit";
 import { viewFile } from "../viewer";
+import { getReminderSettings, notSeenCount, onSite, stillGotIt } from "../seen";
+import { localDay } from "../sighting";
 import { warrantyState } from "../due";
 import { ServiceCard, type ServiceJson } from "./ServiceCard";
 import { FaultCard } from "./FaultCard";
@@ -35,7 +40,9 @@ import { Categories } from "./Categories";
 import { DocumentsCard, type DocumentJson } from "./DocumentsCard";
 import { KitCard, type PartJson } from "./KitCard";
 import { TagCard } from "./TagCard";
-import { Chip, WARRANTY_TONE, dayText, fieldText, money, photoUrl, when, type AssetJson, type CategoryJson, type MoveJson } from "./shared";
+import { ScanSeen, StillGotItRow } from "./Sightings";
+import { Chip, type AssetJson, type CategoryJson, type MoveJson } from "./shared";
+import { WARRANTY_TONE, dayText, fieldText, money, photoUrl, shortDay, statusWords, when } from "./format";
 
 /** Dates → strings, the way they reach a client component anyway. */
 const json = <T,>(value: unknown): T => JSON.parse(JSON.stringify(value)) as T;
@@ -47,7 +54,8 @@ export const pages: BlockPages = {
   },
   categories: async ({ ctx }) => {
     if (!can(ctx, "assets.manage")) throw notFound("Page not found");
-    return <Categories initial={json<CategoryJson[]>(await listCategories(ctx))} />;
+    const [categories, reminders] = await Promise.all([listCategories(ctx), getReminderSettings(ctx)]);
+    return <Categories initial={json<CategoryJson[]>(categories)} reminders={reminders} />;
   },
   "": async ({ ctx, params: [first, second, third, extra] }) => {
     if (!can(ctx, "assets.view") || extra) throw notFound("Page not found");
@@ -126,6 +134,7 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
 
   return (
     <>
+      <ScanSeen assetId={asset.id} />
       <TitleRow back="/assets" backLabel="Back to assets" title={asset.name}>
         {canManage && <AssetMenu asset={json<AssetJson>(asset)} categories={json<CategoryJson[]>(categories)} parts={parts.map((part) => ({ id: part.id, name: part.name }))} />}
       </TitleRow>
@@ -197,6 +206,11 @@ async function AssetPage({ ctx, assetId }: { ctx: RequestContext; assetId: strin
             <p className="text-sm text-muted-foreground">Where it is</p>
             <p className="text-lg font-semibold">{asset.holder.userId === ctx.userId ? ["With you", asset.holder.place].filter(Boolean).join(" · ") : asset.holder.text}</p>
             {asset.holder.since && <p className="text-sm text-muted-foreground">Since {when(json<string>(asset.holder.since))}</p>}
+            {asset.notSeenSince && (
+              <p className="mt-1 text-sm font-semibold">
+                Not seen since {shortDay(asset.notSeenSince)}. Scan its tag when you next see it, or report it lost.
+              </p>
+            )}
           </div>
           {(can(ctx, "assets.custody") || can(ctx, "assets.faults.report")) && (
             <CustodyActions
@@ -300,36 +314,93 @@ function History({ moves }: { moves: MoveJson[] }) {
 }
 
 /** Home's "Needs attention": Do-not-use and other open faults, lost or stolen gear, and tests overdue or coming up (for whoever looks after faults). */
+/** The rows Needs attention gets from Assets: lost, Do not use, overdue and coming up, faults and not seen
+ * for whoever looks after the gear; "Do you still have it?" for whoever has it. */
+async function attentionRows(ctx: RequestContext) {
+  if (!ctx.companyId) return null;
+  const manages = can(ctx, "assets.faults.manage");
+  const [managed, due, notSeen, mine] = await Promise.all([
+    manages ? attention(ctx.companyId) : Promise.resolve(null),
+    manages ? dueCounts(ctx.companyId) : Promise.resolve(null),
+    manages ? notSeenCount(ctx.companyId) : Promise.resolve(0),
+    can(ctx, "assets.custody") ? stillGotIt(ctx) : Promise.resolve([]),
+  ]);
+  const anything = mine.length > 0 || notSeen > 0 || (managed && (managed.unsafe || managed.faults || managed.lost.length)) || (due && (due.overdue || due.soon));
+  if (!anything) return null;
+  return (
+    <>
+      {managed?.lost.map((entry) => (
+        <AttentionRow
+          key={entry.asset.id}
+          title={`Asset No. ${entry.asset.number}, ${entry.asset.name}`}
+          badge={entry.kind === "STOLEN" ? "Stolen" : "Lost"}
+          tone="destructive"
+          description="Reported missing. Mark it recovered when it turns up."
+          href={`/assets/${entry.asset.id}`}
+        />
+      ))}
+      {!!managed?.unsafe && <AttentionRow title={`${managed.unsafe} asset${managed.unsafe === 1 ? "" : "s"} marked Do not use`} badge="Do not use" tone="destructive" description="Unsafe gear waiting to be repaired or retired." href="/assets/faults" />}
+      {!!due?.overdue && (
+        <AttentionRow
+          title={`${due.overdue} asset${due.overdue === 1 ? "" : "s"} overdue for a test`}
+          badge="Overdue"
+          tone="destructive"
+          description="Test & tag or an inspection they must pass. They can't be checked out until a pass is logged."
+          href="/assets?show=due"
+        />
+      )}
+      {mine.map((entry) => (
+        <StillGotItRow key={entry.assetId} assetId={entry.assetId} title={`Asset No. ${entry.number}, ${entry.name}`} where={entry.where} howLong={entry.howLong} />
+      ))}
+      {!!due?.soon && <AttentionRow title={`${due.soon} test${due.soon === 1 ? "" : "s"} due in the next 2 weeks`} badge="Coming up" tone="warning" description="Book them in, or log them once they're done." href="/assets?show=due" />}
+      {!!managed?.faults && <AttentionRow title={`${managed.faults} fault${managed.faults === 1 ? "" : "s"} to sort out`} badge="Faults" tone="warning" description="Acknowledge them, send them for repair, or close them." href="/assets/faults" />}
+      {notSeen > 0 && (
+        <AttentionRow
+          title={`${notSeen} asset${notSeen === 1 ? "" : "s"} not seen lately`}
+          badge="Not seen"
+          tone="warning"
+          description="Nothing has moved or scanned them for a while. Scan them when you see them, or report them lost."
+          href="/assets?show=notseen"
+        />
+      )}
+    </>
+  );
+}
+
 export const panels: BlockPanels = {
-  "home.attention": async ({ ctx }) => {
-    if (!ctx.companyId || !can(ctx, "assets.faults.manage")) return null;
-    const [{ unsafe, faults, lost }, due] = await Promise.all([attention(ctx.companyId), dueCounts(ctx.companyId)]);
-    if (!unsafe && !faults && !lost.length && !due.overdue && !due.soon) return null;
+  // Soft look: rows in Home's Needs attention list.
+  "home.attention": async ({ ctx }) => attentionRows(ctx),
+  // Grid look: the same rows as a card at the top of Home. (home.top isn't shown in the Soft look.)
+  "home.top": async ({ ctx }) => {
+    const rows = await attentionRows(ctx);
+    return rows ? <AttentionList subtitle="Tools and gear">{rows}</AttentionList> : null;
+  },
+  // The job page: gear left on the job, or with someone who took it there.
+  "job.top": async (props) => {
+    const { ctx, job } = props as typeof props & JobTopPanelProps;
+    if (!can(ctx, "assets.view") || job.status === "QUOTING" || job.status === "NOT_WON") return null;
+    const gear = await onSite(ctx, job.id);
+    // Nothing here: say nothing, so the job page stays short.
+    if (!gear.length) return null;
     return (
-      <>
-        {lost.map((entry) => (
-          <AttentionRow
-            key={entry.asset.id}
-            title={`Asset No. ${entry.asset.number}, ${entry.asset.name}`}
-            badge={entry.kind === "STOLEN" ? "Stolen" : "Lost"}
-            tone="destructive"
-            description="Reported missing. Mark it recovered when it turns up."
-            href={`/assets/${entry.asset.id}`}
-          />
-        ))}
-        {unsafe > 0 && <AttentionRow title={`${unsafe} asset${unsafe === 1 ? "" : "s"} marked Do not use`} badge="Do not use" tone="destructive" description="Unsafe gear waiting to be repaired or retired." href="/assets/faults" />}
-        {due.overdue > 0 && (
-          <AttentionRow
-            title={`${due.overdue} asset${due.overdue === 1 ? "" : "s"} overdue for a test`}
-            badge="Overdue"
-            tone="destructive"
-            description="Test & tag or an inspection they must pass. They can't be checked out until a pass is logged."
-            href="/assets?show=due"
-          />
-        )}
-        {due.soon > 0 && <AttentionRow title={`${due.soon} test${due.soon === 1 ? "" : "s"} due in the next 2 weeks`} badge="Coming up" tone="warning" description="Book them in, or log them once they're done." href="/assets?show=due" />}
-        {faults > 0 && <AttentionRow title={`${faults} fault${faults === 1 ? "" : "s"} to sort out`} badge="Faults" tone="warning" description="Acknowledge them, send them for repair, or close them." href="/assets/faults" />}
-      </>
+      <Section title="Assets on site" description={`${gear.length} thing${gear.length === 1 ? "" : "s"} from the workshop on this job.`} flush>
+        <ul className="divide-y">
+          {gear.map((entry) => (
+            <li key={entry.assetId}>
+              <a href={`/assets/${entry.assetId}`} className="flex min-h-touch-lg items-center gap-3 px-4 py-3 hover:bg-muted sm:px-6">
+                <CategoryTile icon={entry.categoryIcon} photoFileId={entry.photoFileId} className="size-10" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-semibold">{entry.name}</span>
+                  <span className="truncate text-sm text-muted-foreground">
+                    {[`No. ${entry.number}`, entry.who, entry.since ? `since ${shortDay(localDay(entry.since))}` : null].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+                {entry.status !== "IN_SERVICE" && <Chip tone={entry.status === "FAULTY" ? "soon" : "overdue"}>{statusWords(entry.status as AssetJson["status"])}</Chip>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </Section>
     );
   },
 };

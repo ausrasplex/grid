@@ -9,7 +9,8 @@ import * as inspections from "./inspections";
 import * as kit from "./kit";
 import { registerPdf } from "./register";
 import * as viewer from "./viewer";
-import { assetSchema, bookingSchema, categorySchema, checkSchema, documentSchema, duplicateSchema, partSchema, renameDocumentSchema, routineSchema, checkOutSchema, faultSchema, faultStepSchema, lostSchema, returnSchema, takeOverSchema, listQuery, presetSchema, statusSchema, stickerQuery, stickerSettingsSchema } from "./validation";
+import * as seen from "./seen";
+import { assetSchema, bookingSchema, categorySchema, checkSchema, documentSchema, duplicateSchema, partSchema, renameDocumentSchema, routineSchema, checkOutSchema, faultSchema, faultStepSchema, lostSchema, returnSchema, takeOverSchema, listQuery, presetSchema, reminderSettingsSchema, statusSchema, stickerQuery, stickerSettingsSchema } from "./validation";
 
 const queryParams = (request: { query: URLSearchParams }) => Object.fromEntries(request.query);
 
@@ -36,6 +37,10 @@ export const routes: Routes = {
   "GET /stickers/settings": { permission: "assets.manage", handler: (ctx) => stickers.stickerSettings(ctx) },
   "PUT /stickers/settings": { permission: "assets.manage", handler: (ctx, request) => stickers.saveStickerSettings(ctx, stickerSettingsSchema.parse(request.body)) },
 
+  // Reminders (Settings › Asset categories): Not seen after N days, "Do you still have it?" after N days
+  "GET /settings/reminders": { permission: "assets.view", handler: (ctx) => seen.getReminderSettings(ctx) },
+  "PUT /settings/reminders": { permission: "assets.manage", handler: (ctx, request) => seen.saveReminderSettings(ctx, reminderSettingsSchema.parse(request.body)) },
+
   // Categories (Settings › Asset categories)
   "GET /categories": { permission: "assets.view", handler: (ctx) => svc.listCategories(ctx) },
   "POST /categories": { permission: "assets.manage", handler: (ctx, request) => svc.saveCategory(ctx, null, categorySchema.parse(request.body)) },
@@ -53,6 +58,8 @@ export const routes: Routes = {
   "POST /:id/check-out": { permission: "assets.custody", handler: (ctx, request) => custody.checkOut(ctx, request.params.id!, checkOutSchema.parse(request.body ?? {})) },
   "POST /:id/return": { permission: "assets.custody", handler: (ctx, request) => custody.returnAsset(ctx, request.params.id!, returnSchema.parse(request.body)) },
   "POST /:id/take-over": { permission: "assets.custody", handler: (ctx, request) => custody.takeOver(ctx, request.params.id!, takeOverSchema.parse(request.body ?? {}).note) },
+  // Seen: a scan opened it, or "Yes, I've still got it" on Home (part 5)
+  "POST /:id/seen": { permission: "assets.view", handler: (ctx, request) => seen.markSeen(ctx, request.params.id!) },
   "GET /:id/history": { permission: "assets.view", handler: (ctx, request) => custody.history(ctx, request.params.id!) },
   // Faults and lost or stolen
   "GET /:id/faults": { permission: "assets.view", handler: (ctx, request) => faults.faultsFor(ctx, request.params.id!) },
