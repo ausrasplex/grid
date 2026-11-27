@@ -312,18 +312,27 @@ export async function updateSite(ctx: RequestContext, siteId: string, input: Upd
     const site = await visibleSite(tx, companyId, siteId);
     // Name and address belong to the company that looks after the site.
     if (site.ownerCompanyId !== companyId) {
-      throw forbidden("Only the company that looks after this site can rename it");
+      throw forbidden("Only the company that looks after this site can change its name or address");
     }
+    const columns = input.address ? siteAddressColumns(input.address) : null;
+    if (columns && columns.addressKey !== site.addressKey) {
+      // Two of your sites at one address would split its jobs: say which one it is instead.
+      const other = await tx.site.findFirst({ where: { ownerCompanyId: companyId, addressKey: columns.addressKey, deletedAt: null, id: { not: siteId } }, select: { name: true } });
+      if (other) throw conflict(`You already have a site at that address: ${other.name}`);
+    }
+    // A house named after its address ("12 Smith St") follows the address, unless a new name was given.
+    const autoName = site.name === siteNameFromAddress(site.address);
+    const name = input.name ?? (columns && autoName ? siteNameFromAddress(columns.address) : undefined);
     const updated = await tx.site.update({
       where: { id: siteId },
-      data: {
-        name: input.name,
-        ...(input.address ? siteAddressColumns(input.address) : {}),
-      },
+      data: { name, ...(columns ?? {}) },
     });
-    const diff = { ...input, address: input.address ? formatAddress(input.address) : undefined };
+    const diff = {
+      ...(name !== undefined && name !== site.name ? { name: { from: site.name, to: name } } : {}),
+      ...(columns && columns.address !== site.address ? { address: { from: site.address, to: columns.address } } : {}),
+    };
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Site", entityId: siteId, action: "updated", diff: diff as Prisma.InputJsonValue });
-    return { id: updated.id };
+    return getSite(ctx, updated.id, tx);
   });
 }
 
