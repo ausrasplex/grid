@@ -124,7 +124,20 @@ model Quote {
   title            String
   /// Who it's for: a Client (clients block).
   clientId         String?
+  /// The site address in parts (docs/stage-2-projects.md "Addresses"); `siteAddress` is the one line made from them.
   siteAddress      String?
+  /// Unit, number and street: "2/12 Smith St".
+  siteStreet       String?
+  siteSuburb       String?
+  /// "VIC".
+  siteState        String?
+  sitePostcode     String?
+  /// "Australia", or another country's name.
+  siteCountry      String?
+  /// Google's id for the place, when picked from Google.
+  sitePlaceId      String?
+  siteLatitude     Float?
+  siteLongitude    Float?
   /// Where it is, when it was started from a site, building or floor: the
   /// job it becomes goes there (covering that building or floor).
   siteId           String?

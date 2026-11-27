@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toOptionalAddress } from "@grid/core";
 
 const optText = (max: number) =>
   z
@@ -8,6 +9,9 @@ const optText = (max: number) =>
     .nullable()
     .optional()
     .transform((value) => (value ? value : null));
+
+/** An address in parts ({ street, suburb, state, postcode… }), or one line that's split up. Empty clears it. */
+const optAddress = z.union([z.string(), z.record(z.string(), z.unknown())]).nullable().optional().transform(toOptionalAddress);
 
 const optEmail = z.union([z.literal(""), z.string().trim().email("Check the email address")]).nullable().optional().transform((value) => (value ? value : null));
 
@@ -21,7 +25,7 @@ export const clientSchema = z
     role: optText(100),
     email: optEmail,
     phone: optText(40),
-    address: optText(300),
+    address: optAddress,
     abn: optText(40),
     notes: optText(5000),
   })
@@ -35,7 +39,7 @@ export const businessSchema = z
     abn: optText(40),
     email: optEmail,
     phone: optText(40),
-    address: optText(300),
+    address: optAddress,
     notes: optText(5000),
   })
   .strict();

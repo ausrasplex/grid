@@ -20,6 +20,14 @@ export async function register() {
   } catch (error) {
     console.error("[startup] couldn't make business pictures from logos", error);
   }
+  // Addresses saved as one line before Grid kept them in parts.
+  try {
+    const { splitExistingAddresses } = await import("./lib/split-addresses");
+    const split = await splitExistingAddresses();
+    if (split) console.log(`[startup] split ${split} address(es) into street, suburb, state and postcode`);
+  } catch (error) {
+    console.error("[startup] couldn't split existing addresses", error);
+  }
   // Scheduled jobs (storage clean-up). Failing to start them mustn't stop the app.
   try {
     const { startJobs } = await import("./lib/jobs");

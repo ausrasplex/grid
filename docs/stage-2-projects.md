@@ -313,3 +313,15 @@ A to-do list on each job, ticked off as the work gets done. Its own optional Blo
 - **Edit** (top right of the list, for those who can manage it): rename in place (saves when you leave the box) and a Bin on each. No reordering yet.
 - **An archived job's list** is kept as it was: it can be read, not changed. A job's list goes when the job is deleted for good, and with a deleted business.
 - Every add, rename, tick, untick and removal is in the activity log. The list belongs to the business that wrote it (`ChecklistItem.companyId`), ready for shared jobs in the contract chain.
+
+### Addresses (decided and built Nov 2026)
+
+Every address in Grid is kept in parts, so a later Analytics Block can count work by suburb, and every screen treats addresses the same way.
+
+- **The parts:** `street` (unit, number and street: "2/12 Smith St"), `suburb`, `state` (short: "VIC"), `postcode`, `country` ("Australia" is left out when shown), and from Google `placeId`, `latitude`, `longitude`. Tables with an address: `Site`, `Client`, `ClientBusiness`, `DocTheme` (Branding), and `Quote` with `site` in front (`siteStreet`, `siteSuburb`…). Migration `20261127100000_address_parts`. `Site` has an index on `(suburb, postcode)` for counting.
+- **The one line stays** (`address`, `Quote.siteAddress`): "12 Smith St, Brunswick VIC 3056". It is always made from the parts by `formatAddress()` (in `@grid/core`, `packages/core/src/address.ts`) whenever an address is saved, never typed on its own. Search, `addressKey` matching, PDFs, vCards and lists keep using it. Reports should count by `suburb` **and** `postcode` (or `state`): there's a Richmond in Victoria and one in NSW.
+- **Requests** send an address as its parts (`{ street, suburb, state, postcode… }`) or as one line, which is split (`toAddress`, `parseAddress`). Empty clears an optional address. Responses send `address` (the line) and `addressParts`; quotes send `siteAddress` and `siteAddressParts`.
+- **Splitting a typed address** (`parseAddress`) is made for how Australians write them: "12 Smith St, Brunswick VIC 3056", "12 Smith Street Brunswick Victoria 3056", "3056 VIC" at the end, units with commas. When it can't tell where the street ends (no comma and no street word like St or Rd), the suburb is left empty to fill in rather than guessed.
+- **Google:** picking a suggestion asks Place Details for `addressComponents` too (same request as before), so the parts come straight from Google (`addressFromGoogle`).
+- **The address box** (`AddressField`): its value is an address in parts. What's typed is split as you go, and once there's something in it the parts show underneath (Street; Suburb, State, Postcode) so a wrong suburb can be fixed before saving. Changing a part by hand drops the Google place id and location.
+- **Older addresses:** saved as one line before this, they're split when the server starts (`apps/web/src/lib/split-addresses.ts`, only rows with no parts yet, so it does nothing after the first start). Client imports (spreadsheets and vCards) split the one-line address the same way. vCards are written with the parts in their proper places.

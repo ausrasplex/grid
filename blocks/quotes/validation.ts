@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toOptionalAddress } from "@grid/core";
 import { SWIPE_ACTIONS } from "./swipe";
 
 const uuid = z.string().uuid();
@@ -10,6 +11,8 @@ const optText = (max: number) =>
     .nullable()
     .optional()
     .transform((value) => (value ? value : null));
+/** An address in parts ({ street, suburb, state, postcode… }), or one line that's split up. Empty clears it. */
+const optAddress = z.union([z.string(), z.record(z.string(), z.unknown())]).nullable().optional().transform(toOptionalAddress);
 /** Dollars as a number with up to 2 decimals (the form sends numbers). */
 const money = z.number().min(-1_000_000_000).max(1_000_000_000);
 
@@ -64,7 +67,7 @@ export const createQuoteSchema = z
   .object({
     title: z.string().trim().min(1).max(200),
     clientId: uuid.nullable().optional(),
-    siteAddress: optText(300),
+    siteAddress: optAddress,
     projectId: uuid.nullable().optional(),
     /** Started from a floor: the site, building and level (the job goes there). */
     siteId: uuid.nullable().optional(),
@@ -83,7 +86,7 @@ export const uploadQuoteSchema = z
     clientId: uuid.nullable().optional(),
     /** The total on the PDF, including tax, in dollars. */
     total: z.number().min(0).max(100_000_000).nullable().optional(),
-    siteAddress: optText(300),
+    siteAddress: optAddress,
     /** When it was sent (YYYY-MM-DD); today if left out. */
     sentOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     /** Waiting for an answer, or already accepted. */
@@ -119,7 +122,7 @@ export const updateQuoteSchema = z
   .object({
     title: z.string().trim().min(1).max(200),
     clientId: uuid.nullable(),
-    siteAddress: optText(300),
+    siteAddress: optAddress,
     clientView: z.enum(["ITEMISED", "SECTIONS", "LUMP"]),
     pricesIncludeTax: z.boolean(),
     validUntil: z.coerce.date(),

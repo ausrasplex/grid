@@ -20,7 +20,7 @@ test("writing: vCard 3.0 with CRLF, folded lines, escaped text and a photo", () 
   assert.ok(text.includes("N:Serci;Steve;;;\r\n"));
   assert.ok(text.includes("ORG:Siemens Pty Ltd\r\n"));
   assert.ok(text.includes("NOTE:Gate code 1234\\; ring first\\, then text\r\n"));
-  assert.ok(text.includes("ADR;TYPE=WORK:;;1 Main Rd\\, Clayton VIC 3168;;;;\r\n"));
+  assert.ok(text.includes("ADR;TYPE=WORK:;;1 Main Rd;Clayton;VIC;3168;Australia\r\n"));
   // No line longer than 75 characters.
   assert.ok(text.split("\r\n").every((line) => line.length <= 75));
 });
@@ -103,7 +103,7 @@ test("reading: an iPhone file with groups, several contacts, and a 4.0 photo add
   assert.equal(sam.role, "Service Technician");
   assert.equal(sam.phone, "0411 111 111");
   assert.equal(sam.businessPhone, "03 8000 1000");
-  assert.equal(sam.businessAddress, "12 Factory Ln, Mulgrave, VIC, 3170, Australia");
+  assert.equal(sam.businessAddress, "12 Factory Ln, Mulgrave VIC 3170");
   assert.equal(sam.address, null);
   const acme = contacts[1]!;
   // A card that's only a business: a client with the business's name, no business.

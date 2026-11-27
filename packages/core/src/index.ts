@@ -6,3 +6,4 @@ export * from "./events.ts";
 export * from "./registry.ts";
 export * from "./dispatch.ts";
 export * from "./app.ts";
+export * from "./address.ts";

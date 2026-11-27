@@ -5,6 +5,7 @@
 // a Place Details call for the full address, so typing an address and picking
 // it counts as one session, not one charge per letter.
 import "server-only";
+import { addressFromGoogle, type Address, type GooglePlacePart } from "@grid/core";
 import { decryptSecret, getMapsSettings, type MapsSettings } from "@grid/db";
 
 export interface AddressSuggestion {
@@ -77,18 +78,19 @@ export async function suggestAddresses(input: string, sessionToken: string, over
     }));
 }
 
-/** The full address of a picked suggestion (ends the billing session), and where it is. */
-export async function addressDetails(placeId: string, sessionToken: string): Promise<{ address: string; location: { lat: number; lng: number } | null } | null> {
+/**
+ * A picked suggestion in parts (street, suburb, state, postcode) and where it
+ * is. Ends the billing session. addressComponents is in the same Place
+ * Details request as formattedAddress and location.
+ */
+export async function addressDetails(placeId: string, sessionToken: string): Promise<Address | null> {
   const places = await placesKey();
   if (!places) return null;
-  const result = await google<{ formattedAddress?: string; location?: { latitude: number; longitude: number } }>(
+  const result = await google<{ id?: string; formattedAddress?: string; addressComponents?: GooglePlacePart[]; location?: { latitude: number; longitude: number } }>(
     places.key,
     `${PLACES}/places/${encodeURIComponent(placeId)}?sessionToken=${encodeURIComponent(sessionToken)}&languageCode=en-AU`,
-    { method: "GET", fieldMask: "formattedAddress,location" },
+    { method: "GET", fieldMask: "id,formattedAddress,addressComponents,location" },
   );
-  if (!result.formattedAddress) return null;
-  return {
-    address: tidy(result.formattedAddress, places.country),
-    location: result.location ? { lat: result.location.latitude, lng: result.location.longitude } : null,
-  };
+  if (!result.formattedAddress && !result.addressComponents?.length) return null;
+  return addressFromGoogle({ ...result, id: result.id ?? placeId, formattedAddress: result.formattedAddress ? tidy(result.formattedAddress, places.country) : undefined });
 }

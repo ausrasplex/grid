@@ -3,7 +3,7 @@
 // "Export and import"). The layout and matching live in transfer.ts.
 
 import { randomUUID } from "node:crypto";
-import { badRequest, can, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
+import { addressData, badRequest, can, forbidden, notFound, requireCompany, toOptionalAddress, type AddressColumns, type RequestContext } from "@grid/core";
 import { audit, db, pictureFolder, readPicture, savePicture } from "@grid/db";
 import { getCurrentCompany, listMembers } from "@grid/block-companies";
 import { themeFor } from "@grid/block-templates";
@@ -17,6 +17,13 @@ const MOD = "clients";
 export type SheetFormat = "xlsx" | "csv";
 /** A zip carries the pictures too (Excel inside). */
 export type TransferFormat = SheetFormat | "zip";
+
+/** A file's address is one line: save it in parts (docs/stage-2-projects.md "Addresses"). Left alone when the file doesn't change it. */
+function splitAddress<Fields extends { address?: string | null }>(fields: Fields): Omit<Fields, "address"> & Partial<AddressColumns> {
+  if (!("address" in fields)) return fields;
+  const { address, ...rest } = fields;
+  return { ...rest, ...addressData(toOptionalAddress(address ?? null)) };
+}
 
 const businessCardSelect = { id: true, name: true, abn: true, phone: true, email: true, address: true, notes: true, logoKey: true } as const;
 const personCardSelect = { id: true, businessId: true, name: true, role: true, contactName: true, phone: true, email: true, address: true, abn: true, notes: true, photoKey: true } as const;
@@ -234,7 +241,7 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
           businessIdOf.set(planned.key, planned.match.id);
           if (!hasChanges(planned)) continue;
           needUpdate();
-          const changes: Record<string, unknown> = updateFields(planned);
+          const changes: Record<string, unknown> = splitAddress(updateFields(planned));
           if (addsPicture(planned)) {
             const logoKey = await pictureFrom(planned.picture, "contain");
             if (logoKey) changes.logoKey = logoKey;
@@ -255,7 +262,7 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
         // New, or Add as new.
         needAdd();
         const id = randomUUID();
-        await tx.clientBusiness.create({ data: { id, companyId, ...planned.fields, logoKey: await pictureFrom(planned.picture, "contain") } });
+        await tx.clientBusiness.create({ data: { id, companyId, ...splitAddress(planned.fields), logoKey: await pictureFrom(planned.picture, "contain") } });
         await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "ClientBusiness", entityId: id, action: "created", diff: { imported: true, name: planned.fields.name } });
         businessIdOf.set(planned.key, id);
         result.businessesAdded++;
@@ -277,7 +284,7 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
           const before = await tx.client.findUniqueOrThrow({ where: { id: planned.match.id }, select: { name: true, business: { select: { name: true } } } });
           if (!labelsBefore.has(planned.match.id)) labelsBefore.set(planned.match.id, clientLabel(before));
           const photoKey = addsPicture(planned) ? await pictureFrom(planned.picture, "cover") : null;
-          await tx.client.update({ where: { id: planned.match.id }, data: { ...updateFields(planned), ...(moves ? { businessId } : {}), ...(photoKey ? { photoKey } : {}) } });
+          await tx.client.update({ where: { id: planned.match.id }, data: { ...splitAddress(updateFields(planned)), ...(moves ? { businessId } : {}), ...(photoKey ? { photoKey } : {}) } });
           await audit(tx, {
             blockId: MOD,
             actorId: ctx.userId,
@@ -293,7 +300,7 @@ export async function applyImport(ctx: RequestContext, cells: unknown[][], decis
         if (!planned.match && decision === "skip") continue;
         needAdd();
         const id = randomUUID();
-        await tx.client.create({ data: { id, companyId, ...planned.fields, businessId, photoKey: await pictureFrom(planned.picture, "cover") } });
+        await tx.client.create({ data: { id, companyId, ...splitAddress(planned.fields), businessId, photoKey: await pictureFrom(planned.picture, "cover") } });
         await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Client", entityId: id, action: "created", diff: { imported: true, name: planned.fields.name } });
         result.peopleAdded++;
       }

@@ -5,12 +5,32 @@
 // Structure (buildings and levels) can only be changed by the owner company
 // for now; site editors, proposals and claims come in 2b.
 
-import { app, badRequest, conflict, forbidden, notFound, requireCompany, type RequestContext } from "@grid/core";
+import {
+  addressColumns,
+  addressFromColumns,
+  addressSelect,
+  app,
+  badRequest,
+  conflict,
+  forbidden,
+  formatAddress,
+  notFound,
+  requireCompany,
+  type Address,
+  type RequestContext,
+} from "@grid/core";
 import { audit, db, ensureRouteCode, type Prisma, type Tx } from "@grid/db";
 import { addressKey, basementAsParking, levelKey, levelLabel, levelNameClashes, levelShortName, siteNameFromAddress, uniqueShortName } from "./address";
 import type { AddBuildingInput, AddLevelsInput, CreateSiteInput, SiteNoteInput, UpdateSiteInput } from "./validation";
 
 const MOD = "sites";
+
+/** A site's address columns: the parts, the one line made from them, and the key for matching. */
+export function siteAddressColumns(address: Address) {
+  const columns = addressColumns(address);
+  const line = columns.address ?? "";
+  return { ...columns, address: line, addressKey: addressKey(line) };
+}
 
 type SiteRow = Prisma.SiteGetPayload<{ include: { buildings: { include: { levels: true } } } }>;
 
@@ -50,7 +70,9 @@ export interface SiteStructure {
   id: string;
   kind: "MANAGED" | "PRIVATE";
   name: string;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
   address: string;
+  addressParts: Address;
   /** Site notes, in order. */
   notes: SiteNoteView[];
   ownerCompanyId: string;
@@ -85,6 +107,7 @@ export async function getSite(ctx: RequestContext, siteId: string, tx: Tx = db):
     kind: site.kind,
     name: site.name,
     address: site.address,
+    addressParts: addressFromColumns(site),
     notes: await notesFor(tx, siteId),
     ownerCompanyId: site.ownerCompanyId,
     ownedByMe: site.ownerCompanyId === companyId,
@@ -106,6 +129,7 @@ export interface SiteListRow {
   id: string;
   name: string;
   address: string;
+  addressParts: Address;
   kind: "MANAGED" | "PRIVATE";
   activeJobs: number;
   totalJobs: number;
@@ -144,7 +168,7 @@ export async function listSites(ctx: RequestContext, options: { tab?: SitesTab; 
         ],
       })),
     },
-    include: { site: { select: { id: true, name: true, address: true, kind: true, _count: { select: { buildings: true } } } } },
+    include: { site: { select: { id: true, name: true, ...addressSelect, kind: true, _count: { select: { buildings: true } } } } },
     orderBy: { lastActivityAt: "desc" },
     take: 300,
   });
@@ -153,6 +177,7 @@ export async function listSites(ctx: RequestContext, options: { tab?: SitesTab; 
     id: state.site.id,
     name: state.site.name,
     address: state.site.address,
+    addressParts: addressFromColumns(state.site),
     kind: state.site.kind,
     activeJobs: state.activeJobs,
     totalJobs: state.totalJobs,
@@ -182,14 +207,13 @@ export async function createManagedSite(ctx: RequestContext, input: CreateSiteIn
         kind: "MANAGED",
         ownerCompanyId: companyId,
         name: input.name,
-        address: input.address,
-        addressKey: addressKey(input.address),
+        ...siteAddressColumns(input.address),
         createdById: ctx.userId,
       },
     });
     await tx.siteCompanyState.create({ data: { siteId: site.id, companyId } });
     await ensureRouteCode(tx, { blockId: MOD, entityType: "Site", entityId: site.id, companyId, createdById: ctx.userId });
-    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Site", entityId: site.id, action: "created", diff: { kind: "MANAGED", name: input.name, address: input.address } });
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Site", entityId: site.id, action: "created", diff: { kind: "MANAGED", name: input.name, address: formatAddress(input.address) } });
     return site;
   });
   await emit("sites.created", { siteId: site.id, kind: site.kind }, ctx);
@@ -204,9 +228,10 @@ export async function createManagedSite(ctx: RequestContext, input: CreateSiteIn
  */
 export async function findOrCreatePrivateSite(
   tx: Tx,
-  input: { companyId: string; userId: string; address: string; name?: string },
+  input: { companyId: string; userId: string; address: Address; name?: string },
 ): Promise<{ siteId: string; buildingId: string; created: boolean; wasArchived: boolean }> {
-  const key = addressKey(input.address);
+  const columns = siteAddressColumns(input.address);
+  const key = columns.addressKey;
   const existing = await tx.site.findFirst({
     where: { ownerCompanyId: input.companyId, addressKey: key, deletedAt: null },
     include: { buildings: { orderBy: { order: "asc" }, take: 1 } },
@@ -227,9 +252,8 @@ export async function findOrCreatePrivateSite(
     data: {
       kind: "PRIVATE",
       ownerCompanyId: input.companyId,
-      name: input.name?.trim() || siteNameFromAddress(input.address),
-      address: input.address,
-      addressKey: key,
+      name: input.name?.trim() || siteNameFromAddress(columns.address),
+      ...columns,
       createdById: input.userId,
     },
   });
@@ -243,7 +267,7 @@ export async function findOrCreatePrivateSite(
     entityType: "Site",
     entityId: site.id,
     action: "created",
-    diff: { kind: "PRIVATE", address: input.address, auto: true },
+    diff: { kind: "PRIVATE", address: columns.address, auto: true },
   });
   return { siteId: site.id, buildingId: building.id, created: true, wasArchived: false };
 }
@@ -294,11 +318,11 @@ export async function updateSite(ctx: RequestContext, siteId: string, input: Upd
       where: { id: siteId },
       data: {
         name: input.name,
-        address: input.address,
-        addressKey: input.address !== undefined ? addressKey(input.address) : undefined,
+        ...(input.address ? siteAddressColumns(input.address) : {}),
       },
     });
-    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Site", entityId: siteId, action: "updated", diff: input as Prisma.InputJsonValue });
+    const diff = { ...input, address: input.address ? formatAddress(input.address) : undefined };
+    await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Site", entityId: siteId, action: "updated", diff: diff as Prisma.InputJsonValue });
     return { id: updated.id };
   });
 }
