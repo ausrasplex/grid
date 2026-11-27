@@ -298,3 +298,31 @@ A quote that needs plans (for a take-off) before the work is won gets a job to h
 4. Invites, chain, placement and moves (§2, §4, §5).
 5. Site and project QR access requests (§1f, §3).
 6. Managed-site ownership: editors, structure proposals, claims, duplicate checks.
+
+### Job checklist (decided and built Nov 2026)
+
+A to-do list on each job, ticked off as the work gets done. Its own optional Block, `checklists` (Checklist in the Store), on for every business by default (the preset, and the migration for businesses that already existed).
+
+- **Where:** the top of the job page, above the work areas: it's for the whole job, not one level. Blocks put things there through the **`job.top`** panel slot (props `JobTopPanelProps` from `@grid/block-projects`). Not on a quote's job (Quoting / Not won).
+- **Ticking:** tap the item. It records **who and when** ("Sam Lee · Today, 2:14 pm"; the name is kept with the tick, in case they leave the team) and goes to the bottom under **Done (n)**, folded away while there's still something to do. Tapping a done one puts it back. Two people ticking at once keeps the first tick.
+- **Who can do what** (two permissions, so roles can split them):
+  - `checklists.items.tick`, **Tick checklist items**: Owner, Foreman, Employee and Viewer, i.e. anyone who can see the job.
+  - `checklists.items.manage`, **Add and remove checklist items** (and rename them): Owner, Foreman, Employee.
+  - **Apprentices and trainees** are a custom role (Settings › Roles: copy Employee, switch "Add and remove checklist items" off), given to them on the Team page. They tick but don't change the list. Decided: set on the Team page by an Owner, never on your own Profile.
+- **Adding:** the box at the bottom. Enter adds; several lines (typed with Shift+Enter, or pasted from notes) add one item each, with bullets, numbers and tick boxes taken off (`blocks/checklists/lines.ts`). New items go at the end.
+- **Edit** (top right of the list, for those who can manage it): rename in place (saves when you leave the box) and a Bin on each. No reordering yet.
+- **An archived job's list** is kept as it was: it can be read, not changed. A job's list goes when the job is deleted for good, and with a deleted business.
+- Every add, rename, tick, untick and removal is in the activity log. The list belongs to the business that wrote it (`ChecklistItem.companyId`), ready for shared jobs in the contract chain.
+
+### Addresses (decided and built Nov 2026)
+
+Every address in Grid is kept in parts, so a later Analytics Block can count work by suburb, and every screen treats addresses the same way.
+
+- **The parts:** `street` (unit, number and street: "2/12 Smith St"), `suburb`, `state` (short: "VIC"), `postcode`, `country` ("Australia" is left out when shown), and from Google `placeId`, `latitude`, `longitude`. Tables with an address: `Site`, `Client`, `ClientBusiness`, `DocTheme` (Branding), and `Quote` with `site` in front (`siteStreet`, `siteSuburb`…). Migration `20261127100000_address_parts`. `Site` has an index on `(suburb, postcode)` for counting.
+- **The one line stays** (`address`, `Quote.siteAddress`): "12 Smith St, Brunswick VIC 3056". It is always made from the parts by `formatAddress()` (in `@grid/core`, `packages/core/src/address.ts`) whenever an address is saved, never typed on its own. Search, `addressKey` matching, PDFs, vCards and lists keep using it. Reports should count by `suburb` **and** `postcode` (or `state`): there's a Richmond in Victoria and one in NSW.
+- **Requests** send an address as its parts (`{ street, suburb, state, postcode… }`) or as one line, which is split (`toAddress`, `parseAddress`). Empty clears an optional address. Responses send `address` (the line) and `addressParts`; quotes send `siteAddress` and `siteAddressParts`.
+- **Splitting a typed address** (`parseAddress`) is made for how Australians write them: "12 Smith St, Brunswick VIC 3056", "12 Smith Street Brunswick Victoria 3056", "3056 VIC" at the end, units with commas. When it can't tell where the street ends (no comma and no street word like St or Rd), the suburb is left empty to fill in rather than guessed.
+- **Google:** picking a suggestion asks Place Details for `addressComponents` too (same request as before), so the parts come straight from Google (`addressFromGoogle`).
+- **The address box** (`AddressField`): its value is an address in parts. What's typed is split as you go, and once there's something in it the parts show underneath (Street; Suburb, State, Postcode) so a wrong suburb can be fixed before saving. Changing a part by hand drops the Google place id and location.
+- **Fixing a site's address:** the site page has **Name & address** (the company that looks after the site, with "Edit buildings and levels"). The row says what's missing ("Needs suburb, postcode") so a badly split old address gets noticed. A house named after its address ("12 Smith St") is renamed with it unless a name is typed. Moving a site onto an address another of your sites already has is refused, naming that site, so one address never splits its jobs across two sites. Changes go in the audit log (from and to).
+- **Older addresses:** saved as one line before this, they're split when the server starts (`apps/web/src/lib/split-addresses.ts`, only rows with no parts yet, so it does nothing after the first start). Client imports (spreadsheets and vCards) split the one-line address the same way. vCards are written with the parts in their proper places.

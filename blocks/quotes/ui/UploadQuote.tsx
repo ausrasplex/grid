@@ -4,6 +4,7 @@
 // its PDF plus the few details Grid needs to track it. From the Quotes list,
 // or "Attach a quote PDF" on a job that has no quote.
 
+import { addressOf, isEmptyAddress } from "@grid/core";
 import { useRef, useState } from "react";
 import { FileText, Upload } from "lucide-react";
 import { AddressField, Alert, Button, Field, FormActions, PageHeader, Section, SelectField, api, useAction } from "@grid/ui";
@@ -43,7 +44,7 @@ export function UploadQuote({
   const [number, setNumber] = useState("");
   const [client, setClient] = useState<ClientJson | null>(jobClient);
   const [total, setTotal] = useState("");
-  const [address, setAddress] = useState(job?.address ?? "");
+  const [address, setAddress] = useState(() => addressOf(job));
   const [place, setPlace] = useState<PlaceValue | null>(null);
   const [sentOn, setSentOn] = useState(today());
   const [status, setStatus] = useState<"SENT" | "ACCEPTED">(job ? "ACCEPTED" : "SENT");
@@ -77,7 +78,7 @@ export function UploadQuote({
                   number: number.trim() || null,
                   clientId: client?.id ?? null,
                   total: amount,
-                  siteAddress: address.trim() || null,
+                  siteAddress: isEmptyAddress(address) ? null : address,
                   sentOn,
                   status,
                   projectId: job?.id ?? null,
@@ -119,7 +120,7 @@ export function UploadQuote({
           </div>
           <Field label="What's it for?" placeholder="e.g. Switchboard upgrade" value={title} onChange={(event) => setTitle(event.target.value)} required />
           <Field label="Quote number" hint="As on the PDF. Leave blank for the next number." value={number} onChange={(event) => setNumber(event.target.value)} autoComplete="off" />
-          <ClientPicker value={client} onChange={(value) => (setClient(value), value?.address && !address && setAddress(value.address))} canAdd={canAddClient} />
+          <ClientPicker value={client} onChange={(value) => (setClient(value), value?.address && isEmptyAddress(address) && setAddress(addressOf(value)))} canAdd={canAddClient} />
           {/* For a job, the job says where. */}
           {!job && canPickSite && (
             <PlacePicker
@@ -127,7 +128,7 @@ export function UploadQuote({
               hint="If it's at a site you've set up, pick it (and the building and floor). Otherwise just type the address below."
               onChange={(next) => {
                 setPlace(next);
-                if (next && !address.trim()) setAddress(next.site.address);
+                if (next && isEmptyAddress(address)) setAddress(addressOf(next.site));
               }}
             />
           )}
@@ -141,7 +142,7 @@ export function UploadQuote({
             label="Site address"
             hint={job ? undefined : "Where the work is. Needed to make the job when it's accepted."}
             value={address}
-            onChange={(event) => setAddress(event.target.value)}
+            onChange={setAddress}
           />
           <Field label="Date sent" type="date" value={sentOn} onChange={(event) => setSentOn(event.target.value)} />
           <SelectField

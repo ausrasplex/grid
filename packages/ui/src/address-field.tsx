@@ -5,16 +5,20 @@
 //     name, address or client. Picking one hands the site to the form
 //     (`onSite`), which can then use it (e.g. New job switches to it).
 //   - Addresses: real ones from Google Maps, when the server admin has turned
-//     it on in Settings › Maps. Picking one fills in the whole address.
+//     it on in Settings › Maps. Picking one fills in every part.
 // The two are shown as separate groups. With neither, or offline, it's a
 // plain text box: typing an address always works.
 //
-// Same shape as Field (label, hint, value, onChange with event.target.value),
-// so it drops in wherever an address is typed.
+// Addresses are kept in parts (docs/stage-2-projects.md "Addresses"): the
+// value is an Address ({ street, suburb, state, postcode… }). What's typed in
+// the box is split into the parts as you go, and the parts show underneath
+// so a wrong suburb can be fixed before saving.
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Building2, Home, MapPin } from "lucide-react";
+import { AUSTRALIAN_STATES, formatAddress, isEmptyAddress, parseAddress, type Address } from "@grid/core";
 import { api } from "./api";
+import { NativeSelect } from "./components/native-select";
 import { Input } from "./components/input";
 import { Label } from "./components/label";
 import { cn } from "./lib/utils";
@@ -31,14 +35,11 @@ export interface SiteMatch {
   id: string;
   name: string;
   address: string;
+  /** The site's address in parts. */
+  addressParts: Address;
   kind: "MANAGED" | "PRIVATE";
   /** Archived: its last job finished (it comes back when a new job starts there). */
   archived: boolean;
-}
-
-export interface AddressPick {
-  address: string;
-  location: { lat: number; lng: number } | null;
 }
 
 type Row = { kind: "site"; site: SiteMatch } | { kind: "address"; suggestion: Suggestion };
@@ -55,6 +56,7 @@ interface SiteRow {
   id: string;
   name: string;
   address: string;
+  addressParts: Address;
   kind: "MANAGED" | "PRIVATE";
   archivedAt: string | null;
 }
@@ -65,7 +67,7 @@ async function findSites(query: string): Promise<SiteMatch[]> {
     api<SiteRow[]>(`/sites?tab=active&q=${q}`),
     api<SiteRow[]>(`/sites?tab=archived&q=${q}`).catch(() => [] as SiteRow[]),
   ]);
-  return [...active, ...archived].slice(0, 5).map((row) => ({ id: row.id, name: row.name, address: row.address, kind: row.kind, archived: !!row.archivedAt }));
+  return [...active, ...archived].slice(0, 5).map((row) => ({ id: row.id, name: row.name, address: row.address, addressParts: row.addressParts, kind: row.kind, archived: !!row.archivedAt }));
 }
 
 export function AddressField({
@@ -74,7 +76,6 @@ export function AddressField({
   error,
   value,
   onChange,
-  onPick,
   sites = false,
   onSite,
   id,
@@ -84,10 +85,8 @@ export function AddressField({
   label: string;
   hint?: string;
   error?: string | null;
-  value: string;
-  onChange: (event: { target: { value: string } }) => void;
-  /** After a Google address is picked: the full address and where it is. */
-  onPick?: (pick: AddressPick) => void;
+  value: Address;
+  onChange: (address: Address) => void;
   /** Also suggest your business's sites (needs permission to see sites). */
   sites?: boolean;
   /** A site was picked (its address is filled in first). */
@@ -109,9 +108,28 @@ export function AddressField({
   /** Only search after the person types, not for a value filled in from elsewhere. */
   const typed = useRef(false);
   const suggesting = addressesOn || sitesOn;
+  /** What's in the box. Starts as the address's one line, then is whatever's typed. */
+  const [text, setText] = useState(() => formatAddress(value));
+  /** The address this box last handed out: anything else arriving is from elsewhere (a site or client picked, the form loading). */
+  const sent = useRef<Address>(value);
+  // Compared by what's in it: a caller may hand over a fresh copy of the same address each time.
+  const valueKey = JSON.stringify(value);
+  useEffect(() => {
+    if (valueKey === JSON.stringify(sent.current)) return;
+    sent.current = value;
+    // Filled in from elsewhere: show it, but don't search for it.
+    picked.current = formatAddress(value);
+    setText(picked.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valueKey]);
+  const send = (address: Address, boxText = formatAddress(address)) => {
+    sent.current = address;
+    setText(boxText);
+    onChange(address);
+  };
 
   useEffect(() => {
-    const query = value.trim();
+    const query = text.trim();
     if (!suggesting || !typed.current || query.length < 3 || query === picked.current) {
       setSiteRows([]);
       setAddressRows([]);
@@ -153,7 +171,7 @@ export function AddressField({
       alive = false;
       clearTimeout(timer);
     };
-  }, [value, suggesting, sitesOn, addressesOn]);
+  }, [text, suggesting, sitesOn, addressesOn]);
 
   const close = () => {
     setOpen(false);
@@ -163,21 +181,21 @@ export function AddressField({
 
   const chooseSite = (site: SiteMatch) => {
     close();
-    picked.current = site.address;
-    onChange({ target: { value: site.address } });
+    const address = site.addressParts ?? parseAddress(site.address);
+    picked.current = formatAddress(address);
+    send(address);
     onSite?.(site);
   };
 
   const chooseAddress = async (suggestion: Suggestion) => {
     close();
     picked.current = suggestion.text;
-    onChange({ target: { value: suggestion.text } });
+    send(parseAddress(suggestion.text));
     try {
-      const details = await api<AddressPick | null>(`/places/details?id=${encodeURIComponent(suggestion.placeId)}&session=${session.current}`);
+      const details = await api<Address | null>(`/places/details?id=${encodeURIComponent(suggestion.placeId)}&session=${session.current}`);
       if (details) {
-        picked.current = details.address;
-        onChange({ target: { value: details.address } });
-        onPick?.(details);
+        picked.current = formatAddress(details);
+        send(details);
       }
     } catch {
       /* the suggestion's text is good enough */
@@ -231,7 +249,7 @@ export function AddressField({
       <Label htmlFor={inputId}>{label}</Label>
       <Input
         id={inputId}
-        value={value}
+        value={text}
         autoComplete={suggesting ? "off" : "street-address"}
         role={suggesting ? "combobox" : undefined}
         aria-expanded={suggesting ? showing : undefined}
@@ -243,7 +261,8 @@ export function AddressField({
         onChange={(event) => {
           typed.current = true;
           picked.current = null;
-          onChange({ target: { value: event.target.value } });
+          // Split as it's typed; the parts show underneath to check.
+          send(parseAddress(event.target.value), event.target.value);
         }}
         onFocus={() => rows.length && setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
@@ -274,6 +293,15 @@ export function AddressField({
           )}
         </div>
       )}
+      {!isEmptyAddress(value) && <AddressParts
+          label={label}
+          value={value}
+          onChange={(address) => {
+            // A part changed by hand: the box shows the new line without searching for it (no Google charge).
+            picked.current = formatAddress(address);
+            send(address);
+          }}
+        />}
       {error ? (
         <p id={helpId} className="text-sm font-medium text-destructive">
           {error}
@@ -283,6 +311,33 @@ export function AddressField({
           {hint}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+const STATE_OPTIONS = AUSTRALIAN_STATES.map((state) => ({ value: state.short, label: state.short }));
+
+/** The parts under the box: street across the top, then suburb, state and postcode. Changing one keeps the rest. */
+function AddressParts({ label, value, onChange }: { label: string; value: Address; onChange: (address: Address) => void }) {
+  const auto = useId();
+  // Changing a part by hand: it's no longer exactly the Google place.
+  const set = (part: "street" | "suburb" | "state" | "postcode") => (event: { target: { value: string } }) =>
+    onChange({ ...value, [part]: event.target.value, placeId: null, latitude: null, longitude: null });
+  const states = value.state && !STATE_OPTIONS.some((option) => option.value === value.state) ? [...STATE_OPTIONS, { value: value.state, label: value.state }] : STATE_OPTIONS;
+  const part = (id: string, text: string, input: React.ReactNode, className?: string) => (
+    <div className={cn("flex flex-col gap-1", className)}>
+      <Label htmlFor={`${auto}-${id}`} className="text-xs text-muted-foreground">
+        {text}
+      </Label>
+      {input}
+    </div>
+  );
+  return (
+    <div role="group" aria-label={`${label} in parts`} className="grid grid-cols-[1fr_6rem] gap-2 rounded-xl bg-muted/40 p-3 sm:grid-cols-[1fr_6rem_6rem]">
+      {part("street", "Street", <Input id={`${auto}-street`} value={value.street} onChange={set("street")} autoComplete="off" />, "col-span-2 sm:col-span-3")}
+      {part("suburb", "Suburb", <Input id={`${auto}-suburb`} value={value.suburb} onChange={set("suburb")} autoComplete="off" />, "col-span-2 sm:col-span-1")}
+      {part("state", "State", <NativeSelect id={`${auto}-state`} options={states} value={value.state} placeholder="State" onChange={set("state")} />)}
+      {part("postcode", "Postcode", <Input id={`${auto}-postcode`} value={value.postcode} onChange={set("postcode")} inputMode="numeric" autoComplete="off" />)}
     </div>
   );
 }

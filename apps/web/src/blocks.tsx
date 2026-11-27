@@ -26,10 +26,11 @@ import plans from "@grid/block-plans/block";
 import markups from "@grid/block-markups/block";
 import documents from "@grid/block-documents/block";
 import signoffs from "@grid/block-signoffs/block";
+import checklists from "@grid/block-checklists/block";
 import handover from "@grid/block-handover/block";
 import assets from "@grid/block-assets/block";
 
-const definitions = [users, companies, themes, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, handover, assets];
+const definitions = [users, companies, themes, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, checklists, handover, assets];
 
 /** Lazy page loaders, keyed by block id. */
 export const blockPages: Record<string, () => Promise<BlockPages>> = {
@@ -69,6 +70,7 @@ export const blockPanels: Record<string, () => Promise<BlockPanels>> = {
   quotes: async () => (await import("@grid/block-quotes/ui")).panels,
   documents: async () => (await import("@grid/block-documents/ui")).panels,
   signoffs: async () => (await import("@grid/block-signoffs/ui")).panels,
+  checklists: async () => (await import("@grid/block-checklists/ui")).panels,
   handover: async () => (await import("@grid/block-handover/ui")).panels,
   assets: async () => (await import("@grid/block-assets/ui")).panels,
 };

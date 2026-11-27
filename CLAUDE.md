@@ -20,7 +20,7 @@ Read the relevant doc before building. They are agreed designs, not suggestions.
 | Doc | Covers |
 |---|---|
 | `docs/roadmap.md` | Phases and their order, Phase 1 details (done), expansion rules, Store/core decision |
-| `docs/stage-2-projects.md` | Sites → Buildings → Levels, projects, Covers, contract chain. **Phase 2a is next.** |
+| `docs/stage-2-projects.md` | Sites → Buildings → Levels, projects, Covers, contract chain, the job checklist. **Phase 2a is next.** |
 | `docs/navigation.md` | Breadcrumbs, menus per screen size, centre button (§5a), Jump to search, route codes, one scanner |
 | `docs/visual-style.md` | Concept C tokens and layout rules |
 | `docs/ADDING_A_BLOCK.md` | How to add a Block, step by step |
@@ -58,7 +58,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, themes, clients, materials, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, handover, assets (optional)
+blocks/        users, companies, themes, clients, materials, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, checklists, handover, assets (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -99,6 +99,10 @@ prisma/        base, core and auth schemas; migrations
   **Phase 4c part 3** (custom icons built from a shape and letters in Settings › Icons, and manuals linked to an icon type at `/documents/icon/<key>`) is done too, which finishes Phase 4c.
   **Clients export and import** (Settings › Clients › Export & import: Excel/CSV export, import with a matching preview, Share our business card; contact cards only, never accounts) is done too; see "Export and import" in `docs/quotations-block.md`. `ClientBusiness.linkedCompanyId` and `Client.linkedUserId` wait for the contract chain.
   **Your own themes** (core `themes` Block: Settings › Themes, simple key colours plus every colour under Advanced, Grid or Soft look, readability warnings, export/import, business themes for Owners) is done too; see "Your own themes" in `docs/visual-style.md`.
+  **Pictures** (business picture in Settings › Business details, made from the Branding logo until one is uploaded; the team shows it until each person adds their own; "Share my photo on business cards", Private by default; client logos and photos; zip export and import with a pictures folder) are done too; see "Pictures" under "Export and import" in `docs/quotations-block.md`. Square pictures live at `pictures/…` and are served by `/api/pictures/…`.
+  **Contact files** (Share my contact on Profile, Share contact on a client's page: a vCard 3.0 .vcf to the phone's Share menu or downloaded; the import takes .vcf 2.1/3.0/4.0) are done too; see "Contact files" in `docs/quotations-block.md`.
+  **Job checklist** (the `checklists` Block: a to-do list at the top of each job via the `job.top` slot; tick records who and when; "Tick checklist items" for anyone who can see the job, "Add and remove checklist items" for Owner/Foreman/Employee, so an Apprentice custom role ticks only) is done too; see "Job checklist" in `docs/stage-2-projects.md`.
+  **Addresses in parts** (street, suburb, state, postcode everywhere an address is kept; the one line is always made from them; the address box shows the parts to check; older addresses split at start-up) are done too; see "Addresses" in `docs/stage-2-projects.md`.
   **Materials part 1** (the core `materials` Block: Settings › Materials with photos or colour swatches, brands, families and trades; the price list's material items now point at a material and brands moved there) is done too; see "What part 1 built" in `docs/materials-block.md`.
   **Materials part 2** (the `handover` Block: a job's list by trade and room at `/handover/<job>`, the landscape Fixtures & Finishes Schedule PDF, Settings › Handover, the client's `/h/<token>` link with Email to client) is done too; see "What part 2 built" in `docs/materials-block.md`.
   **Materials part 3** (Bring in on the handover list: plan icons per level and accepted quotes, through the core `jobMaterials` and `priceItemMaterials` Block hooks; changed-by-hand lines left alone) is done too; see "What part 3 built" in `docs/materials-block.md`.

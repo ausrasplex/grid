@@ -365,8 +365,11 @@ export async function readStoredFile(file: { key: string; mime: string; variants
 
 const AVATAR_EDGE = 512;
 
-/** Crops the photo to a square (centred, upright) and stores it. Returns the new key. */
-export async function saveAvatar(userId: string, data: Buffer): Promise<string> {
+/**
+ * A square JPEG from a photo or logo. "cover" crops to the square (a face);
+ * "contain" fits all of it inside on white (a wide logo stays whole).
+ */
+async function squarePicture(data: Buffer, fit: "cover" | "contain"): Promise<Buffer> {
   if (data.length > MAX_UPLOAD_BYTES) throw new UploadError("That file is too big (25 MB at most)");
   let meta: sharp.Metadata;
   try {
@@ -375,20 +378,63 @@ export async function saveAvatar(userId: string, data: Buffer): Promise<string> 
     throw new UploadError("That doesn't look like a photo");
   }
   if (!meta.format || !IMAGE_TYPES[meta.format]) throw new UploadError("Photos need to be JPEG, PNG or WebP");
-  const square = await sharp(data)
-    .rotate()
-    .resize({ width: AVATAR_EDGE, height: AVATAR_EDGE, fit: "cover", position: "attention", withoutEnlargement: false })
-    .flatten({ background: "#ffffff" })
-    .jpeg({ quality: 82, mozjpeg: true })
-    .toBuffer();
+  const inner = fit === "contain" ? Math.round(AVATAR_EDGE * 0.84) : AVATAR_EDGE;
+  let image = sharp(data).rotate().resize({ width: inner, height: inner, fit, position: "attention", background: "#ffffff", withoutEnlargement: false });
+  if (fit === "contain") {
+    const padding = Math.round((AVATAR_EDGE - inner) / 2);
+    image = sharp(await image.flatten({ background: "#ffffff" }).png().toBuffer()).extend({ top: padding, bottom: padding, left: padding, right: padding, background: "#ffffff" });
+  }
+  return image.flatten({ background: "#ffffff" }).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+}
+
+/** Crops the photo to a square (centred, upright) and stores it. Returns the new key. */
+export async function saveAvatar(userId: string, data: Buffer): Promise<string> {
   const key = `avatars/${userId}/${randomUUID()}.jpg`;
-  await put(key, square);
+  await put(key, await squarePicture(data, "cover"));
   return key;
 }
 
 /** Deletes an old picture from disk (gone already is fine). */
 export async function removeAvatar(key: string) {
   if (key.startsWith("avatars/")) await removeKey(key);
+}
+
+// ---------------------------------------------------------------------
+// Business pictures and client pictures: the same small square JPEGs,
+// kept at pictures/<folder>/<random>.jpg on the row that owns them
+// (Company.logoKey, Client.photoKey, ClientBusiness.logoKey). Served by
+// /api/pictures/<folder>/<file>, which checks who may see them.
+// ---------------------------------------------------------------------
+
+/** Where a business's or a business's clients' pictures go. */
+export const pictureFolder = {
+  company: (companyId: string) => `company/${companyId}`,
+  clients: (companyId: string) => `clients/${companyId}`,
+};
+
+/** Makes a square picture and stores it in `folder`. Returns the new key. */
+export async function savePicture(folder: string, data: Buffer, fit: "cover" | "contain" = "cover"): Promise<string> {
+  const key = `pictures/${folder}/${randomUUID()}.jpg`;
+  await put(key, await squarePicture(data, fit));
+  return key;
+}
+
+/** Deletes an old picture from disk (gone already is fine). */
+export async function removePicture(key: string | null | undefined) {
+  if (key?.startsWith("pictures/")) await removeKey(key);
+}
+
+/** A stored picture's bytes (for a zip of the client list). */
+export async function readPicture(key: string): Promise<Buffer> {
+  const { stream } = await openAvatar(key);
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks);
+}
+
+/** The address a picture is shown from: /api/pictures/<folder>/<file>.jpg. */
+export function pictureUrl(key: string | null | undefined): string | null {
+  return key?.startsWith("pictures/") ? `/api/${key}` : null;
 }
 
 /** Opens a stored picture for streaming. */
@@ -400,9 +446,11 @@ export async function openAvatar(key: string) {
 
 /**
  * Where a person's picture is shown from: their own upload, else the one
- * from an outside sign-in (Google / Microsoft), else none (initials).
+ * from an outside sign-in (Google / Microsoft), else their business's picture
+ * (when `businessPictureKey` is given), else none (initials).
  */
-export function avatarUrl(user: { id: string; avatarKey?: string | null; image?: string | null }): string | null {
+export function avatarUrl(user: { id: string; avatarKey?: string | null; image?: string | null }, businessPictureKey?: string | null): string | null {
   if (user.avatarKey) return `/api/avatars/${user.id}/${user.avatarKey.split("/").pop()}`;
-  return user.image ?? null;
+  // Until they add their own, people show their business's picture.
+  return user.image ?? pictureUrl(businessPictureKey);
 }

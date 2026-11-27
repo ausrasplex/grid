@@ -4,6 +4,7 @@
 // Used where something is set up before a job exists: New quote. The floor
 // is optional ("Whole building"); a house site needs no more than the site.
 
+import type { Address } from "@grid/core";
 import { useEffect, useState } from "react";
 import { Building2, Home, X } from "lucide-react";
 import { Button, Label, SearchInput, SelectField, Sheet, SheetContent, api } from "@grid/ui";
@@ -12,6 +13,8 @@ export interface PlaceSite {
   id: string;
   name: string;
   address: string;
+  /** The address in parts (left out by older callers: then the line is split up). */
+  addressParts?: Address;
   kind: "MANAGED" | "PRIVATE";
   buildings: { id: string; name: string; kind: "MULTI" | "SINGLE"; levels: { id: string; name: string; label?: string }[] }[];
 }

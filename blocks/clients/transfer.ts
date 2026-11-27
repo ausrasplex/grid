@@ -24,6 +24,12 @@ export const COLUMNS = [
   "Notes",
 ] as const;
 
+/**
+ * In a zip (spreadsheet plus a pictures folder), two more columns name each
+ * row's pictures: "pictures/siemens.jpg". A plain spreadsheet has neither.
+ */
+export const PICTURE_COLUMNS = ["Business picture", "Picture"] as const;
+
 export interface BusinessFields {
   name: string;
   abn: string | null;
@@ -47,12 +53,16 @@ export interface PersonFields {
 /** A business on the list, for export and matching. */
 export interface BusinessCard extends BusinessFields {
   id: string;
+  /** Exporting: its picture's name in the zip. Matching: whether it has one (any text). */
+  picture?: string | null;
 }
 
 /** A person on the list, for export and matching. */
 export interface PersonCard extends PersonFields {
   id: string;
   businessId: string | null;
+  /** Exporting: their photo's name in the zip. Matching: whether they have one (any text). */
+  picture?: string | null;
 }
 
 const BUSINESS_KEYS = ["name", "abn", "phone", "email", "address", "notes"] as const satisfies readonly (keyof BusinessFields)[];
@@ -69,7 +79,7 @@ const text = (value: string | null | undefined) => value ?? "";
  * business alongside, and a row of its own for a business with nobody at it.
  * Sorted by business (or the person's name when they have none), then name.
  */
-export function toTable(businesses: BusinessCard[], people: PersonCard[]): string[][] {
+export function toTable(businesses: BusinessCard[], people: PersonCard[], options: { pictures?: boolean } = {}): string[][] {
   const businessesById = new Map(businesses.map((business) => [business.id, business]));
   const withPeople = new Set<string>();
   const rows: { sortKey: string; personName: string; cells: string[] }[] = [];
@@ -92,15 +102,16 @@ export function toTable(businesses: BusinessCard[], people: PersonCard[]): strin
         text(person.address),
         text(person.abn),
         text(person.notes),
+        ...(options.pictures ? [text(business?.picture), text(person.picture)] : []),
       ],
     });
   }
   for (const business of businesses) {
     if (withPeople.has(business.id)) continue;
-    rows.push({ sortKey: business.name.toLowerCase(), personName: "", cells: [...businessCells(business), "", "", "", "", "", "", "", ""] });
+    rows.push({ sortKey: business.name.toLowerCase(), personName: "", cells: [...businessCells(business), "", "", "", "", "", "", "", "", ...(options.pictures ? [text(business.picture), ""] : [])] });
   }
   rows.sort((first, second) => first.sortKey.localeCompare(second.sortKey) || first.personName.localeCompare(second.personName));
-  return [[...COLUMNS], ...rows.map((row) => row.cells)];
+  return [[...COLUMNS, ...(options.pictures ? PICTURE_COLUMNS : [])], ...rows.map((row) => row.cells)];
 }
 
 // ---------------------------------------------------------------------------
@@ -111,7 +122,9 @@ type Field =
   | `business.${keyof BusinessFields}`
   | `person.${keyof PersonFields}`
   | "person.firstName"
-  | "person.lastName";
+  | "person.lastName"
+  | "business.picture"
+  | "person.picture";
 
 /** Column headings Grid understands, squashed (lower case, letters and digits only). */
 const HEADINGS: Record<string, Field> = {
@@ -135,6 +148,12 @@ const HEADINGS: Record<string, Field> = {
   officeaddress: "business.address",
   businessnotes: "business.notes",
   companynotes: "business.notes",
+  businesspicture: "business.picture",
+  businesslogo: "business.picture",
+  companylogo: "business.picture",
+  logo: "business.picture",
+  picture: "person.picture",
+  photo: "person.picture",
   name: "person.name",
   fullname: "person.name",
   person: "person.name",
@@ -177,6 +196,9 @@ export interface ReadRow {
   line: number;
   business: BusinessFields | null;
   person: PersonFields | null;
+  /** Picture names from a zip's picture columns ("pictures/siemens.jpg"), or null. */
+  businessPicture?: string | null;
+  personPicture?: string | null;
 }
 
 export interface SkippedRow {
@@ -250,7 +272,13 @@ export function readTable(cells: unknown[][]): { rows: ReadRow[]; skipped: Skipp
       skipped.push({ line, reason: `Check the email address (${badEmail})` });
       return;
     }
-    rows.push({ line, business, person });
+    rows.push({
+      line,
+      business,
+      person,
+      businessPicture: business ? orNull(values["business.picture"] ?? "") : null,
+      personPicture: person ? orNull(values["person.picture"] ?? "") : null,
+    });
   });
   return { rows, skipped, columnsFound };
 }
@@ -320,6 +348,8 @@ export interface PlannedBusiness {
   /** Stable for the same file: decisions are sent back keyed by it. */
   key: string;
   fields: BusinessFields;
+  /** Its picture's name in the zip, when the zip has it. */
+  picture: string | null;
   /** The business on the list it's the same as, or null for a new one. */
   match: { id: string; name: string; by: "abn" | "name" } | null;
   changes: FieldChange[];
@@ -332,6 +362,8 @@ export interface PlannedPerson {
   key: string;
   businessKey: string | null;
   fields: PersonFields;
+  /** Their photo's name in the zip, when the zip has it. */
+  picture: string | null;
   match: { id: string; name: string; by: "email" | "name"; businessId: string | null } | null;
   changes: FieldChange[];
   /** Matched by email at a different business: Update moves them to this one. */
@@ -351,7 +383,14 @@ export interface ImportPlan {
  * name; people by email, then name at the same business. The same business
  * (or person) on several rows of the file is one.
  */
-export function planImport(rows: ReadRow[], existing: { businesses: BusinessCard[]; people: PersonCard[] }, skipped: SkippedRow[] = []): ImportPlan {
+export function planImport(
+  rows: ReadRow[],
+  existing: { businesses: BusinessCard[]; people: PersonCard[] },
+  skipped: SkippedRow[] = [],
+  /** The pictures in the zip, by name. A name the zip doesn't have is ignored. */
+  pictureNames: Set<string> = new Set(),
+): ImportPlan {
+  const pictureIn = (name: string | null | undefined) => (name && pictureNames.has(name) ? name : null);
   // --- businesses in the file, merged
   const fileBusinesses = new Map<string, PlannedBusiness>();
   const byFileName = new Map<string, string>();
@@ -366,8 +405,9 @@ export function planImport(rows: ReadRow[], existing: { businesses: BusinessCard
     const known = fileBusinesses.get(key);
     if (known) {
       fillGaps(BUSINESS_KEYS, known.fields, row.business);
+      known.picture ??= pictureIn(row.businessPicture);
       known.lines.push(row.line);
-    } else fileBusinesses.set(key, { key, fields: { ...row.business }, match: null, changes: [], suggested: "add", lines: [row.line] });
+    } else fileBusinesses.set(key, { key, fields: { ...row.business }, picture: pictureIn(row.businessPicture), match: null, changes: [], suggested: "add", lines: [row.line] });
     if (!byFileName.has(nameKey)) byFileName.set(nameKey, key);
     businessKeyOfRow.set(row.line, key);
   }
@@ -388,7 +428,7 @@ export function planImport(rows: ReadRow[], existing: { businesses: BusinessCard
     const found = byAbn ?? byName;
     if (!found) continue;
     planned.match = { id: found.id, name: found.name, by: byAbn ? "abn" : "name" };
-    planned.changes = changesOf(BUSINESS_KEYS, found, planned.fields);
+    planned.changes = [...changesOf(BUSINESS_KEYS, found, planned.fields), ...pictureChange(found, planned.picture)];
     planned.suggested = "skip";
   }
 
@@ -402,10 +442,11 @@ export function planImport(rows: ReadRow[], existing: { businesses: BusinessCard
     const known = people.get(key);
     if (known) {
       fillGaps(PERSON_KEYS, known.fields, row.person);
+      known.picture ??= pictureIn(row.personPicture);
       known.lines.push(row.line);
       continue;
     }
-    people.set(key, { key, businessKey, fields: { ...row.person }, match: null, changes: [], movesBusiness: false, suggested: "add", lines: [row.line] });
+    people.set(key, { key, businessKey, fields: { ...row.person }, picture: pictureIn(row.personPicture), match: null, changes: [], movesBusiness: false, suggested: "add", lines: [row.line] });
   }
 
   // --- match them to the list
@@ -427,7 +468,7 @@ export function planImport(rows: ReadRow[], existing: { businesses: BusinessCard
     const found = byEmail ?? byName;
     if (!found) continue;
     planned.match = { id: found.id, name: found.name, by: byEmail ? "email" : "name", businessId: found.businessId };
-    planned.changes = changesOf(PERSON_KEYS, found, planned.fields);
+    planned.changes = [...changesOf(PERSON_KEYS, found, planned.fields), ...pictureChange(found, planned.picture)];
     // No business in the file keeps the one they're at.
     planned.movesBusiness = business ? targetBusinessId !== found.businessId : false;
     planned.suggested = "skip";
@@ -436,10 +477,22 @@ export function planImport(rows: ReadRow[], existing: { businesses: BusinessCard
   return { businesses: [...fileBusinesses.values()], people: [...people.values()], skipped };
 }
 
+/**
+ * A picture in the zip counts as a change only when Grid has none: like a
+ * blank cell never clearing, a picture never replaces one already there.
+ */
+function pictureChange(existing: { picture?: string | null }, picture: string | null): FieldChange[] {
+  return picture && !existing.picture ? [{ field: "picture", label: "Picture", from: null, to: "Added from the file" }] : [];
+}
+
 /** Does this match have anything to change? A match with nothing different needs nothing. */
 export const hasChanges = (planned: PlannedBusiness | PlannedPerson) => planned.changes.length > 0 || ("movesBusiness" in planned && planned.movesBusiness);
 
 /** The fields an Update writes: only the ones the file has something in. */
 export function updateFields<T extends object>(planned: { changes: FieldChange[]; fields: T }): Partial<T> {
-  return Object.fromEntries(planned.changes.map((change) => [change.field, planned.fields[change.field as keyof T]])) as Partial<T>;
+  // The picture isn't a field: it's saved as a file on its own.
+  return Object.fromEntries(planned.changes.filter((change) => change.field !== "picture").map((change) => [change.field, planned.fields[change.field as keyof T]])) as Partial<T>;
 }
+
+/** Will an Update add a picture? */
+export const addsPicture = (planned: { changes: FieldChange[] }) => planned.changes.some((change) => change.field === "picture");

@@ -15,13 +15,14 @@
     "@grid/core": "workspace:*",
     "@grid/db": "workspace:*",
     "@grid/ui": "workspace:*",
+    "fflate": "^0.8",
     "lucide-react": "^0.500",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4"
   },
   "peerDependencies": {
-    "react": "^19",
-    "next": "^16"
+    "next": "^16",
+    "react": "^19"
   },
   "devDependencies": {
     "next": "^16"

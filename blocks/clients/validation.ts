@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toOptionalAddress } from "@grid/core";
 
 const optText = (max: number) =>
   z
@@ -8,6 +9,9 @@ const optText = (max: number) =>
     .nullable()
     .optional()
     .transform((value) => (value ? value : null));
+
+/** An address in parts ({ street, suburb, state, postcode… }), or one line that's split up. Empty clears it. */
+const optAddress = z.union([z.string(), z.record(z.string(), z.unknown())]).nullable().optional().transform(toOptionalAddress);
 
 const optEmail = z.union([z.literal(""), z.string().trim().email("Check the email address")]).nullable().optional().transform((value) => (value ? value : null));
 
@@ -21,7 +25,7 @@ export const clientSchema = z
     role: optText(100),
     email: optEmail,
     phone: optText(40),
-    address: optText(300),
+    address: optAddress,
     abn: optText(40),
     notes: optText(5000),
   })
@@ -35,7 +39,7 @@ export const businessSchema = z
     abn: optText(40),
     email: optEmail,
     phone: optText(40),
-    address: optText(300),
+    address: optAddress,
     notes: optText(5000),
   })
   .strict();
@@ -44,7 +48,8 @@ export type BusinessInput = z.infer<typeof businessSchema>;
 
 // --- export and import ---------------------------------------------------------
 
-export const formatSchema = z.enum(["xlsx", "csv"]).default("xlsx");
+/** A zip (the default) carries pictures too; Excel and CSV are the spreadsheet alone. */
+export const formatSchema = z.enum(["zip", "xlsx", "csv"]).default("zip");
 
 /** Share our card: `members` is a comma-separated list of membership ids (none = just the business). */
 export const cardQuerySchema = z.object({
@@ -65,5 +70,9 @@ export const importSchema = z
     decisions: z
       .object({ businesses: z.record(z.string(), decision), people: z.record(z.string(), decision) })
       .default({ businesses: {}, people: {} }),
+    /** Preview: the names of the pictures in a zip ("pictures/siemens.jpg"). */
+    pictureNames: z.array(z.string()).default([]),
+    /** Saving: the pictures themselves, base64, by name. */
+    pictures: z.record(z.string(), z.string()).default({}),
   })
   .strict();

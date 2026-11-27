@@ -20,7 +20,20 @@ model Site {
   /// The company that looks after the structure (buildings and levels).
   ownerCompanyId String
   name           String
+  /// The one line, always made from the parts below: "12 Smith St, Brunswick VIC 3056".
   address        String
+  /// Unit, number and street: "2/12 Smith St".
+  street         String?
+  suburb         String?
+  /// "VIC".
+  state          String?
+  postcode       String?
+  /// "Australia", or another country's name.
+  country        String?
+  /// Google's id for the place, when picked from Google.
+  placeId        String?
+  latitude       Float?
+  longitude      Float?
   /// Normalised address for matching ("12 smith st brunswick vic 3056").
   addressKey     String
   /// { lat, lng, radiusM } for "near the site" checks (later).
@@ -36,6 +49,7 @@ model Site {
 
   @@index([ownerCompanyId, addressKey])
   @@index([addressKey])
+  @@index([suburb, postcode])
 }
 
 model Building {

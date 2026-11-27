@@ -41,7 +41,7 @@ export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 // Layout building blocks + fields
 export * from "./blocks";
 export { Field, SelectField } from "./fields";
-export { AddressField, type AddressPick, type SiteMatch } from "./address-field";
+export { AddressField, type SiteMatch } from "./address-field";
 export { Crumbs, type Crumb } from "./crumbs";
 export { HomeTile, AttentionRow, AttentionList } from "./home";
 export { Icon, ICONS } from "./icons";
@@ -84,3 +84,7 @@ export {
 
 // The quote editor's take-off slot (Quotes provides it; Markups fills it)
 export { QuoteTakeoffProvider, useQuoteTakeoff, type QuoteTakeoffPanelProps, type QuoteTakeoffValue, type TakeoffLine } from "./quote-slot";
+
+// Picking a picture for a business, a client or a client business
+export { EditablePicture, PicturePicker, sendPicture } from "./picture-picker";
+export { shareFile } from "./share-file";

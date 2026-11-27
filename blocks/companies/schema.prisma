@@ -15,7 +15,13 @@ model Company {
   tradeProfile String
   /// { branding: {...}, units: "metric", workingHours: {...}, features: {...} }
   settings     Json         @default("{}")
+  /// The business picture: a square JPEG (pictures/company/<id>/…), shown
+  /// for the business and as the team's profile picture until each person
+  /// adds their own. Made from the Branding logo until one is uploaded here.
   logoKey      String?
+  /// The picture was made from the Branding logo (a new logo replaces it);
+  /// false once someone uploads a picture of its own.
+  logoFromBranding Boolean @default(false)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   /// Deleted by an Owner or the server admin: hidden from everyone, restorable

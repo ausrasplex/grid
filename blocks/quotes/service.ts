@@ -11,7 +11,18 @@ import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
+import {
+  addressColumnsWithPrefix,
+  addressFromPrefixedColumns,
+  app,
+  badRequest,
+  conflict,
+  emptyAddress,
+  notFound,
+  requireCompany,
+  type Address,
+  type RequestContext,
+} from "@grid/core";
 import { attachFile, audit, cacheRoot, db, getRenderingSettings, pageDpi, pdfLongestSideInches, readStoredFile, renderPdfPages, saveGeneratedFile, type Prisma, type Tx } from "@grid/db";
 import { createProject, createQuotingJob, getProject } from "@grid/block-projects";
 import { getSite } from "@grid/block-sites";
@@ -20,6 +31,9 @@ import { createSignRequest, latestSignRequest, maskEmail, revokeSignRequests } f
 import { materialIdsMatching, materialsById, priceBookName, requireMaterial, type MaterialChangedEvent, type MaterialRow } from "@grid/block-materials";
 import { calculate, formatMoney, type LineInput, type Settings as MathSettings, type TaxRate } from "./money";
 import { totalsFor, type QuoteSnapshot } from "./snapshot";
+
+/** A quote's site address columns (siteAddress, siteStreet, siteSuburb…); none clears them. */
+const siteAddressColumns = (address: Address | null) => addressColumnsWithPrefix(address ?? emptyAddress, "site");
 
 export type { QuoteSnapshot } from "./snapshot";
 import type {
@@ -418,7 +432,7 @@ export async function createQuote(ctx: RequestContext, input: CreateQuoteInput) 
         number: await nextNumber(tx, companyId, settings.quotePrefix),
         title: input.title,
         clientId: input.clientId ?? null,
-        siteAddress: input.siteAddress ?? place?.address ?? client?.address ?? null,
+        ...siteAddressColumns(input.siteAddress ?? place?.addressParts ?? client?.addressParts ?? null),
         siteId: place?.siteId ?? null,
         buildingId: place?.buildingId ?? null,
         levelId: place?.levelId ?? null,
@@ -455,6 +469,7 @@ export async function getQuote(ctx: RequestContext, id: string) {
     client: quote.client,
     clientId: quote.clientId,
     siteAddress: quote.siteAddress,
+    siteAddressParts: quote.siteAddress ? addressFromPrefixedColumns(quote, "site") : null,
     clientView: quote.clientView,
     pricesIncludeTax: quote.pricesIncludeTax,
     validUntil: quote.validUntil,
@@ -512,10 +527,10 @@ export async function updateQuote(ctx: RequestContext, id: string, input: Update
     // A different client must be one on the list (keeping a since-removed one is fine).
     if (input.clientId && input.clientId !== quote.clientId) await requireClient(tx, companyId, input.clientId);
     const showCost = ctx.permissions.has("quotes.costs.view");
-    const { lines, materialsMarkup, materialsMarkupPct, ...fields } = input;
+    const { lines, materialsMarkup, materialsMarkupPct, siteAddress, ...fields } = input;
     // The materials markup is set by people who can see costs; anyone else's change is ignored.
     const markup = showCost ? { ...(materialsMarkup !== undefined ? { materialsMarkup } : {}), ...(materialsMarkupPct !== undefined ? { materialsMarkupPct } : {}) } : {};
-    await tx.quote.update({ where: { id }, data: { ...fields, ...markup } });
+    await tx.quote.update({ where: { id }, data: { ...fields, ...(siteAddress !== undefined ? siteAddressColumns(siteAddress) : {}), ...markup } });
     const markupChanged =
       (markup.materialsMarkup !== undefined && markup.materialsMarkup !== quote.materialsMarkup) ||
       (markup.materialsMarkupPct !== undefined && markup.materialsMarkupPct !== (quote.materialsMarkupPct == null ? null : Number(quote.materialsMarkupPct)));
@@ -834,7 +849,7 @@ async function placeFor(ctx: RequestContext, siteId: string, buildingId: string 
   const site = await getSite(ctx, siteId);
   const building = buildingId ? site.buildings.find((candidate) => candidate.id === buildingId) : undefined;
   const level = building && levelId ? building.levels.find((candidate) => candidate.id === levelId) : undefined;
-  return { siteId: site.id, address: site.address, buildingId: building?.id ?? null, levelId: level?.id ?? null };
+  return { siteId: site.id, address: site.address, addressParts: site.addressParts, buildingId: building?.id ?? null, levelId: level?.id ?? null };
 }
 
 /**
@@ -843,7 +858,8 @@ async function placeFor(ctx: RequestContext, siteId: string, buildingId: string 
  */
 export async function makeJobFromQuote(
   ctx: RequestContext,
-  quote: { title: string; number: string; siteAddress: string | null; clientId: string | null; siteId?: string | null; buildingId?: string | null; levelId?: string | null },
+  /** The quote row: its site address is read from the siteStreet, siteSuburb… columns (or split from siteAddress). */
+  quote: { title: string; number: string; siteAddress: string | null; clientId: string | null; siteId?: string | null; buildingId?: string | null; levelId?: string | null } & Record<string, unknown>,
   options: { quoting?: boolean } = {},
 ) {
   const make = options.quoting ? createQuotingJob : createProject;
@@ -870,7 +886,7 @@ export async function makeJobFromQuote(
   const job = await make(ctx, {
     name: quote.title,
     clientId,
-    address: quote.siteAddress,
+    address: addressFromPrefixedColumns(quote, "site"),
     references: [{ label: "Quote", value: quote.number }],
   });
   return job.id;
@@ -994,7 +1010,7 @@ export async function uploadQuote(ctx: RequestContext, input: UploadQuoteInput) 
         number,
         title: input.title,
         clientId: client?.id ?? null,
-        siteAddress: input.siteAddress ?? job?.site.address ?? place?.address ?? client?.address ?? null,
+        ...siteAddressColumns(input.siteAddress ?? job?.site.addressParts ?? place?.addressParts ?? client?.addressParts ?? null),
         projectId: job?.id ?? null,
         siteId: place?.siteId ?? null,
         buildingId: place?.buildingId ?? null,

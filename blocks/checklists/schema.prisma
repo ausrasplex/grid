@@ -1,0 +1,20 @@
+/// One thing to do on a job (docs/stage-2-projects.md "Job checklist").
+model ChecklistItem {
+  id          String    @id @default(uuid())
+  /// The business whose list it is.
+  companyId   String
+  projectId   String
+  text        String
+  /// Where it sits in the list (new ones go at the end).
+  position    Int
+  /// Ticked off: when, and by whom (their name then too, in case they leave the team).
+  doneAt      DateTime?
+  doneById    String?
+  doneByName  String?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId, projectId, position])
+  @@index([projectId])
+}

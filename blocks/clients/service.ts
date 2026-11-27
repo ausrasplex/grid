@@ -4,8 +4,8 @@
 // business holds the ABN and office details (docs/quotations-block.md
 // "Clients and businesses").
 
-import { app, badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
-import { audit, db, type Tx } from "@grid/db";
+import { addressData, addressSelect, app, badRequest, conflict, notFound, requireCompany, withAddressParts, type Address, type AddressColumns, type RequestContext } from "@grid/core";
+import { audit, db, pictureUrl, type Tx } from "@grid/db";
 import { clientLabel, type BusinessDetails } from "./people";
 import type { BusinessInput, ClientInput } from "./validation";
 
@@ -19,16 +19,22 @@ export interface ClientRow {
   role: string | null;
   email: string | null;
   phone: string | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
   address: string | null;
+  addressParts: Address | null;
   abn: string | null;
   notes: string | null;
   /** The business they work for, with what a quote borrows from it. */
   business: BusinessDetails | null;
   /** "Sam Lee, Honeywell", or just the name: what jobs and quote lists show. */
   label: string;
+  /** Their own photo, or null. */
+  photoUrl: string | null;
+  /** What to show for them: their photo, else their business's logo, else null (initials). */
+  pictureUrl: string | null;
 }
 
-const businessDetailsSelect = { id: true, name: true, abn: true, email: true, phone: true, address: true } as const;
+const businessDetailsSelect = { id: true, name: true, abn: true, email: true, phone: true, ...addressSelect } as const;
 const clientSelect = {
   id: true,
   name: true,
@@ -37,14 +43,30 @@ const clientSelect = {
   role: true,
   email: true,
   phone: true,
-  address: true,
+  ...addressSelect,
   abn: true,
   notes: true,
-  business: { select: businessDetailsSelect },
+  photoKey: true,
+  business: { select: { ...businessDetailsSelect, logoKey: true } },
 } as const;
 
-type ClientRecord = Omit<ClientRow, "label">;
-const toRow = (client: ClientRecord): ClientRow => ({ ...client, label: clientLabel(client) });
+/** The address columns as read from the database. */
+type AddressRecord = Omit<AddressColumns, "address"> & { address: string | null };
+type BusinessRecord = Omit<BusinessDetails, "addressParts"> & AddressRecord;
+type ClientRecord = Omit<ClientRow, "label" | "photoUrl" | "pictureUrl" | "business" | "addressParts"> &
+  AddressRecord & { photoKey: string | null; business: (BusinessRecord & { logoKey: string | null }) | null };
+const toRow = ({ photoKey, business: businessRecord, ...record }: ClientRecord): ClientRow => {
+  const client = withAddressParts(record);
+  const business = businessRecord ? withAddressParts(businessRecord) : null;
+  const { logoKey, ...details } = business ?? { logoKey: null };
+  return {
+    ...client,
+    business: business ? (details as BusinessDetails) : null,
+    label: clientLabel({ name: client.name, business }),
+    photoUrl: pictureUrl(photoKey),
+    pictureUrl: pictureUrl(photoKey ?? logoKey),
+  };
+};
 
 /**
  * Payload of "clients.renamed": jobs keep a copy of the client's label for
@@ -110,7 +132,8 @@ export async function saveClient(ctx: RequestContext, id: string | null, input: 
       if (!before) throw notFound("Client not found");
       // Keeping a business that's since been removed is fine; picking one isn't.
       if (wanted && wanted !== before.businessId) await requireBusiness(tx, companyId, wanted);
-      const data = { ...fields, ...(wanted === undefined ? {} : { businessId: wanted }) };
+      const { address, ...rest } = fields;
+      const data = { ...rest, ...addressData(address), ...(wanted === undefined ? {} : { businessId: wanted }) };
       const client = toRow(await tx.client.update({ where: { id }, data, select: clientSelect }));
       relabelled = toRow(before).label !== client.label;
       await audit(tx, {
@@ -125,7 +148,8 @@ export async function saveClient(ctx: RequestContext, id: string | null, input: 
       return client;
     }
     if (wanted) await requireBusiness(tx, companyId, wanted);
-    const client = toRow(await tx.client.create({ data: { companyId, ...fields, businessId: wanted ?? null }, select: clientSelect }));
+    const { address, ...rest } = fields;
+    const client = toRow(await tx.client.create({ data: { companyId, ...rest, ...addressData(address ?? null), businessId: wanted ?? null }, select: clientSelect }));
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "Client", entityId: client.id, action: "created", diff: { name: client.name, business: client.business?.name ?? null } });
     return client;
   });
@@ -195,10 +219,16 @@ export interface BusinessRow extends BusinessDetails {
   notes: string | null;
   /** People at it still on the list. */
   peopleCount: number;
+  /** Its logo, or null. */
+  logoUrl: string | null;
 }
 
-const businessSelect = { ...businessDetailsSelect, notes: true, _count: { select: { people: { where: { deletedAt: null } } } } } as const;
-const toBusinessRow = ({ _count, ...business }: { _count: { people: number } } & Omit<BusinessRow, "peopleCount">): BusinessRow => ({ ...business, peopleCount: _count.people });
+const businessSelect = { ...businessDetailsSelect, notes: true, logoKey: true, _count: { select: { people: { where: { deletedAt: null } } } } } as const;
+const toBusinessRow = ({ _count, logoKey, ...business }: { _count: { people: number }; logoKey: string | null } & Omit<BusinessRow, "peopleCount" | "logoUrl" | "addressParts"> & AddressRecord): BusinessRow => ({
+  ...withAddressParts(business),
+  peopleCount: _count.people,
+  logoUrl: pictureUrl(logoKey),
+});
 
 export async function listBusinesses(ctx: RequestContext, query = ""): Promise<BusinessRow[]> {
   const companyId = requireCompany(ctx);
@@ -229,7 +259,8 @@ export async function saveBusiness(ctx: RequestContext, id: string | null, input
     if (id) {
       const before = await tx.clientBusiness.findFirst({ where: { id, companyId, deletedAt: null } });
       if (!before) throw notFound("Business not found");
-      const business = await tx.clientBusiness.update({ where: { id }, data: input, select: businessSelect });
+      const { address, ...rest } = input;
+      const business = await tx.clientBusiness.update({ where: { id }, data: { ...rest, ...addressData(address) }, select: businessSelect });
       await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "ClientBusiness", entityId: id, action: "updated", diff: { before: { name: before.name, abn: before.abn, phone: before.phone } } });
       // Renamed: their people's jobs show the new name (removed people's old jobs too).
       if (before.name !== business.name) {
@@ -238,7 +269,8 @@ export async function saveBusiness(ctx: RequestContext, id: string | null, input
       }
       return business;
     }
-    const business = await tx.clientBusiness.create({ data: { companyId, ...input }, select: businessSelect });
+    const { address, ...rest } = input;
+    const business = await tx.clientBusiness.create({ data: { companyId, ...rest, ...addressData(address ?? null) }, select: businessSelect });
     await audit(tx, { blockId: MOD, actorId: ctx.userId, companyId, entityType: "ClientBusiness", entityId: business.id, action: "created", diff: { name: business.name } });
     return business;
   });

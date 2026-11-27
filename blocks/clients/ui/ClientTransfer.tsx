@@ -7,17 +7,19 @@
 // Files are read here, on the phone or computer; the server only gets the
 // cells, works out the matches and saves.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowDownUp, Building2, Download, FileSpreadsheet, Upload } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, EmptyState, FormActions, List, PageHeader, Section, Segmented, Sheet, SheetContent, Stack, api, buttonVariants, cn, useAction } from "@grid/ui";
+import { Alert, Avatar, Badge, Button, Checkbox, EmptyState, FormActions, List, PageHeader, Section, Segmented, Sheet, SheetContent, Stack, api, buttonVariants, cn, useAction } from "@grid/ui";
+import { readVCards, vcardsToTable } from "../vcard";
 import { COLUMNS, type Decision, type FieldChange, type ImportPlan, type PlannedBusiness, type PlannedPerson } from "../transfer";
 
-type Format = "xlsx" | "csv";
+/** A zip carries the pictures (Excel inside); Excel and CSV are the spreadsheet alone. */
+type Format = "zip" | "xlsx" | "csv";
 
 interface MemberJson {
   membershipId: string;
   status: string;
-  user: { id: string; name: string; email: string; phone: string | null };
+  user: { id: string; name: string; email: string; phone: string | null; avatarUrl: string | null; ownPhotoKey: string | null; sharePhotoOnCards: boolean };
 }
 
 // ---------------------------------------------------------------------------
@@ -25,7 +27,7 @@ interface MemberJson {
 // ---------------------------------------------------------------------------
 
 export function TransferSheet({ open, onClose, canExport, canImport, canSeeTeam }: { open: boolean; onClose: () => void; canExport: boolean; canImport: boolean; canSeeTeam: boolean }) {
-  const [format, setFormat] = useState<Format>("xlsx");
+  const [format, setFormat] = useState<Format>("zip");
   const [showCard, setShowCard] = useState(false);
   return (
     <Sheet open={open} onOpenChange={(next) => !next && (setShowCard(false), onClose())}>
@@ -41,10 +43,14 @@ export function TransferSheet({ open, onClose, canExport, canImport, canSeeTeam 
                   value={format}
                   onChange={setFormat}
                   items={[
+                    { value: "zip", label: "Zip with pictures" },
                     { value: "xlsx", label: "Excel" },
                     { value: "csv", label: "CSV" },
                   ]}
                 />
+                <p className="-mt-2 text-sm text-muted-foreground">
+                  {format === "zip" ? "The spreadsheet and the logos and photos, in one file Grid can import whole." : "Just the spreadsheet: no pictures."}
+                </p>
                 <a href={`/api/clients/export?format=${format}`} download className={cn(buttonVariants({ variant: "outline" }), "w-full justify-start")}>
                   <Download /> Export the client list
                 </a>
@@ -60,7 +66,7 @@ export function TransferSheet({ open, onClose, canExport, canImport, canSeeTeam 
                 <a href="/clients/import" className={cn(buttonVariants({ variant: "outline" }), "w-full justify-start")}>
                   <Upload /> Import from a file
                 </a>
-                <p className="-mt-2 text-sm text-muted-foreground">From a Grid export, a business card, or other software. You see what it would do before anything is saved.</p>
+                <p className="-mt-2 text-sm text-muted-foreground">From a Grid export, a business card, a contact file (.vcf) from a phone, or other software. You see what it would do before anything is saved.</p>
               </>
             )}
           </Stack>
@@ -91,7 +97,10 @@ function OurCard({ format, canSeeTeam, onBack }: { format: Format; canSeeTeam: b
 
   return (
     <Stack>
-      <p className="text-sm text-muted-foreground">Your business's name and ABN, with the phone, email and address from Settings › Branding. Tick who else goes on it: their name, email and phone.</p>
+      <p className="text-sm text-muted-foreground">
+        Your business's name, ABN and picture, with the phone, email and address from Settings › Branding. Tick who else goes on it: their name, email and phone.
+        {format === "zip" && " Their own photo goes too only if they chose to share it (in their profile); otherwise the business that imports it shows your business picture for them."}
+      </p>
       {error && <Alert variant="error">{error}</Alert>}
       {members === null ? (
         <p className="text-muted-foreground">Loading the team…</p>
@@ -101,9 +110,12 @@ function OurCard({ format, canSeeTeam, onBack }: { format: Format; canSeeTeam: b
             <li key={member.membershipId}>
               <label className="flex min-h-touch items-center gap-3 rounded-md px-1 hover:bg-muted">
                 <Checkbox checked={picked.has(member.membershipId)} onCheckedChange={(state) => toggle(member.membershipId, state === true)} />
+                <Avatar name={member.user.name} src={member.user.avatarUrl} className="size-9 text-xs" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{member.user.name}</span>
-                  <span className="block truncate text-sm text-muted-foreground">{[member.user.email, member.user.phone].filter(Boolean).join(" · ")}</span>
+                  <span className="block truncate text-sm text-muted-foreground">
+                    {[member.user.email, member.user.phone, format === "zip" && member.user.ownPhotoKey ? (member.user.sharePhotoOnCards ? "Photo shared" : "Photo private") : null].filter(Boolean).join(" · ")}
+                  </span>
                 </span>
               </label>
             </li>
@@ -143,13 +155,57 @@ interface ImportResult {
 }
 
 /** The first sheet of a CSV or Excel file, row by row. CSV cells stay as typed (0400… keeps its 0). */
-async function readFileCells(file: File): Promise<unknown[][]> {
+async function readSheetCells(data: ArrayBuffer | Uint8Array, name: string): Promise<unknown[][]> {
   const XLSX = await import("xlsx");
-  const isText = /\.(csv|txt|tsv)$/i.test(file.name);
-  const workbook = XLSX.read(await file.arrayBuffer(), { raw: isText, dense: true });
+  const isText = /\.(csv|txt|tsv)$/i.test(name);
+  const workbook = XLSX.read(data, { raw: isText, dense: true });
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]!];
   if (!firstSheet) return [];
   return XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1, raw: false, defval: "", blankrows: true });
+}
+
+interface ReadFile {
+  cells: unknown[][];
+  /** Pictures in a zip, by their name there ("pictures/siemens.jpg"). */
+  pictures: Map<string, Uint8Array>;
+}
+
+const SHEET = /\.(xlsx|xls|ods|csv|txt|tsv)$/i;
+const PICTURE = /\.(jpe?g|png|webp)$/i;
+
+/** A CSV or Excel file, a zip with one of those and a pictures folder, or contact files (.vcf). */
+async function readImportFile(file: File): Promise<ReadFile> {
+  const data = new Uint8Array(await file.arrayBuffer());
+  if (/\.vcf$/i.test(file.name) || file.type === "text/vcard" || file.type === "text/x-vcard") {
+    const contacts = readVCards(new TextDecoder().decode(data));
+    if (!contacts.length) throw new Error("There are no contacts in that file.");
+    return vcardsToTable(contacts);
+  }
+  if (!/\.zip$/i.test(file.name)) return { cells: await readSheetCells(data, file.name), pictures: new Map() };
+  const { unzipSync } = await import("fflate");
+  const entries = unzipSync(data);
+  // Ignore what a Mac adds to a zip it makes.
+  const names = Object.keys(entries).filter((name) => !name.startsWith("__MACOSX/") && !name.split("/").pop()!.startsWith("."));
+  // The spreadsheet nearest the top, so a zip of a folder works too.
+  const sheetName = names.filter((name) => SHEET.test(name)).sort((first, second) => first.split("/").length - second.split("/").length)[0];
+  if (!sheetName) throw new Error("There's no spreadsheet (CSV or Excel) in that zip.");
+  // Picture names are as written in the spreadsheet: from the folder the spreadsheet is in.
+  const folder = sheetName.includes("/") ? sheetName.slice(0, sheetName.lastIndexOf("/") + 1) : "";
+  const pictures = new Map<string, Uint8Array>();
+  for (const name of names) if (PICTURE.test(name) && name.startsWith(folder)) pictures.set(name.slice(folder.length), entries[name]!);
+  return { cells: await readSheetCells(entries[sheetName]!, sheetName), pictures };
+}
+
+/** Pictures for sending, as base64 (only the ones the plan uses). */
+function picturesToSend(pictures: Map<string, Uint8Array>, wanted: Set<string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, bytes] of pictures) {
+    if (!wanted.has(name)) continue;
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    out[name] = btoa(binary);
+  }
+  return out;
 }
 
 /** An empty file with the headings, to fill in by hand. */
@@ -165,23 +221,27 @@ const isMatchWithChanges = (planned: PlannedBusiness | PlannedPerson) => !!plann
 
 export function ImportClients() {
   const [fileName, setFileName] = useState<string | null>(null);
-  const [cells, setCells] = useState<unknown[][] | null>(null);
+  const [file, setFile] = useState<ReadFile | null>(null);
+  /** The zip's pictures, shown in the preview. */
+  const [pictureUrls, setPictureUrls] = useState<Map<string, string>>(new Map());
+  useEffect(() => () => pictureUrls.forEach((url) => URL.revokeObjectURL(url)), [pictureUrls]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [businessChoices, setBusinessChoices] = useState<Record<string, Decision>>({});
   const [personChoices, setPersonChoices] = useState<Record<string, Decision>>({});
   const [result, setResult] = useState<ImportResult | null>(null);
   const action = useAction();
 
-  const pick = (file: File) =>
+  const pick = (picked: File) =>
     action.run(async () => {
       setPreview(null);
       setResult(null);
-      setFileName(file.name);
-      const read = await readFileCells(file).catch(() => {
-        throw new Error("Grid couldn't read that file. Use a CSV or Excel file.");
+      setFileName(picked.name);
+      const read = await readImportFile(picked).catch((failure: unknown) => {
+        throw new Error(failure instanceof Error && /zip|contacts/.test(failure.message) ? failure.message : "Grid couldn't read that file. Use a contact file (.vcf), a CSV or Excel file, or a zip from Grid.");
       });
-      const planned = await api<Preview>("/clients/import/preview", { body: { cells: read } });
-      setCells(read);
+      const planned = await api<Preview>("/clients/import/preview", { body: { cells: read.cells, pictureNames: [...read.pictures.keys()] } });
+      setFile(read);
+      setPictureUrls(new Map([...read.pictures].map(([name, bytes]) => [name, URL.createObjectURL(new Blob([bytes as BlobPart]))])));
       setPreview(planned);
       setBusinessChoices(Object.fromEntries(planned.businesses.map((business) => [business.key, business.suggested])));
       setPersonChoices(Object.fromEntries(planned.people.map((person) => [person.key, person.suggested])));
@@ -217,8 +277,11 @@ export function ImportClients() {
 
   const save = () =>
     action.run(async () => {
-      if (!cells) return;
-      const saved = await api<ImportResult>("/clients/import", { body: { cells, decisions: { businesses: businessChoices, people: personChoices } } });
+      if (!file || !preview) return;
+      const used = new Set([...preview.businesses, ...preview.people].map((planned) => planned.picture).filter((name): name is string => !!name));
+      const saved = await api<ImportResult>("/clients/import", {
+        body: { cells: file.cells, decisions: { businesses: businessChoices, people: personChoices }, pictures: picturesToSend(file.pictures, used) },
+      });
       setResult(saved);
       setPreview(null);
     });
@@ -238,7 +301,7 @@ export function ImportClients() {
             <p>{lines.length ? `${lines.join(", ")}.` : "Nothing needed changing."}</p>
             {result.peopleLeftOut > 0 && <p className="text-sm text-muted-foreground">{plural(result.peopleLeftOut, "person was", "people were")} left out with the businesses you skipped.</p>}
             <FormActions>
-              <Button variant="outline" onClick={() => (setResult(null), setFileName(null), setCells(null))}>
+              <Button variant="outline" onClick={() => (setResult(null), setFileName(null), setFile(null))}>
                 Import another file
               </Button>
               <a href="/clients" className={buttonVariants()}>
@@ -255,19 +318,19 @@ export function ImportClients() {
 
   return (
     <>
-      <PageHeader title="Import clients" subtitle="From a Grid export, another business's card, or other software." />
+      <PageHeader title="Import clients" subtitle="From a Grid export, another business's card, a phone's contact file, or other software." />
       <Stack>
         <Section title="Pick a file">
           <Stack>
             <p className="text-sm text-muted-foreground">
-              A CSV or Excel file (the first sheet). The first row needs headings: Business, Name, Phone, Email and so on. Grid shows what it would do before anything is saved.
+              A zip from Grid (with pictures), a contact file (.vcf) from a phone, or a CSV or Excel file (the first sheet; the first row needs headings like Business, Name, Phone and Email). Grid shows what it would do before anything is saved.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <label className={cn(buttonVariants(), "w-full cursor-pointer sm:w-auto", action.busy && "pointer-events-none opacity-50")}>
                 <FileSpreadsheet /> {fileName ? "Pick another file" : "Pick a file"}
                 <input
                   type="file"
-                  accept=".csv,.xlsx,.xls,.ods,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  accept=".zip,.vcf,text/vcard,text/x-vcard,.csv,.xlsx,.xls,.ods,.txt,application/zip,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                   className="sr-only"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
@@ -287,7 +350,14 @@ export function ImportClients() {
 
         {preview && (
           <>
-            <Section title="What it would do" description={`Columns found: ${preview.columnsFound.join(", ")}`}>
+            <Section
+              title="What it would do"
+              description={
+                fileName && /\.vcf$/i.test(fileName)
+                  ? `${plural(preview.people.length, "contact", "contacts")} in the file.`
+                  : `Columns found: ${preview.columnsFound.join(", ")}`
+              }
+            >
               <Stack>
                 <p>
                   {counts.add || counts.update
@@ -315,6 +385,7 @@ export function ImportClients() {
                   {preview.businesses.map((business) => (
                     <PlanRow
                       key={business.key}
+                      picture={<Avatar name={business.fields.name} src={business.picture ? (pictureUrls.get(business.picture) ?? null) : null} />}
                       title={business.fields.name}
                       meta={[business.fields.abn && `ABN ${business.fields.abn}`, business.fields.phone, business.fields.email].filter(Boolean).join(" · ")}
                       planned={business}
@@ -337,6 +408,7 @@ export function ImportClients() {
                     return (
                       <PlanRow
                         key={person.key}
+                        picture={<Avatar name={person.fields.name} src={(person.picture ? pictureUrls.get(person.picture) : null) ?? (business?.picture ? pictureUrls.get(business.picture) : null) ?? null} />}
                         title={person.fields.name}
                         meta={[person.fields.role, business?.fields.name, person.fields.email, person.fields.phone].filter(Boolean).join(" · ")}
                         planned={person}
@@ -403,6 +475,7 @@ function ChangeList({ changes }: { changes: FieldChange[] }) {
 }
 
 function PlanRow({
+  picture,
   title,
   meta,
   planned,
@@ -412,6 +485,7 @@ function PlanRow({
   canUpdate,
   leftOut = null,
 }: {
+  picture: ReactNode;
   title: string;
   meta: string;
   planned: PlannedBusiness | PlannedPerson;
@@ -441,6 +515,7 @@ function PlanRow({
   return (
     <li className="flex flex-col gap-2 px-4 py-3 sm:px-5">
       <div className="flex items-start gap-3">
+        {picture}
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{title}</p>
           {meta && <p className="truncate text-sm text-muted-foreground">{meta}</p>}

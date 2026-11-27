@@ -12,7 +12,7 @@
 import { redirect } from "next/navigation";
 import { can, notFound, type RequestContext } from "@grid/core";
 import { Alert, Badge, HomeTile, Icon, LinkRow, List, PageHeader, Section, Stack, buttonVariants, cn, type BlockPages, type BlockPanels, type PanelRenderer } from "@grid/ui";
-import { SiteNotes } from "@grid/block-sites/components";
+import { SiteDetails, SiteNotes } from "@grid/block-sites/components";
 import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
 import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
 import { activeJobCounts, getProject, jobsAt, jobsForClient, recordArea, resumeOnSite, type Area } from "../service";
@@ -94,6 +94,7 @@ async function SitePage({ ctx, siteId }: { ctx: RequestContext; siteId: string }
         <JobRows title="Current jobs" jobs={active} empty="No active jobs here" />
         {earlier.length > 0 && <JobRows title={plain ? "Earlier jobs at this address" : "Earlier jobs at this site"} jobs={earlier} />}
         <SiteNotes siteId={site.id} initial={site.notes} canEdit={can(ctx, "sites.notes.edit")} />
+        {canStructure && <SiteDetails site={{ id: site.id, name: site.name, address: site.address, addressParts: site.addressParts }} />}
         {canStructure && (
           <Section flush>
             <List>
@@ -277,6 +278,8 @@ async function JobPage({
   const finishLeavesSiteEmpty = job.status === "ACTIVE" && here.site.activeJobs <= 1;
   const plain = isHouse(site);
   const currentArea = area ? areas.find((entry) => same(entry, area)) : undefined;
+  // Things for the whole job (the checklist), from whichever Blocks are on.
+  const topPanels = await panels("job.top", { job: { id: job.id, name: job.name, status: job.status, archived: !!job.archivedAt } });
   // Photos, notes (and later plans) for the area you're in, from whichever Blocks are on.
   const areaPanels = await panels("job.area", {
     job: { id: job.id, name: job.name, status: job.status, siteId: site.id },
@@ -321,6 +324,8 @@ async function JobPage({
           job.status === "COMPLETED" &&
           job.completedAt && <Alert>Finished on {date(job.completedAt)}. It's listed under earlier jobs at {site.name}; reopen it to carry on.</Alert>
         )}
+
+        {topPanels}
 
         {areas.length > 1 && (
           <section aria-label="Other work areas">

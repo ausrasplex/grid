@@ -1,4 +1,11 @@
 import { z } from "zod";
+import { formatAddress, toAddress } from "@grid/core";
+
+/** An address in parts ({ street, suburb, state, postcode… }), or one line that's split up. */
+const address = z
+  .union([z.string(), z.record(z.string(), z.unknown())])
+  .transform(toAddress)
+  .refine((value) => formatAddress(value).length >= 3, "Give the address");
 
 const cover = z.object({ buildingId: z.string().uuid(), levelId: z.string().uuid().nullable().optional() }).strict();
 
@@ -12,7 +19,7 @@ export const createProjectSchema = z
     /** Either an existing site… */
     siteId: z.string().uuid().optional(),
     /** …or an address (finds or makes a private site). */
-    address: z.string().trim().min(3).max(300).optional(),
+    address: address.optional(),
     covers: z.array(cover).max(500).optional(),
     /** More numbers to find the job by, e.g. { label: "Quote", value: "Q-1001" }. */
     references: z.array(z.object({ label: z.string().trim().min(1).max(30), value: z.string().trim().min(1).max(60) }).strict()).max(5).optional(),

@@ -3,6 +3,7 @@
 // Settings › Branding: the logo, colour and business details on every
 // quote and report. "See a sample PDF" shows the result.
 
+import { addressOf, formatAddress, type Address } from "@grid/core";
 import { useRef, useState } from "react";
 import { AddressField, Alert, Button, Field, FormActions, PageHeader, Section, Stack, api, useAction } from "@grid/ui";
 
@@ -12,7 +13,9 @@ interface Theme {
   accentColor: string;
   phone: string | null;
   email: string | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
   address: string | null;
+  addressParts: Address | null;
   website: string | null;
   licenceLabel: string | null;
   licenceNumber: string | null;
@@ -42,7 +45,8 @@ export function Branding({ initial }: { initial: Theme }) {
       <form
         onSubmit={async (event) => {
           event.preventDefault();
-          const { companyName: _c, ...body } = theme;
+          const { companyName: _c, addressParts: _parts, ...rest } = theme;
+          const body = { ...rest, address: addressOf(theme) };
           const updated = await save.run(() => api<Theme>("/templates/theme", { method: "PUT", body }));
           if (updated) {
             setTheme(updated);
@@ -122,7 +126,7 @@ export function Branding({ initial }: { initial: Theme }) {
               {text("phone", "Phone", { type: "tel", autoComplete: "tel" })}
               {text("email", "Email", { type: "email" })}
               <div className="sm:col-span-2">
-                <AddressField label="Address" value={(theme.address as string | null) ?? ""} onChange={(event) => set("address", event.target.value as never)} />
+                <AddressField label="Address" value={addressOf(theme)} onChange={(address) => (setTheme({ ...theme, address: formatAddress(address), addressParts: address }), setSaved(false))} />
               </div>
               {text("website", "Website")}
               <div className="grid grid-cols-[8rem_1fr] gap-2">
