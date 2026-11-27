@@ -100,6 +100,52 @@ model PriceItem {
 
   @@index([companyId, kind])
   @@index([brandId])
+  @@index([companyId, supplierCode])
+}
+
+/// A supplier whose price list the business imports (docs/quotations-block.md
+/// "Supplier price lists"): which columns of their file hold what, saved by
+/// heading so next month's file goes straight in even if the columns move.
+model SupplierPriceList {
+  id             String    @id @default(uuid())
+  companyId      String
+  /// As it's written on price book items' Supplier ("MMEM", "Rexel").
+  supplier       String
+  /// Heading text per field: { code, description, cost, per, unit, brand }.
+  columns        Json
+  /// What to do with sell prices when a cost changes: KEEP_MARKUP or KEEP_SELL.
+  sellPrices     String    @default("KEEP_MARKUP")
+  /// Markup % for items added from the list (null: sell at cost).
+  newItemMarkup  Decimal?  @db.Decimal(7, 2)
+  lastImportedAt DateTime?
+  lastFileName   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  @@index([companyId])
+}
+
+/// A price book item's cost or sell price changing, for its price history:
+/// from a supplier price list, or edited by hand. Kept when the item is deleted.
+model PriceChange {
+  id          String   @id @default(uuid())
+  companyId   String
+  priceItemId String
+  costBefore  Decimal? @db.Decimal(12, 2)
+  costAfter   Decimal? @db.Decimal(12, 2)
+  sellBefore  Decimal? @db.Decimal(12, 2)
+  sellAfter   Decimal? @db.Decimal(12, 2)
+  /// IMPORT (a supplier price list), EDIT (changed in the price book) or ADDED (new from a list).
+  source      String
+  /// The supplier and file, for an import.
+  supplier    String?
+  fileName    String?
+  changedById String
+  changedAt   DateTime @default(now())
+
+  @@index([priceItemId, changedAt])
+  @@index([companyId, changedAt])
 }
 
 /// A make you buy (Clipsal, HPM, Schneider…). Price book items pick one and

@@ -5,6 +5,7 @@
 //   /quotes/<id>/pdf[/rev/<revision> | /signed]  its PDF, inside Grid
 //   /quotes/me              Settings › You › Quote screen (your own swipes)
 //   /quotes/price-book      labour and materials
+//   /quotes/price-book/import  import a supplier's price list
 //   /quotes/clients         → /clients (one list for jobs and quotes)
 //   /quotes/settings        tax & currency
 //   /q/<token>                the customer's page (public; rewrites to /p/quotes/q/<token>)
@@ -20,6 +21,8 @@ import type { PlaceSite } from "@grid/block-sites/components";
 import { getClient, type ClientPagePanelProps } from "@grid/block-clients";
 import { formatMoney } from "../money";
 import { getQuote, getTaxSettings, listBrands, listPriceItems, listQuotes, quoteForJob, userSettings } from "../service";
+import { listSupplierLists } from "../price-list-service";
+import { ImportPriceList } from "./ImportPriceList";
 import { CustomerQuote, type CustomerViewJson } from "./CustomerQuote";
 import { NewQuote } from "./NewQuote";
 import { PriceBook, type BrandRow, type PriceItemRow } from "./PriceBook";
@@ -96,7 +99,13 @@ export const pages: BlockPages = {
     return <UploadQuote job={job && { id: job.id, name: job.name, address: job.site.address ?? "" }} client={client} canAddClient={can(ctx, "clients.add")} canPickSite={can(ctx, "sites.view")} />;
   },
 
-  "price-book": async ({ ctx }) => {
+  "price-book": async ({ ctx, params: [sub] }) => {
+    const canImport = can(ctx, "quotes.pricebook.manage") && can(ctx, "quotes.costs.view");
+    if (sub === "import") {
+      if (!canImport) return <p>Importing a price list sets buy prices: it needs "Change the price book" and "See costs and margins".</p>;
+      const [suppliers, settings] = await Promise.all([listSupplierLists(ctx), getTaxSettings(ctx)]);
+      return <ImportPriceList suppliers={json(suppliers)} currency={settings.currency} locale={settings.locale} taxName={settings.taxName} />;
+    }
     const [items, brands, settings] = await Promise.all([listPriceItems(ctx), listBrands(ctx), getTaxSettings(ctx)]);
     return (
       <PriceBook
@@ -109,6 +118,7 @@ export const pages: BlockPages = {
         locale={settings.locale}
         canManage={can(ctx, "quotes.pricebook.manage")}
         canSeeCosts={can(ctx, "quotes.costs.view")}
+        canImport={canImport}
       />
     );
   },

@@ -242,9 +242,16 @@ export async function savePriceItem(ctx: RequestContext, id: string | null, inpu
     if (input.brandId && !(await tx.priceBrand.count({ where: { id: input.brandId, companyId, deletedAt: null } }))) throw notFound("Brand not found");
     let item;
     if (id) {
+      const before = await tx.priceItem.findFirst({ where: { id, companyId, deletedAt: null }, select: { cost: true, sell: true } });
       const result = await tx.priceItem.updateMany({ where: { id, companyId, deletedAt: null }, data: input });
-      if (!result.count) throw notFound("Price book item not found");
+      if (!result.count || !before) throw notFound("Price book item not found");
       item = await tx.priceItem.findUniqueOrThrow({ where: { id }, include: withBrand });
+      // Price history (docs/quotations-block.md "Supplier price lists"): a cost or sell price changed by hand.
+      if (cents(before.cost) !== cents(item.cost) || cents(before.sell) !== cents(item.sell)) {
+        await tx.priceChange.create({
+          data: { companyId, priceItemId: id, costBefore: before.cost, costAfter: item.cost, sellBefore: before.sell, sellAfter: item.sell, source: "EDIT", changedById: ctx.userId },
+        });
+      }
     } else {
       item = await tx.priceItem.create({ data: { companyId, ...input }, include: withBrand });
     }

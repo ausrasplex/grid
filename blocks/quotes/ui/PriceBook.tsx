@@ -5,7 +5,7 @@
 // Brands (Clipsal, HPM…) are a list per business: materials pick one, and
 // the Brands section filters by it (docs/quotations-block.md §2).
 import { useEffect, useState } from "react";
-import { Check, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { Check, FileSpreadsheet, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import {
   ActionButton,
   Alert,
@@ -27,6 +27,7 @@ import {
   Stack,
   TapRow,
   api,
+  buttonVariants,
   cn,
   useAction,
 } from "@grid/ui";
@@ -69,6 +70,7 @@ export function PriceBook({
   locale,
   canManage,
   canSeeCosts,
+  canImport,
 }: {
   initial: PriceItemRow[];
   initialBrands: BrandRow[];
@@ -79,6 +81,8 @@ export function PriceBook({
   locale: string;
   canManage: boolean;
   canSeeCosts: boolean;
+  /** Import a supplier's price list (needs changing the price book and seeing costs). */
+  canImport: boolean;
 }) {
   const [rows, setRows] = useState(initial);
   const [kind, setKind] = useState<"ALL" | "LABOUR" | "MATERIAL">("ALL");
@@ -113,7 +117,19 @@ export function PriceBook({
       <PageHeader
         title="Price book"
         subtitle={`Labour rates and materials you quote often. Prices are ex ${taxName}. Starred items come first.`}
-        actions={canManage && <ActionButton icon={<Plus />} label="Add item" onClick={() => setEditing({ kind: kind === "MATERIAL" ? "MATERIAL" : "LABOUR" })} />}
+        actions={
+          canManage && (
+            <>
+              {canImport && (
+                <a href="/quotes/price-book/import" className={buttonVariants({ variant: "outline" })}>
+                  <FileSpreadsheet /> <span className="hidden sm:inline">Import price list</span>
+                  <span className="sm:hidden">Import</span>
+                </a>
+              )}
+              <ActionButton icon={<Plus />} label="Add item" onClick={() => setEditing({ kind: kind === "MATERIAL" ? "MATERIAL" : "LABOUR" })} />
+            </>
+          )
+        }
       />
       <Stack>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

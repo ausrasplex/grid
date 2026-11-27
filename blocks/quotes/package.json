@@ -12,13 +12,14 @@
   "dependencies": {
     "@grid/block-clients": "workspace:*",
     "@grid/block-projects": "workspace:*",
-    "@grid/block-sites": "workspace:*",
     "@grid/block-signatures": "workspace:*",
+    "@grid/block-sites": "workspace:*",
     "@grid/block-templates": "workspace:*",
     "@grid/core": "workspace:*",
     "@grid/db": "workspace:*",
     "@grid/ui": "workspace:*",
     "lucide-react": "^0.500",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4"
   },
   "peerDependencies": {

@@ -1,12 +1,15 @@
 // HTTP routes, mounted at /api/quotes.
 import { z } from "zod";
 import type { Routes } from "@grid/core";
+import * as priceLists from "./price-list-service";
 import * as svc from "./service";
 import {
   acceptSchema,
+  applyPriceListSchema,
   brandSchema,
   createQuoteSchema,
   declineSchema,
+  previewPriceListSchema,
   priceItemSchema,
   sendSchema,
   taxCodeSchema,
@@ -53,6 +56,11 @@ export const routes: Routes = {
   "POST /items": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.savePriceItem(ctx, null, priceItemSchema.parse(request.body)) },
   "PUT /items/:id": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.savePriceItem(ctx, request.params.id!, priceItemSchema.parse(request.body)) },
   "DELETE /items/:id": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.deletePriceItem(ctx, request.params.id!) },
+  "GET /items/:id/history": { permission: "quotes.costs.view", handler: (ctx, request) => priceLists.priceHistory(ctx, request.params.id!) },
+  // Supplier price lists. Importing also needs quotes.costs.view (checked in the service).
+  "GET /price-lists": { permission: "quotes.pricebook.manage", handler: (ctx) => priceLists.listSupplierLists(ctx) },
+  "POST /price-lists/preview": { permission: "quotes.pricebook.manage", handler: (ctx, request) => priceLists.previewPriceList(ctx, previewPriceListSchema.parse(request.body)) },
+  "POST /price-lists/import": { permission: "quotes.pricebook.manage", handler: (ctx, request) => priceLists.applyPriceList(ctx, applyPriceListSchema.parse(request.body)) },
   "GET /brands": { permission: "quotes.view", handler: (ctx) => svc.listBrands(ctx) },
   "POST /brands": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.saveBrand(ctx, null, brandSchema.parse(request.body)) },
   "PUT /brands/:id": { permission: "quotes.pricebook.manage", handler: (ctx, request) => svc.saveBrand(ctx, request.params.id!, brandSchema.parse(request.body)) },

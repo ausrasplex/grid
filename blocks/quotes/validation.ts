@@ -60,6 +60,48 @@ export const priceItemSchema = z
 
 export const brandSchema = z.object({ name: z.string().trim().min(1).max(60) }).strict();
 
+// Supplier price lists (docs/quotations-block.md "Supplier price lists").
+// Products travel as [code, cost] pairs: a full wholesaler list can be tens
+// of thousands of lines, so only what's needed is sent.
+const supplierName = z.string().trim().min(1, "Say which supplier the list is from").max(100);
+const codeAndCost = z.tuple([z.string().trim().min(1).max(100), z.number().min(0).max(1_000_000_000)]);
+const sellPricesSchema = z.enum(["KEEP_MARKUP", "KEEP_SELL"]);
+const fieldHeading = z.string().max(200).optional();
+
+export const previewPriceListSchema = z
+  .object({
+    supplier: supplierName,
+    sellPrices: sellPricesSchema.default("KEEP_MARKUP"),
+    rows: z.array(codeAndCost),
+  })
+  .strict();
+
+export const applyPriceListSchema = z
+  .object({
+    supplier: supplierName,
+    fileName: z.string().trim().max(300).nullable().default(null),
+    /** The headings picked for each field, saved for this supplier's next list. */
+    columns: z.object({ code: fieldHeading, description: fieldHeading, cost: fieldHeading, per: fieldHeading, unit: fieldHeading, brand: fieldHeading }).strict(),
+    sellPrices: sellPricesSchema,
+    /** Markup % for items added from the list; null sells them at cost. */
+    newItemMarkup: z.number().min(0).max(10000).nullable(),
+    /** The list's products that match the price book (the preview's matchedCodes). */
+    rows: z.array(codeAndCost),
+    /** Products picked to add to the price book. */
+    add: z.array(
+      z
+        .object({
+          code: z.string().trim().min(1).max(100),
+          description: z.string().trim().min(1).max(500),
+          cost: z.number().min(0).max(1_000_000_000),
+          unit: z.string().trim().min(1).max(20).nullable(),
+          brand: z.string().trim().min(1).max(100).nullable(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
 export const createQuoteSchema = z
   .object({
     title: z.string().trim().min(1).max(200),
@@ -158,6 +200,8 @@ export type TaxSettingsInput = z.infer<typeof taxSettingsSchema>;
 export type TaxCodeInput = z.infer<typeof taxCodeSchema>;
 export type PriceItemInput = z.infer<typeof priceItemSchema>;
 export type BrandInput = z.infer<typeof brandSchema>;
+export type PreviewPriceListInput = z.infer<typeof previewPriceListSchema>;
+export type ApplyPriceListInput = z.infer<typeof applyPriceListSchema>;
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export type UploadQuoteInput = z.infer<typeof uploadQuoteSchema>;
 export type UpdateQuoteInput = z.infer<typeof updateQuoteSchema>;
