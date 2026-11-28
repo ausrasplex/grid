@@ -17,6 +17,8 @@ export {
   search,
   isJobArchived,
   archivedJobIds,
+  scheduleJobs,
+  type ScheduleJob,
   type JobView,
   type JobSummary,
   type Area,

@@ -9,7 +9,7 @@ export const TRADE_PROFILES = TRADE_IDS;
 /** A trade id from trades.ts (Company.tradeProfile). */
 export type TradeProfileId = string;
 
-const everyone = ["projects", "checklists", "plans", "markups", "photos", "documents", "tasks", "notifications", "swms"];
+const everyone = ["projects", "scheduling", "checklists", "plans", "markups", "photos", "documents", "tasks", "notifications", "swms"];
 
 export const TRADE_PRESETS: Record<TradePreset, { blocks: string[]; features: Record<string, boolean> }> = {
   BUILDER: {
@@ -36,7 +36,7 @@ export const BUSINESS_SIZES = ["solo", "team"] as const;
 export type BusinessSize = (typeof BUSINESS_SIZES)[number];
 
 /** What a sole trader needs day to day. */
-export const SOLO_BLOCKS = ["sites", "projects", "checklists", "photos", "quotes", "templates", "plans", "markups", "documents", "assets"];
+export const SOLO_BLOCKS = ["sites", "projects", "checklists", "photos", "quotes", "templates", "plans", "markups", "documents", "assets", "scheduling"];
 
 /** Blocks that only make sense with other people. One switch away in the Store. */
 export const TEAM_BLOCKS = ["rfis", "revisions", "variations", "swms", "forms", "inductions"];

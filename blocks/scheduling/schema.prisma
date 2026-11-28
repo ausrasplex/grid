@@ -1,0 +1,59 @@
+// Scheduling Block (docs/scheduling-block.md): visits on jobs. A job has one
+// or more visits (rough-in, then fit-off), each with its own date and time.
+// Time off lives in core (companies' Leave), shared with the Leave Block.
+
+enum VisitStatus {
+  BOOKED
+  DONE
+  CANCELLED
+}
+
+model Visit {
+  id              String      @id @default(uuid())
+  companyId       String
+  /// The job (code says project).
+  projectId       String
+  /// "Rough-in", "Fit-off": optional.
+  label           String?
+  /// Stored in UTC; shown in the server's timezone (TZ).
+  startsAt        DateTime
+  endsAt          DateTime
+  /// All day: from local midnight to local midnight (more than one day for a multi-day visit).
+  isAllDay        Boolean     @default(false)
+  /// "Builder says probably Thursday": shown faded until confirmed.
+  isTentative     Boolean     @default(false)
+  status          VisitStatus @default(BOOKED)
+  /// Whose day it fills. The person who booked it for now; teams pick someone later.
+  assignedUserId  String?
+  notes           String?
+  doneAt          DateTime?
+  doneByUserId    String?
+  createdByUserId String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([companyId, startsAt])
+  @@index([companyId, assignedUserId, startsAt])
+  @@index([projectId])
+}
+
+/// The business's booking defaults.
+model SchedulingSettings {
+  companyId                 String   @id
+  /// A new visit's length: booking is a date and a start time.
+  defaultVisitLengthMinutes Int      @default(120)
+  /// The working day, only to size the week view (part 2); never availability.
+  dayStartsAt               String   @default("07:00")
+  dayEndsAt                 String   @default("15:30")
+  updatedAt                 DateTime @updatedAt
+}
+
+/// Each person's own: the daily visit warning limit (empty: off).
+model SchedulingUserSettings {
+  companyId              String
+  userId                 String
+  dailyVisitWarningLimit Int?
+  updatedAt              DateTime @updatedAt
+
+  @@id([companyId, userId])
+}

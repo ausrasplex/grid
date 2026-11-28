@@ -820,3 +820,55 @@ export async function levelUsage(levelId: string): Promise<LevelUsage[]> {
 export async function levelDeleted(event: LevelDeletedEvent) {
   await db.userProjectLevel.updateMany({ where: { levelId: event.levelId }, data: { levelId: null } });
 }
+
+// ─── For the Scheduling Block ───────────────────────────────────────────
+
+export interface ScheduleJob {
+  id: string;
+  name: string;
+  jobNumber: string | null;
+  status: "ACTIVE" | "COMPLETED" | "QUOTING" | "NOT_WON";
+  archived: boolean;
+  clientName: string | null;
+  siteName: string;
+  /** "Brunswick". */
+  suburb: string | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
+  address: string;
+  startedAt: Date;
+}
+
+/**
+ * Jobs this business can see, with what a schedule shows about them: by id,
+ * or every active (won, not finished, not archived) job for "To be booked".
+ */
+export async function scheduleJobs(ctx: RequestContext, filter: { ids: string[] } | { active: true }): Promise<ScheduleJob[]> {
+  const companyId = requireCompany(ctx);
+  const rows = await db.project.findMany({
+    where: {
+      deletedAt: null,
+      companies: { some: { companyId, status: VISIBLE } },
+      ...("ids" in filter ? { id: { in: [...new Set(filter.ids)] } } : { status: "ACTIVE", archivedAt: null }),
+    },
+    select: summarySelect(companyId),
+    orderBy: { startedAt: "asc" },
+  });
+  const sites = await db.site.findMany({ where: { id: { in: [...new Set(rows.map((row) => row.siteId))] } }, select: { id: true, name: true, suburb: true, address: true } });
+  const siteById = new Map(sites.map((site) => [site.id, site]));
+  return rows.map((row) => {
+    const site = siteById.get(row.siteId);
+    return {
+      id: row.id,
+      name: row.name,
+      jobNumber: row.references[0]?.value ?? null,
+      status: row.status,
+      archived: !!row.archivedAt,
+      clientName: row.clientName,
+      siteName: site?.name ?? "",
+      suburb: site?.suburb ?? null,
+      address: site?.address ?? "",
+      startedAt: row.startedAt,
+    };
+  });
+}
+

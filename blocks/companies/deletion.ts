@@ -169,6 +169,7 @@ export async function companiesToPurge(before: Date) {
 
 export async function purgeCompanyRecords(companyId: string) {
   await db.$transaction(async (tx) => {
+    await tx.leave.deleteMany({ where: { companyId } });
     await tx.membership.deleteMany({ where: { companyId } });
     await tx.role.deleteMany({ where: { companyId } });
     await tx.companyBlock.deleteMany({ where: { companyId } });

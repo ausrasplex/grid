@@ -27,10 +27,11 @@ import markups from "@grid/block-markups/block";
 import documents from "@grid/block-documents/block";
 import signoffs from "@grid/block-signoffs/block";
 import checklists from "@grid/block-checklists/block";
+import scheduling from "@grid/block-scheduling/block";
 import handover from "@grid/block-handover/block";
 import assets from "@grid/block-assets/block";
 
-const definitions = [users, companies, themes, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, checklists, handover, assets];
+const definitions = [users, companies, themes, clients, materials, credentials, sites, projects, plans, markups, photos, templates, signatures, quotes, documents, signoffs, checklists, handover, assets, scheduling];
 
 /** Lazy page loaders, keyed by block id. */
 export const blockPages: Record<string, () => Promise<BlockPages>> = {
@@ -50,6 +51,7 @@ export const blockPages: Record<string, () => Promise<BlockPages>> = {
   markups: async () => (await import("@grid/block-markups/ui")).pages,
   handover: async () => (await import("@grid/block-handover/ui")).pages,
   assets: async () => (await import("@grid/block-assets/ui")).pages,
+  scheduling: async () => (await import("@grid/block-scheduling/ui")).pages,
 };
 
 /** Lazy loaders for pages people see without signing in (/p/<block>/...). */
@@ -71,6 +73,7 @@ export const blockPanels: Record<string, () => Promise<BlockPanels>> = {
   documents: async () => (await import("@grid/block-documents/ui")).panels,
   signoffs: async () => (await import("@grid/block-signoffs/ui")).panels,
   checklists: async () => (await import("@grid/block-checklists/ui")).panels,
+  scheduling: async () => (await import("@grid/block-scheduling/ui")).panels,
   handover: async () => (await import("@grid/block-handover/ui")).panels,
   assets: async () => (await import("@grid/block-assets/ui")).panels,
 };
