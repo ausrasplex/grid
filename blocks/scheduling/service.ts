@@ -167,7 +167,8 @@ async function warningsFor(tx: Tx, ctx: RequestContext, companyId: string, userI
 function awayWords(entry: LeaveRow, days: string[]): string {
   const hit = days.find((day) => day >= entry.startsOn && day <= entry.endsOn) ?? entry.startsOn;
   const part = hit === entry.startsOn ? entry.firstDayPart : hit === entry.endsOn ? entry.lastDayPart : "WHOLE";
-  const partText = part === "MORNING" ? " in the morning" : part === "AFTERNOON" ? " in the afternoon" : "";
+  const partText =
+    part === "MORNING" ? " in the morning" : part === "AFTERNOON" ? " in the afternoon" : part === "HOURS" && entry.fromTime && entry.toTime ? ` ${timeWords(entry.fromTime)} – ${timeWords(entry.toTime)}` : "";
   return `You're away ${dayWords(hit)}${partText} (${LEAVE_TYPE_WORDS[entry.type]}).`;
 }
 
@@ -295,8 +296,8 @@ export interface AgendaVisit extends VisitRow {
 export interface AgendaDay {
   day: string;
   visits: AgendaVisit[];
-  /** Your time off that day: "Away" with the part of the day. */
-  away: { part: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS"; lastDayPart: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS"; type: string; startsOn: string; endsOn: string } | null;
+  /** Your time off that day: the whole entry (to change it from the week view), the part of this day, and its type in words. */
+  away: (LeaveRow & { part: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS"; typeWords: string }) | null;
 }
 
 /**
@@ -322,7 +323,7 @@ export async function agenda(ctx: RequestContext, range: { from: string; to: str
   for (let day = range.from; day <= range.to; day = addDays(day, 1)) {
     const timeOff = leave.find((entry) => day >= entry.startsOn && day <= entry.endsOn);
     const part = timeOff ? (day === timeOff.startsOn ? timeOff.firstDayPart : day === timeOff.endsOn ? timeOff.lastDayPart : "WHOLE") : null;
-    days.push({ day, visits: [], away: timeOff && part ? { part, lastDayPart: timeOff.lastDayPart, type: LEAVE_TYPE_WORDS[timeOff.type], startsOn: timeOff.startsOn, endsOn: timeOff.endsOn } : null });
+    days.push({ day, visits: [], away: timeOff && part ? { ...timeOff, part, typeWords: LEAVE_TYPE_WORDS[timeOff.type] } : null });
   }
   const byDay = new Map(days.map((entry) => [entry.day, entry]));
   for (const record of records) {

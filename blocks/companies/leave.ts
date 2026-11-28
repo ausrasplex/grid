@@ -27,18 +27,30 @@ export const LEAVE_TYPE_WORDS: Record<LeaveTypeId, string> = {
 };
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date");
-/** Time off you enter yourself. Some hours (HOURS) waits for the Leave Block. */
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Pick a time");
+/**
+ * Time off you enter yourself: whole days, a morning or afternoon on the
+ * first and last day, or some hours on one day (from and to).
+ */
 export const timeOffSchema = z
   .object({
     type: z.enum(LEAVE_TYPES).default("ANNUAL"),
     startsOn: day,
     endsOn: day,
-    firstDayPart: z.enum(["WHOLE", "MORNING", "AFTERNOON"]).default("WHOLE"),
-    lastDayPart: z.enum(["WHOLE", "MORNING", "AFTERNOON"]).default("WHOLE"),
+    firstDayPart: z.enum(["WHOLE", "MORNING", "AFTERNOON", "HOURS"]).default("WHOLE"),
+    lastDayPart: z.enum(["WHOLE", "MORNING", "AFTERNOON", "HOURS"]).default("WHOLE"),
+    fromTime: time.nullish(),
+    toTime: time.nullish(),
     note: z.string().trim().max(2000).nullish(),
   })
   .strict()
-  .refine((input) => input.endsOn >= input.startsOn, { message: "The last day can't be before the first", path: ["endsOn"] });
+  .refine((input) => input.endsOn >= input.startsOn, { message: "The last day can't be before the first", path: ["endsOn"] })
+  .refine((input) => input.startsOn === input.endsOn || (input.firstDayPart !== "HOURS" && input.lastDayPart !== "HOURS"), {
+    message: "Some hours is for one day: make it a single day",
+    path: ["firstDayPart"],
+  })
+  .refine((input) => input.firstDayPart !== "HOURS" || (input.fromTime && input.toTime), { message: "Pick the hours you're away", path: ["fromTime"] })
+  .refine((input) => input.firstDayPart !== "HOURS" || !input.fromTime || !input.toTime || input.toTime > input.fromTime, { message: "Back after you leave", path: ["toTime"] });
 export type TimeOffInput = z.infer<typeof timeOffSchema>;
 
 export interface LeaveRow {
@@ -50,14 +62,29 @@ export interface LeaveRow {
   endsOn: string;
   firstDayPart: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS";
   lastDayPart: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS";
+  /** Some hours on one day: "13:00" to "15:00". */
+  fromTime: string | null;
+  toTime: string | null;
   note: string | null;
   status: "PENDING" | "APPROVED" | "DECLINED" | "CANCELLED";
 }
 
 const asDay = (date: Date) => date.toISOString().slice(0, 10);
 const asDate = (dayText: string) => new Date(`${dayText}T00:00:00Z`);
-const leaveSelect = { id: true, userId: true, type: true, startsOn: true, endsOn: true, firstDayPart: true, lastDayPart: true, note: true, status: true } as const;
-type LeaveRecord = { id: string; userId: string; type: LeaveTypeId; startsOn: Date; endsOn: Date; firstDayPart: LeaveRow["firstDayPart"]; lastDayPart: LeaveRow["lastDayPart"]; note: string | null; status: LeaveRow["status"] };
+const leaveSelect = { id: true, userId: true, type: true, startsOn: true, endsOn: true, firstDayPart: true, lastDayPart: true, fromTime: true, toTime: true, note: true, status: true } as const;
+type LeaveRecord = {
+  id: string;
+  userId: string;
+  type: LeaveTypeId;
+  startsOn: Date;
+  endsOn: Date;
+  firstDayPart: LeaveRow["firstDayPart"];
+  lastDayPart: LeaveRow["lastDayPart"];
+  fromTime: string | null;
+  toTime: string | null;
+  note: string | null;
+  status: LeaveRow["status"];
+};
 const toRow = (record: LeaveRecord): LeaveRow => ({ ...record, startsOn: asDay(record.startsOn), endsOn: asDay(record.endsOn) });
 
 /**
@@ -95,6 +122,8 @@ export async function myTimeOff(ctx: RequestContext, fromDay?: string): Promise<
 export async function saveTimeOff(ctx: RequestContext, id: string | null, input: TimeOffInput): Promise<LeaveRow> {
   const companyId = requireCompany(ctx);
   const sameDay = input.startsOn === input.endsOn;
+  const hours = sameDay && input.firstDayPart === "HOURS" ? { fromTime: input.fromTime!, toTime: input.toTime! } : { fromTime: null, toTime: null };
+  const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
   const data = {
     type: input.type,
     startsOn: asDate(input.startsOn),
@@ -102,6 +131,10 @@ export async function saveTimeOff(ctx: RequestContext, id: string | null, input:
     firstDayPart: input.firstDayPart,
     // One day: one part.
     lastDayPart: sameDay ? input.firstDayPart : input.lastDayPart,
+    ...hours,
+    // The Leave Block's "hours" is the length; the times say which hours.
+    firstDayHours: hours.fromTime ? (minutes(hours.toTime!) - minutes(hours.fromTime)) / 60 : null,
+    lastDayHours: null,
     note: input.note || null,
   };
   return db.$transaction(async (tx) => {

@@ -287,7 +287,7 @@ Both read the same `CheckIn` rows, kept for good (nothing is purged). Each row s
 
 ### Leave (`leave` Block, depends on `companies`)
 
-- **The records are already in core (Nov 2026):** `Leave` in `blocks/companies/schema.prisma`, shared with the Scheduling Block's time off (`docs/scheduling-block.md` "Time off"). Time off a sole trader entered is approved leave when this Block is switched on: nothing to move. This Block adds requests, approval, the calendar, sharing and alerts on the same records.
+- **The records are already in core (Nov 2026)** (with "some hours" stored as from and to times, `Leave.fromTime`/`toTime`, plus `firstDayHours` as the length): `Leave` in `blocks/companies/schema.prisma`, shared with the Scheduling Block's time off (`docs/scheduling-block.md` "Time off"). Time off a sole trader entered is approved leave when this Block is switched on: nothing to move. This Block adds requests, approval, the calendar, sharing and alerts on the same records.
 
 - **The form** (`leave.request`, everyone but Viewer):
   - **Type:** Annual, Personal/carer's, Compassionate, Long service, Parental, Community service, Unpaid, RDO, Other. Types are a list in code; businesses can't edit them yet.

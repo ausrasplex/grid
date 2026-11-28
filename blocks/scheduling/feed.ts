@@ -13,7 +13,7 @@ import { LEAVE_TYPE_WORDS, approvedLeave } from "@grid/block-companies";
 import { clientsById } from "@grid/block-clients";
 import { scheduleJobs } from "@grid/block-projects";
 import { calendarFile, type IcsEvent } from "./ics";
-import { addDays, localDay } from "./times";
+import { addDays, localDay, zonedMoment } from "./times";
 
 const MOD = "scheduling";
 const DAYS_BACK = 30;
@@ -125,11 +125,16 @@ export async function feedFile(file: string): Promise<Response> {
     });
   }
 
-  // Time off: all-day "Away" (part days say which part), never the private note.
+  // Time off: "Away", never the private note. Some hours on one day is a timed event; days (and half days) are all day.
   const leave = await approvedLeave(feed.companyId, { first: addDays(today, -DAYS_BACK), last: addDays(today, 730) }, [feed.userId]);
   for (const entry of leave) {
-    const part = entry.startsOn === entry.endsOn && entry.firstDayPart !== "WHOLE" ? (entry.firstDayPart === "MORNING" ? " (morning)" : entry.firstDayPart === "AFTERNOON" ? " (afternoon)" : "") : "";
-    events.push({ uid: `leave-${entry.id}@grid`, summary: `Away${part}`, firstDay: entry.startsOn, lastDay: entry.endsOn, description: LEAVE_TYPE_WORDS[entry.type], busy: false });
+    const base = { uid: `leave-${entry.id}@grid`, description: LEAVE_TYPE_WORDS[entry.type], busy: true };
+    if (entry.firstDayPart === "HOURS" && entry.fromTime && entry.toTime) {
+      events.push({ ...base, summary: "Away", startsAt: zonedMoment(entry.startsOn, entry.fromTime), endsAt: zonedMoment(entry.startsOn, entry.toTime) });
+      continue;
+    }
+    const part = entry.startsOn === entry.endsOn && entry.firstDayPart !== "WHOLE" ? (entry.firstDayPart === "MORNING" ? " (morning)" : " (afternoon)") : "";
+    events.push({ ...base, summary: `Away${part}`, firstDay: entry.startsOn, lastDay: entry.endsOn, busy: false });
   }
 
   await db.calendarFeed.update({ where: { id: feed.id }, data: { lastUsedAt: new Date() } });

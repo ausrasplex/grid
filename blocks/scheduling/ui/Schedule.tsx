@@ -116,6 +116,7 @@ function Agenda({ days, today }: { days: AgendaDayJson[]; today: string }) {
 }
 
 function awayWords(away: NonNullable<AgendaDayJson["away"]>, day: string) {
+  if (away.part === "HOURS" && away.fromTime && away.toTime) return `Away ${timeWords(away.fromTime)} – ${timeWords(away.toTime)}`;
   if (away.startsOn === away.endsOn || (day === away.endsOn && day !== away.startsOn)) {
     const part = away.part === "MORNING" ? " (morning)" : away.part === "AFTERNOON" ? " (afternoon)" : "";
     return `Away${part}`;
