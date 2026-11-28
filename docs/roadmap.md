@@ -36,6 +36,7 @@ The centre button grows with the phases too (`navigation.md` §5a): **Scan** tod
   - the business, team and roles;
   - **Sites & Jobs**;
   - **Materials** (decided Nov 2026): the business's list of things it installs, shared by Quotes and the Handover Block (`materials-block.md`);
+  - **Scheduling** (decided Nov 2026): visits on jobs and the Schedule, since every business books visits (`scheduling-block.md`);
   - the app frame: Home, Settings, the Store, the centre button, Jump to search and notifications.
 
   Everything else is an optional Block. In the code, Sites & Jobs is still written as a Block (`blocks/sites`, `blocks/projects`) but marked `required: true`. Other Blocks can rely on it always being there. Making it optional later would mean changing that one flag and letting screens cope without it.
@@ -285,6 +286,8 @@ Both read the same `CheckIn` rows, kept for good (nothing is purged). Each row s
 - Day and week totals are plain sums of time checked in, not a timesheet. Breaks, overtime and pay rules belong to timesheets later.
 
 ### Leave (`leave` Block, depends on `companies`)
+
+- **The records are already in core (Nov 2026):** `Leave` in `blocks/companies/schema.prisma`, shared with the Scheduling Block's time off (`docs/scheduling-block.md` "Time off"). Time off a sole trader entered is approved leave when this Block is switched on: nothing to move. This Block adds requests, approval, the calendar, sharing and alerts on the same records.
 
 - **The form** (`leave.request`, everyone but Viewer):
   - **Type:** Annual, Personal/carer's, Compassionate, Long service, Parental, Community service, Unpaid, RDO, Other. Types are a list in code; businesses can't edit them yet.

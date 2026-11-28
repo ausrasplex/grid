@@ -140,6 +140,10 @@ Put a panel in the `home.top` slot (`panels: { "home.top": async ({ ctx }) => â€
 
 In the Soft theme Home has a hero card with up to three numbered tiles and a "Needs attention" list. Put a `<HomeTile label value foot progress href />` (from `@grid/ui`) in the `home.tiles` slot, and `<AttentionRow title badge tone description href />`s in `home.attention`. Home colours and numbers the tiles; return null when you have nothing. These panels are run straight away (`resolvePanels`), so they can't use hooks.
 
+## A second status on jobs
+
+To say something about each active job after "Active" ("Active â€¢ Scheduled", "To be booked"), add `jobSecondStatus` to the manifest: `async () => (ctx, projectIds) => Record<jobId, JobSecondStatus>` (`{ key, label, hint, tone }` from `@grid/core`). It's asked once for a whole list. Jobs show it on the job page, the Jobs table (with a filter by `key`) and every job list (`JobRows`). The job's own status never changes. Scheduling is the one that uses it.
+
 ## A section on a client's page
 
 `/clients/<id>` shows a client's details, then the panels in the `client.page` slot (props `ClientPagePanelProps` from `@grid/block-clients`: `clientId`, `clientName`). Projects shows their active and recent finished jobs; Quotes shows their open quotes. Return null when you have nothing with that client.

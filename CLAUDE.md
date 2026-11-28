@@ -7,7 +7,7 @@ The owner is a worker electrician, not a full-time developer. Explain changes in
 ## Words
 
 - **Grid**: the app. **Block**: a feature package in `blocks/` (was "module"; never use that word). **Store**: where a business adds/removes Blocks (`/business/store`).
-- **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Clients**, **Sites & Jobs**, **Materials** (`docs/materials-block.md`), and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
+- **Core** (`required: true`, can't be switched off): sign-in and accounts, business/team/roles, **Clients**, **Sites & Jobs**, **Materials** (`docs/materials-block.md`), **Scheduling** (`docs/scheduling-block.md`), and the app frame (Home, Settings, Store, centre button, Jump to search, notifications). Everything else is an optional Block.
 
 ## Naming (project rule)
 
@@ -28,6 +28,7 @@ Read the relevant doc before building. They are agreed designs, not suggestions.
 | `docs/backups.md` | Backups and restoring |
 | `docs/unraid.md` | Installing on Unraid with the templates; every setting |
 | `docs/materials-block.md` | Materials (core) and the Handover Block: job materials by trade and room, the landscape handover PDF |
+| `docs/scheduling-block.md` | Visits on jobs, the Schedule, To be booked, warnings, time off (shared with Leave) |
 | `docs/quotations-block.md`, `templates-block.md`, `documents-block.md`, `assets-block.md`, `inductions-credentials.md`, `deployment-modes.md` | Later Blocks |
 
 If something isn't covered, ask rather than invent. When a decision is made, write it into the matching doc in the same change.
@@ -58,7 +59,7 @@ apps/web/      Next.js app: shell, sign-in, API dispatcher (/api/<block>/…), p
 packages/core/ Block system: defineBlock, registry, permissions, menus, events, routing (tested)
 packages/db/   Prisma client, audit(), secret encryption
 packages/ui/   Shared components, icons, styles (concept C tokens)
-blocks/        users, companies, themes, clients, materials, credentials, sites, projects, signatures, templates (core); photos, quotes, plans, markups, documents, signoffs, checklists, handover, assets (optional)
+blocks/        users, companies, themes, clients, materials, credentials, sites, projects, signatures, templates, scheduling (core); photos, quotes, plans, markups, documents, signoffs, checklists, handover, assets (optional)
 prisma/        base, core and auth schemas; migrations
 ```
 
@@ -110,10 +111,11 @@ prisma/        base, core and auth schemas; migrations
   **Phase 5c part 2** (custody: Check out, Return, Take over, Move, movement history, With me) is done too; see "What part 2 built" in `docs/assets-block.md`.
   **Phase 5c part 3** (faults with Do not use and their steps, the Faults page, lost or stolen with Recovered and Retire as lost, emails to Owners and Foremen, Home's Needs attention) is done too; see "What part 3 built" in `docs/assets-block.md`.
   **Phase 5c part 4** (routines on categories and assets, test & tag, the log with pass or fail and tag colours, bookings, Overdue, the 6 am morning check) is done too; see "What part 4 built" in `docs/assets-block.md`. The asset screens follow Docket's Fixtures layout (decided Nov 2026). `@grid/ui` has a `DropdownMenu` (the ⋯ menus) and `SheetContent` takes a pinned `footer`.
+  **Scheduling part 1** (the core `scheduling` Block at `/schedule`, always on: visits on jobs with one or more per job, tentative, done, cancel and "Mark job complete?"; the agenda and To be booked; warnings for clashes, a busy day and time off with Book anyway; Settings › Scheduling & time off; Home's Today card) is done too; see "What part 1 built" in `docs/scheduling-block.md`. Time off is core's `Leave` (companies), shared with the future Leave Block. There's no Scheduled job status: active jobs get a second status from visits ("Active • Scheduled", "To be booked") through the `jobSecondStatus` Block hook, shown on the job page, the Jobs table (with a filter) and every job list.
   **Lead source** (core `clients`: "How did they find you?" chips on the client form, Referral asks who referred them, the business's list at Settings › Clients › Lead sources with hide not delete, a job's own "How this job came in") is done too, the Analytics groundwork; see "Lead source" in `docs/quotations-block.md`.
   **Phase 5c part 5** (scans count as seen, Not seen after 30 days, "Do you still have it?" after 14 days with Yes/No on Home, test & tag reminder emails 14 days before, Assets on site on the job page, Settings › Asset categories › Reminders, the Grid look's Needs attention card) is done too; see "What part 5 built" in `docs/assets-block.md`. Formatting helpers a server page calls live in a file without "use client" (`blocks/assets/ui/format.ts`).
   **Phase 5c part 4b** (Docket's layout for Assets: cards by where the gear is with chips, category pictures, the ⋯ menu and summary line, warranty and value, brands with support details shared through Materials, kit pieces, manuals and documents shown inside Grid, Duplicate with shared manuals, the asset register PDF) is done too; see "What part 4b built" in `docs/assets-block.md`.
-- Next: **Phase 5c vehicles** (`docs/assets-block.md` §11, build order 6–10), then the public tag page (§10). OCR, product scanning and the product catalogue are later.
+- Next: **Scheduling part 2** (week view with drag, the phone calendar feed), then **Phase 5c vehicles** (`docs/assets-block.md` §11, build order 6–10), then the public tag page (§10). OCR, product scanning and the product catalogue are later.
 - Background work: a block declares `jobs` in its manifest (`"plans.render": { handler }`) and queues with `app().jobs.send(name, data)` (pg-boss, or inline when JOBS=off).
 - Things Grid can rebuild go in `cacheRoot()` (`<files>/.cache`): backups and the stray-file sweep skip it.
 - PDFs: `renderPdf(await toHtml(<Doc/>))` from `@grid/block-templates`. To show a PDF inside the app (never a new tab: it leaves the installed app), turn it into page pictures with `renderPdfPages()` from `@grid/db` (into `cacheRoot()`) and show them with `PageViewer` from `@grid/ui`. `toHtml` loads `react-dom/server` lazily (Next refuses a static import). Locally set `CHROMIUM_PATH` to a Chromium binary; the image sets it.

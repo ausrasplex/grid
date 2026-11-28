@@ -1,11 +1,16 @@
-// Job rows for lists on the site, level and Home pages.
+// Job rows for lists on the site, level and client pages (a server
+// component: it asks other blocks for each active job's second status,
+// "Active • Scheduled", in one go).
+import type { RequestContext } from "@grid/core";
 import { EmptyState, Icon, List, Section } from "@grid/ui";
-import type { JobSummary } from "../service";
+import { withSecondStatus, type JobSummary } from "../service";
+import { SecondStatus } from "./SecondStatus";
 
 const date = (value: Date | string) => new Date(value).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 
-export function JobRows({ title, jobs, empty, showSite }: { title?: string; jobs: JobSummary[]; empty?: string; showSite?: boolean }) {
-  if (!jobs.length && !empty) return null;
+export async function JobRows({ ctx, title, jobs: plainJobs, empty, showSite }: { ctx: RequestContext; title?: string; jobs: JobSummary[]; empty?: string; showSite?: boolean }) {
+  if (!plainJobs.length && !empty) return null;
+  const jobs = await withSecondStatus(ctx, plainJobs);
   return (
     <Section title={title} flush>
       {jobs.length === 0 ? (
@@ -19,7 +24,10 @@ export function JobRows({ title, jobs, empty, showSite }: { title?: string; jobs
                   <Icon name={job.status === "COMPLETED" ? "done" : "job"} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{job.name}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-semibold">{job.name}</span>
+                    {job.secondStatus && <SecondStatus status={job.secondStatus} />}
+                  </span>
                   <span className="block truncate text-sm text-muted-foreground">
                     {[
                       job.jobNumber,

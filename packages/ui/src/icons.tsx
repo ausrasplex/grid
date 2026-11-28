@@ -2,6 +2,7 @@
 // map when a block needs a new one. Unknown names fall back to a dot.
 import {
   Archive,
+  CalendarDays,
   History,
   IdCard,
   Wallet,
@@ -68,6 +69,7 @@ export const ICONS: Record<string, LucideIcon> = {
   note: StickyNote,
   close: X,
   bell: Bell,
+  calendar: CalendarDays,
   camera: Camera,
   check: Check,
   key: KeyRound,

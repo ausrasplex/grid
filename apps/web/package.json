@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@grid/block-assets": "workspace:*",
+    "@grid/block-scheduling": "workspace:*",
     "@grid/block-checklists": "workspace:*",
     "@grid/block-clients": "workspace:*",
     "@grid/block-companies": "workspace:*",

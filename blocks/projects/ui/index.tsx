@@ -15,13 +15,14 @@ import { Alert, Badge, HomeTile, Icon, LinkRow, List, PageHeader, Section, Stack
 import { SiteDetails, SiteNotes } from "@grid/block-sites/components";
 import { getClient, listLeadSources, type ClientPagePanelProps } from "@grid/block-clients";
 import { getSite, recordLocation, type SiteStructure } from "@grid/block-sites";
-import { activeJobCounts, getProject, jobsAt, jobsForClient, recordArea, resumeOnSite, type Area } from "../service";
+import { activeJobCounts, getProject, secondStatuses, jobsAt, jobsForClient, recordArea, resumeOnSite, type Area } from "../service";
 import type { PlaceStartPanelProps } from "../index";
 import { CopyLink, FinishJob } from "./JobActions";
 import { DeleteJob, DeletedJobs, type DeletedJobJson } from "./DeleteJob";
 import { deletedProjects } from "../delete";
 import { getStorageSettings } from "@grid/db";
 import { JobRows } from "./JobRows";
+import { SecondStatus } from "./SecondStatus";
 import { JobStorage } from "./JobStorage";
 import { JobsTable } from "./JobsTable";
 import { jobStorage, jobsTable } from "../storage";
@@ -91,8 +92,8 @@ async function SitePage({ ctx, siteId }: { ctx: RequestContext; siteId: string }
           <Alert>Archived on {date(site.archivedAt)}, when its last job finished. Start a new job here to bring it back.</Alert>
         )}
         {!plain && <BuildingsSection site={site} counts={counts} />}
-        <JobRows title="Current jobs" jobs={active} empty="No active jobs here" />
-        {earlier.length > 0 && <JobRows title={plain ? "Earlier jobs at this address" : "Earlier jobs at this site"} jobs={earlier} />}
+        <JobRows ctx={ctx} title="Current jobs" jobs={active} empty="No active jobs here" />
+        {earlier.length > 0 && <JobRows ctx={ctx} title={plain ? "Earlier jobs at this address" : "Earlier jobs at this site"} jobs={earlier} />}
         <SiteNotes siteId={site.id} initial={site.notes} canEdit={can(ctx, "sites.notes.edit")} />
         {canStructure && <SiteDetails site={{ id: site.id, name: site.name, address: site.address, addressParts: site.addressParts }} />}
         {canStructure && (
@@ -156,11 +157,11 @@ async function BuildingPage({ ctx, siteId, buildingId, panels }: { ctx: RequestC
       <Stack>
         {building.kind === "MULTI" && <BuildingsSection site={{ ...site, buildings: [building] }} counts={counts} />}
         {active.length > 0 ? (
-          <JobRows title="Current jobs" jobs={active} />
+          <JobRows ctx={ctx} title="Current jobs" jobs={active} />
         ) : (
           <StartHere ctx={ctx} panels={panels} place={{ siteId, buildingId, levelId: null, place: building.name }} />
         )}
-        {earlier.length > 0 && <JobRows title="Finished here" jobs={earlier} />}
+        {earlier.length > 0 && <JobRows ctx={ctx} title="Finished here" jobs={earlier} />}
       </Stack>
     </>
   );
@@ -194,7 +195,7 @@ async function LevelPage({
       <PageHeader title={level.name} meta={[level.use, site.buildings.length > 1 ? building.name : null, site.name].filter(Boolean).join(" · ")} />
       <Stack>
         {active.length > 0 ? (
-          <JobRows title="Jobs on this level" jobs={active} />
+          <JobRows ctx={ctx} title="Jobs on this level" jobs={active} />
         ) : (
           <StartHere
             ctx={ctx}
@@ -202,7 +203,7 @@ async function LevelPage({
             place={{ siteId, buildingId, levelId, place: site.buildings.length > 1 ? `${level.label} · ${building.name}` : level.label }}
           />
         )}
-        {earlier.length > 0 && <JobRows title={`Finished here (${earlier.length})`} jobs={earlier} />}
+        {earlier.length > 0 && <JobRows ctx={ctx} title={`Finished here (${earlier.length})`} jobs={earlier} />}
       </Stack>
     </>
   );
@@ -279,6 +280,8 @@ async function JobPage({
   const plain = isHouse(site);
   const currentArea = area ? areas.find((entry) => same(entry, area)) : undefined;
   // Things for the whole job (the checklist), from whichever Blocks are on.
+  const metaText = [job.jobNumber ?? job.quoteNumber, job.clientName, job.archivedAt ? "Archived" : job.status === "COMPLETED" ? "Finished" : job.status === "QUOTING" ? "Quoting" : job.status === "NOT_WON" ? "Not won" : null].filter(Boolean).join(" · ");
+  const secondStatus = (await secondStatuses(ctx, [{ id: job.id, status: job.status, archivedAt: job.archivedAt }]))[job.id] ?? null;
   const topPanels = await panels("job.top", { job: { id: job.id, name: job.name, status: job.status, archived: !!job.archivedAt } });
   // Photos, notes (and later plans) for the area you're in, from whichever Blocks are on.
   const areaPanels = await panels("job.area", {
@@ -302,7 +305,15 @@ async function JobPage({
       />
       <PageHeader
         title={job.name}
-        meta={[job.jobNumber ?? job.quoteNumber, job.clientName, job.archivedAt ? "Archived" : job.status === "COMPLETED" ? "Finished" : job.status === "QUOTING" ? "Quoting" : job.status === "NOT_WON" ? "Not won" : null].filter(Boolean).join(" · ") || undefined}
+        meta={
+          metaText || secondStatus ? (
+            <>
+              {metaText}
+              {/* Active jobs: "Active • Scheduled · Next Thu 3 Dec", from Scheduling. */}
+              {secondStatus && <SecondStatus status={secondStatus} withActive withHint className={cn("align-middle", metaText && "ml-2")} />}
+            </>
+          ) : undefined
+        }
         actions={
           <>
             <CopyLink codePath={`/projects/${job.id}/code`} />
@@ -508,8 +519,8 @@ export const panels: BlockPanels = {
     if (!active.length && !earlier.length) return null;
     return (
       <>
-        <JobRows title={`Active jobs (${active.length})`} jobs={active} empty={`No active jobs for ${clientName}.`} showSite />
-        {earlier.length > 0 && <JobRows title={earlierCount > earlier.length ? `Earlier jobs (latest ${earlier.length} of ${earlierCount})` : "Earlier jobs"} jobs={earlier} showSite />}
+        <JobRows ctx={ctx} title={`Active jobs (${active.length})`} jobs={active} empty={`No active jobs for ${clientName}.`} showSite />
+        {earlier.length > 0 && <JobRows ctx={ctx} title={earlierCount > earlier.length ? `Earlier jobs (latest ${earlier.length} of ${earlierCount})` : "Earlier jobs"} jobs={earlier} showSite />}
       </>
     );
   },

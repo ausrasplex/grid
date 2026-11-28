@@ -3,9 +3,9 @@
 // files for jobs answers through its manifest's `jobStorage` hook.
 
 import "server-only";
-import { app, can, requireCompany, type JobStorageLine, type RequestContext } from "@grid/core";
+import { app, can, requireCompany, type JobSecondStatus, type JobStorageLine, type RequestContext } from "@grid/core";
 import { db, type Prisma } from "@grid/db";
-import { getProject } from "./service";
+import { getProject, secondStatuses } from "./service";
 
 const JOB_LABEL = "Job no.";
 const VISIBLE: Prisma.ProjectCompanyWhereInput["status"] = { in: ["ACTIVE", "COMPLETED"] };
@@ -73,6 +73,8 @@ export interface JobsTableRow {
   archivedAt: Date | null;
   /** Count per line key ("photos.photos": 412). */
   counts: Record<string, number>;
+  /** Active jobs: "Scheduled", "To be booked" (from Scheduling), or null. */
+  secondStatus: JobSecondStatus | null;
   /** Only for people with projects.complete. */
   storage: StorageTotals | null;
 }
@@ -113,6 +115,7 @@ export async function jobsTable(ctx: RequestContext): Promise<JobsTable> {
     columns.set(line.key, line.label);
   }
   const showStorage = can(ctx, "projects.complete");
+  const second = await secondStatuses(ctx, projects);
   return {
     rows: projects.map((project) => {
       const jobLines = byJob.get(project.id) ?? [];
@@ -130,6 +133,7 @@ export async function jobsTable(ctx: RequestContext): Promise<JobsTable> {
         completedAt: project.completedAt,
         archivedAt: project.archivedAt,
         counts: Object.fromEntries(jobLines.map((line) => [line.key, line.count])),
+        secondStatus: second[project.id] ?? null,
         storage: showStorage ? totalsOf(jobLines) : null,
       };
     }),

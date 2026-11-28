@@ -4,7 +4,7 @@
 // ACTIVE or COMPLETED. In 2a that's always the host; 2b adds invited
 // companies down the contract chain.
 
-import { app, badRequest, conflict, forbidden, notFound, requireCompany, type LevelUsage, type RequestContext } from "@grid/core";
+import { app, badRequest, conflict, forbidden, notFound, requireCompany, type JobSecondStatus, type LevelUsage, type RequestContext } from "@grid/core";
 import { audit, db, ensureRouteCode, type Prisma, type Tx } from "@grid/db";
 import {
   addressKey,
@@ -313,6 +313,34 @@ export interface JobSummary {
   archivedAt: Date | null;
   siteId: string;
   siteName: string;
+  /** "Scheduled", "To be booked": shown after Active, from another block (withSecondStatus). */
+  secondStatus?: JobSecondStatus | null;
+}
+
+/**
+ * Second statuses for jobs ("Active • Scheduled"), from whichever blocks
+ * offer one (the jobSecondStatus hook: scheduling). Only active, not
+ * archived jobs get one. One call per block for the whole list.
+ */
+export async function secondStatuses(ctx: RequestContext, jobs: { id: string; status: string; archivedAt?: Date | string | null; archived?: boolean }[]): Promise<Record<string, JobSecondStatus>> {
+  const ids = jobs.filter((job) => job.status === "ACTIVE" && !job.archivedAt && !job.archived).map((job) => job.id);
+  const result: Record<string, JobSecondStatus> = {};
+  if (!ids.length || !ctx.companyId) return result;
+  for (const block of app().registry.blocks) {
+    if (!block.jobSecondStatus || !(block.required || ctx.enabledBlocks.has(block.id))) continue;
+    try {
+      Object.assign(result, await (await block.jobSecondStatus())(ctx, ids));
+    } catch (error) {
+      console.error(`[projects] ${block.id} couldn't give second statuses`, error);
+    }
+  }
+  return result;
+}
+
+/** The same jobs, each with its second status (or null). */
+export async function withSecondStatus<T extends { id: string; status: string; archivedAt?: Date | string | null }>(ctx: RequestContext, jobs: T[]): Promise<(T & { secondStatus: JobSecondStatus | null })[]> {
+  const statuses = await secondStatuses(ctx, jobs);
+  return jobs.map((job) => ({ ...job, secondStatus: statuses[job.id] ?? null }));
 }
 
 const summarySelect = (companyId: string) =>
@@ -820,3 +848,55 @@ export async function levelUsage(levelId: string): Promise<LevelUsage[]> {
 export async function levelDeleted(event: LevelDeletedEvent) {
   await db.userProjectLevel.updateMany({ where: { levelId: event.levelId }, data: { levelId: null } });
 }
+
+// ─── For the Scheduling Block ───────────────────────────────────────────
+
+export interface ScheduleJob {
+  id: string;
+  name: string;
+  jobNumber: string | null;
+  status: "ACTIVE" | "COMPLETED" | "QUOTING" | "NOT_WON";
+  archived: boolean;
+  clientName: string | null;
+  siteName: string;
+  /** "Brunswick". */
+  suburb: string | null;
+  /** The one line: "12 Smith St, Brunswick VIC 3056". */
+  address: string;
+  startedAt: Date;
+}
+
+/**
+ * Jobs this business can see, with what a schedule shows about them: by id,
+ * or every active (won, not finished, not archived) job for "To be booked".
+ */
+export async function scheduleJobs(ctx: RequestContext, filter: { ids: string[] } | { active: true }): Promise<ScheduleJob[]> {
+  const companyId = requireCompany(ctx);
+  const rows = await db.project.findMany({
+    where: {
+      deletedAt: null,
+      companies: { some: { companyId, status: VISIBLE } },
+      ...("ids" in filter ? { id: { in: [...new Set(filter.ids)] } } : { status: "ACTIVE", archivedAt: null }),
+    },
+    select: summarySelect(companyId),
+    orderBy: { startedAt: "asc" },
+  });
+  const sites = await db.site.findMany({ where: { id: { in: [...new Set(rows.map((row) => row.siteId))] } }, select: { id: true, name: true, suburb: true, address: true } });
+  const siteById = new Map(sites.map((site) => [site.id, site]));
+  return rows.map((row) => {
+    const site = siteById.get(row.siteId);
+    return {
+      id: row.id,
+      name: row.name,
+      jobNumber: row.references[0]?.value ?? null,
+      status: row.status,
+      archived: !!row.archivedAt,
+      clientName: row.clientName,
+      siteName: site?.name ?? "",
+      suburb: site?.suburb ?? null,
+      address: site?.address ?? "",
+      startedAt: row.startedAt,
+    };
+  });
+}
+

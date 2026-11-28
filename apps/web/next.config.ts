@@ -26,6 +26,7 @@ const config: NextConfig = {
     "@grid/block-documents",
     "@grid/block-handover",
     "@grid/block-assets",
+    "@grid/block-scheduling",
   ],
   // Loaded from node_modules at run time rather than bundled.
   serverExternalPackages: ["pg-boss", "sharp", "puppeteer-core", "@signpdf/signpdf", "@signpdf/signer-p12", "@signpdf/placeholder-pdf-lib", "node-forge", "pdf-lib"],

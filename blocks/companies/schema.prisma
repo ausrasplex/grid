@@ -93,3 +93,68 @@ model CompanyBlock {
 
   @@id([companyId, blockId])
 }
+
+// ─── Leave and time off ─────────────────────────────────────────────────
+// One set of records for a person's time away, shared by the Scheduling
+// Block's time off (solo: saved as approved, blocks out booking) and the
+// Leave Block's requests (teams, phase 7: pending, approved by an Owner,
+// the leave calendar). Kept here in core so neither optional Block has to
+// depend on the other (docs/roadmap.md "Leave"). Dates only, no balances.
+
+enum LeaveType {
+  ANNUAL
+  PERSONAL
+  COMPASSIONATE
+  LONG_SERVICE
+  PARENTAL
+  COMMUNITY_SERVICE
+  UNPAID
+  RDO
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+/// Which part of the first or last day: all of it, the morning (before
+/// midday), the afternoon (from midday) or some hours (Leave Block, later).
+enum DayPart {
+  WHOLE
+  MORNING
+  AFTERNOON
+  HOURS
+}
+
+model Leave {
+  id              String      @id @default(uuid())
+  companyId       String
+  /// Whose time away it is.
+  userId          String
+  type            LeaveType   @default(ANNUAL)
+  /// Local dates, both included: no time part, so they never shift with timezones.
+  startsOn        DateTime    @db.Date
+  endsOn          DateTime    @db.Date
+  firstDayPart    DayPart     @default(WHOLE)
+  lastDayPart     DayPart     @default(WHOLE)
+  /// Hours away on the first or last day when its part is HOURS.
+  firstDayHours   Decimal?    @db.Decimal(4, 2)
+  lastDayHours    Decimal?    @db.Decimal(4, 2)
+  /// Private to the person and whoever approves it.
+  note            String?
+  /// Time off saved while solo is approved straight away; requests start PENDING.
+  status          LeaveStatus @default(APPROVED)
+  decidedByUserId String?
+  decidedAt       DateTime?
+  declineReason   String?
+  createdByUserId String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([companyId, userId, startsOn])
+  @@index([companyId, startsOn])
+}
+
