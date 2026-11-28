@@ -95,6 +95,9 @@ export interface TimeOffDays {
   endsOn: string;
   firstDayPart: DayPart;
   lastDayPart: DayPart;
+  /** Some hours on one day: "13:00" to "15:00". */
+  fromTime?: string | null;
+  toTime?: string | null;
 }
 
 /** The part of a day the time off takes: the first and last day can be part days. */
@@ -111,14 +114,20 @@ const MIDDAY = "12:00";
 /**
  * Does the time off get in the way of a visit? A whole day always does; a
  * morning only if the visit starts before midday on that day, an afternoon
- * only if it runs past midday. Some hours (the Leave Block's) always counts,
- * since the hours aren't known.
+ * only if it runs past midday, some hours only if the visit overlaps them.
+ * An all-day visit always clashes. Some hours without times (none yet)
+ * counts as the whole day, to be safe.
  */
 export function timeOffClashes(timeOff: TimeOffDays, visit: { startsAt: Date; endsAt: Date; isAllDay: boolean }, timeZone = serverTimeZone()): boolean {
   for (const day of daysCovered(visit.startsAt, visit.endsAt, timeZone)) {
     const part = partOn(timeOff, day);
     if (!part) continue;
-    if (part === "WHOLE" || part === "HOURS" || visit.isAllDay) return true;
+    if (part === "WHOLE" || visit.isAllDay) return true;
+    if (part === "HOURS") {
+      if (!timeOff.fromTime || !timeOff.toTime) return true;
+      if (overlaps(visit.startsAt, visit.endsAt, zonedMoment(day, timeOff.fromTime, timeZone), zonedMoment(day, timeOff.toTime, timeZone))) return true;
+      continue;
+    }
     const dayStart = zonedMoment(day, "00:00", timeZone);
     const midday = zonedMoment(day, MIDDAY, timeZone);
     const dayEnd = zonedMoment(addDays(day, 1), "00:00", timeZone);
@@ -131,8 +140,15 @@ export function timeOffClashes(timeOff: TimeOffDays, visit: { startsAt: Date; en
 /** A whole working day off: any part counts as taking the day for booking, apart from a half. */
 export const blocksWholeDay = (timeOff: TimeOffDays, day: string) => partOn(timeOff, day) === "WHOLE";
 
-/** How many days, counting a half day as a half: "10 days", "½ day", "2½ days". */
+/** How many days, counting a half day as a half: "10 days", "½ day", "2½ days"; some hours: "2 hours". */
 export function timeOffLength(timeOff: TimeOffDays): string {
+  if (timeOff.firstDayPart === "HOURS" && timeOff.fromTime && timeOff.toTime) {
+    const minutes = minutesOf(timeOff.toTime) - minutesOf(timeOff.fromTime);
+    if (minutes < 60) return `${minutes} minutes`;
+    const hours = minutes / 60;
+    const text = Number.isInteger(hours) ? String(hours) : hours % 1 === 0.5 ? `${Math.floor(hours) || ""}½` : hours.toFixed(2).replace(/0$/, "");
+    return `${text} hour${hours === 1 ? "" : "s"}`;
+  }
   let days = 0;
   for (const day of daysBetween(timeOff.startsOn, timeOff.endsOn)) {
     const part = partOn(timeOff, day);

@@ -5,11 +5,22 @@
 // over one or more days. Tentative for "builder says probably Thursday".
 // A clash, a busy day or time off comes back as warnings: Book anyway, or
 // pick another time.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TriangleAlert } from "lucide-react";
-import { Alert, Button, Checkbox, Field, Sheet, SheetContent, Switch, api, cn, useAction } from "@grid/ui";
-import { lengthWords } from "../words";
-import type { VisitJson } from "./types";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Field,
+  Sheet,
+  SheetContent,
+  Switch,
+  api,
+  cn,
+  useAction,
+} from "@grid/ui";
+import { dayWords, lengthWords, timeWords } from "../words";
+import type { LeaveJson, VisitJson } from "./types";
 
 const LABELS = ["Rough-in", "Fit-off", "Service", "Quote visit", "Inspection"];
 
@@ -18,10 +29,14 @@ export interface Warning {
   message: string;
 }
 
-type SaveResult = { saved: true; visit: VisitJson } | { saved: false; warnings: Warning[] };
+type SaveResult =
+  | { saved: true; visit: VisitJson }
+  | { saved: false; warnings: Warning[] };
 
-const minutesOf = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
-const timeOf = (minutes: number) => `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+const minutesOf = (time: string) =>
+  Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+const timeOf = (minutes: number) =>
+  `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
 export function VisitSheet({
   open,
@@ -32,6 +47,7 @@ export function VisitSheet({
   today,
   defaultLengthMinutes,
   onSaved,
+  jobLink = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,17 +59,55 @@ export function VisitSheet({
   today: string;
   defaultLengthMinutes: number;
   onSaved: (visit: VisitJson) => void;
+  /** Show "Open the job" (from the Schedule, where the job isn't on screen). */
+  jobLink?: boolean;
 }) {
   const [day, setDay] = useState(visit?.day ?? today);
   const [isAllDay, setAllDay] = useState(visit?.isAllDay ?? false);
   const [lastDay, setLastDay] = useState(visit?.lastDay ?? visit?.day ?? today);
-  const [startTime, setStartTime] = useState(visit && !visit.isAllDay ? visit.startTime : "08:00");
-  const [endTime, setEndTime] = useState(visit && !visit.isAllDay ? visit.endTime : timeOf(Math.min(minutesOf("08:00") + defaultLengthMinutes, 24 * 60 - 1)));
+  const [startTime, setStartTime] = useState(
+    visit && !visit.isAllDay ? visit.startTime : "08:00",
+  );
+  const [endTime, setEndTime] = useState(
+    visit && !visit.isAllDay
+      ? visit.endTime
+      : timeOf(
+          Math.min(minutesOf("08:00") + defaultLengthMinutes, 24 * 60 - 1),
+        ),
+  );
   const [isTentative, setTentative] = useState(visit?.isTentative ?? false);
   const [label, setLabel] = useState(visit?.label ?? "");
   const [notes, setNotes] = useState(visit?.notes ?? "");
   const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [timeOff, setTimeOff] = useState<LeaveJson[]>([]);
   const action = useAction();
+
+  // Your time off, to say "You're away" as soon as a day's picked (the phone's date box can't grey days out).
+  useEffect(() => {
+    if (!open) return;
+    api<LeaveJson[]>("/scheduling/time-off")
+      .then(setTimeOff)
+      .catch(() => setTimeOff([]));
+  }, [open]);
+  const lastPicked = isAllDay && lastDay > day ? lastDay : day;
+  const awayOn = timeOff.find(
+    (entry) =>
+      entry.status === "APPROVED" &&
+      entry.startsOn <= lastPicked &&
+      entry.endsOn >= day,
+  );
+  const awayHint = !awayOn
+    ? undefined
+    : awayOn.firstDayPart === "HOURS" && awayOn.fromTime && awayOn.toTime
+      ? `You're away ${timeWords(awayOn.fromTime)} – ${timeWords(awayOn.toTime)} that day.`
+      : `You're away ${awayOn.startsOn === awayOn.endsOn ? "that day" : `${dayWords(awayOn.startsOn)} – ${dayWords(awayOn.endsOn)}`}${
+          awayOn.startsOn === awayOn.endsOn && awayOn.firstDayPart === "MORNING"
+            ? " (morning)"
+            : awayOn.startsOn === awayOn.endsOn &&
+                awayOn.firstDayPart === "AFTERNOON"
+              ? " (afternoon)"
+              : ""
+        }.`;
 
   // Moving the start keeps the visit's length.
   const changeStart = (next: string) => {
@@ -69,14 +123,19 @@ export function VisitSheet({
       const body = {
         day,
         isAllDay,
-        ...(isAllDay ? { lastDay: lastDay < day ? day : lastDay } : { startTime, endTime }),
+        ...(isAllDay
+          ? { lastDay: lastDay < day ? day : lastDay }
+          : { startTime, endTime }),
         isTentative,
         label: label || null,
         notes: notes || null,
         isWarningAcknowledged,
       };
       const result = visit
-        ? await api<SaveResult>(`/scheduling/visits/${visit.id}`, { method: "PUT", body })
+        ? await api<SaveResult>(`/scheduling/visits/${visit.id}`, {
+            method: "PUT",
+            body,
+          })
         : await api<SaveResult>(`/scheduling/jobs/${jobId}/visits`, { body });
       if (!result.saved) return setWarnings(result.warnings);
       setWarnings([]);
@@ -84,7 +143,10 @@ export function VisitSheet({
       onOpenChange(false);
     });
 
-  const length = !isAllDay && startTime && endTime ? minutesOf(endTime) - minutesOf(startTime) : 0;
+  const length =
+    !isAllDay && startTime && endTime
+      ? minutesOf(endTime) - minutesOf(startTime)
+      : 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -95,19 +157,39 @@ export function VisitSheet({
         footer={
           warnings.length ? (
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setWarnings([])}>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setWarnings([])}
+              >
                 Pick another time
               </Button>
-              <Button type="button" className="flex-1" disabled={action.busy} onClick={() => void save(true)}>
+              <Button
+                type="button"
+                className="flex-1"
+                disabled={action.busy}
+                onClick={() => void save(true)}
+              >
                 {visit ? "Save anyway" : "Book anyway"}
               </Button>
             </div>
           ) : (
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" form="visit-form" className="flex-1" disabled={action.busy}>
+              <Button
+                type="submit"
+                form="visit-form"
+                className="flex-1"
+                disabled={action.busy}
+              >
                 {action.busy ? "Saving…" : visit ? "Save" : "Book"}
               </Button>
             </div>
@@ -124,44 +206,111 @@ export function VisitSheet({
         >
           {/* First thing in the sheet, so it's seen without scrolling. */}
           {warnings.length > 0 && (
-            <div role="alert" className="flex flex-col gap-2 rounded-lg bg-warning/15 p-3">
+            <div
+              role="alert"
+              className="flex flex-col gap-2 rounded-lg bg-warning/15 p-3"
+            >
               {warnings.map((warning) => (
-                <p key={warning.message} className="flex items-start gap-2 text-sm font-semibold">
-                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <p
+                  key={warning.message}
+                  className="flex items-start gap-2 text-sm font-semibold"
+                >
+                  <TriangleAlert
+                    className="mt-0.5 size-4 shrink-0"
+                    aria-hidden
+                  />
                   {warning.message}
                 </p>
               ))}
             </div>
           )}
-          <Field label={isAllDay ? "First day" : "Day"} type="date" value={day} onChange={(event) => (setDay(event.target.value), setWarnings([]))} required />
+          <Field
+            label={isAllDay ? "First day" : "Day"}
+            type="date"
+            value={day}
+            onChange={(event) => (setDay(event.target.value), setWarnings([]))}
+            hint={awayHint}
+            required
+          />
           <label className="flex min-h-touch items-center justify-between gap-3 text-sm font-medium">
             All day
-            <Switch checked={isAllDay} onCheckedChange={(checked) => (setAllDay(checked), setWarnings([]))} />
+            <Switch
+              checked={isAllDay}
+              onCheckedChange={(checked) => (
+                setAllDay(checked),
+                setWarnings([])
+              )}
+            />
           </label>
           {isAllDay ? (
-            <Field label="Last day" hint="The same day for a one-day job." type="date" min={day} value={lastDay < day ? day : lastDay} onChange={(event) => (setLastDay(event.target.value), setWarnings([]))} />
+            <Field
+              label="Last day"
+              hint="The same day for a one-day job."
+              type="date"
+              min={day}
+              value={lastDay < day ? day : lastDay}
+              onChange={(event) => (
+                setLastDay(event.target.value),
+                setWarnings([])
+              )}
+            />
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Start" type="time" step={900} value={startTime} onChange={(event) => changeStart(event.target.value)} required />
-              <Field label="Finish" type="time" step={900} value={endTime} onChange={(event) => (setEndTime(event.target.value), setWarnings([]))} hint={length > 0 ? lengthWords(length) : undefined} required />
+              <Field
+                label="Start"
+                type="time"
+                step={900}
+                value={startTime}
+                onChange={(event) => changeStart(event.target.value)}
+                required
+              />
+              <Field
+                label="Finish"
+                type="time"
+                step={900}
+                value={endTime}
+                onChange={(event) => (
+                  setEndTime(event.target.value),
+                  setWarnings([])
+                )}
+                hint={length > 0 ? lengthWords(length) : undefined}
+                required
+              />
             </div>
           )}
           <label className="flex min-h-touch items-start gap-3 text-sm">
-            <Checkbox className="mt-0.5" checked={isTentative} onCheckedChange={(checked) => setTentative(checked === true)} />
+            <Checkbox
+              className="mt-0.5"
+              checked={isTentative}
+              onCheckedChange={(checked) => setTentative(checked === true)}
+            />
             <span>
               <span className="font-medium">Not confirmed yet</span>
-              <span className="block text-muted-foreground">Tentative, like "builder says probably Thursday". Shown faded until you confirm it.</span>
+              <span className="block text-muted-foreground">
+                Tentative, like "builder says probably Thursday". Shown faded
+                until you confirm it.
+              </span>
             </span>
           </label>
           <div className="flex flex-col gap-2">
-            <Field label="Label (optional)" placeholder="e.g. Rough-in, Fit-off" value={label} onChange={(event) => setLabel(event.target.value)} />
+            <Field
+              label="Label (optional)"
+              placeholder="e.g. Rough-in, Fit-off"
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+            />
             <div className="flex flex-wrap gap-2">
               {LABELS.map((option) => (
                 <button
                   key={option}
                   type="button"
                   onClick={() => setLabel(label === option ? "" : option)}
-                  className={cn("min-h-9 rounded-full border px-3 text-sm font-semibold", label === option ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card hover:bg-muted")}
+                  className={cn(
+                    "min-h-9 rounded-full border px-3 text-sm font-semibold",
+                    label === option
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input bg-card hover:bg-muted",
+                  )}
                 >
                   {option}
                 </button>
@@ -170,9 +319,23 @@ export function VisitSheet({
           </div>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Notes (optional)
-            <textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="e.g. Ring Sam when you're 10 minutes away" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="e.g. Ring Sam when you're 10 minutes away"
+              className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal"
+            />
           </label>
           <Alert variant="error">{action.error}</Alert>
+          {jobLink && (
+            <a
+              href={`/jobs/${jobId}`}
+              className="self-start text-sm font-semibold text-primary hover:underline"
+            >
+              Open the job
+            </a>
+          )}
         </form>
       </SheetContent>
     </Sheet>

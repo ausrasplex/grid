@@ -37,6 +37,7 @@ const THINGS: Record<string, string> = {
   AssetSettings: "asset settings",
   Leave: "time off",
   Visit: "visit",
+  CalendarFeed: "phone calendar link",
   SchedulingSettings: "scheduling settings",
   SchedulingUserSettings: "scheduling settings",
   AssetFault: "asset fault",

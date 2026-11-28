@@ -1,4 +1,4 @@
-// Scheduling Block (docs/scheduling-block.md): visits on jobs. A job has one
+// Scheduling Block (docs/scheduling-block.md, core): visits on jobs. A job has one
 // or more visits (rough-in, then fit-off), each with its own date and time.
 // Time off lives in core (companies' Leave), shared with the Leave Block.
 
@@ -56,4 +56,20 @@ model SchedulingUserSettings {
   updatedAt              DateTime @updatedAt
 
   @@id([companyId, userId])
+}
+
+/// A person's private calendar feed link (part 2): their visits and time off
+/// for their phone's calendar, read-only. One per person per business. The
+/// token is stored hashed (to find it) and encrypted (to show the link again).
+model CalendarFeed {
+  id         String    @id @default(uuid())
+  companyId  String
+  userId     String
+  tokenHash  String    @unique
+  tokenEnc   String
+  createdAt  DateTime  @default(now())
+  /// When a calendar last fetched it (shown in Settings: "Last checked 10 minutes ago").
+  lastUsedAt DateTime?
+
+  @@unique([companyId, userId])
 }

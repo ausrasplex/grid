@@ -2,27 +2,32 @@
 
 // The Schedule (docs/scheduling-block.md): an agenda (Today, Tomorrow, then
 // day by day, two weeks at a time) with your time off as one "Away" line,
-// and "To be booked": won jobs with nothing booked. Tapping a visit opens
+// the week (WeekView.tsx: drag to move from tablet up), and "To be
+// booked": won jobs with nothing booked. Tapping a visit opens
 // its job, where it's changed; "Book" opens the job with the booking sheet.
 import { useEffect, useState } from "react";
 import { CalendarDays, Check, ChevronRight, Plane } from "lucide-react";
 import { Button, EmptyState, PageHeader, Section, Segmented, Stack, api, cn, useAction } from "@grid/ui";
 import { dayWords, timeWords } from "../words";
 import type { AgendaDayJson, AgendaVisitJson, ToBookJson } from "./types";
+import { WeekView, type WeekSettings } from "./WeekView";
 
-type Tab = "agenda" | "tobook";
+type Tab = "agenda" | "week" | "tobook";
 const PAGE_DAYS = 14;
 
 const addDays = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
-export function Schedule({ initialDays, toBook, today }: { initialDays: AgendaDayJson[]; toBook: ToBookJson[]; today: string }) {
+export function Schedule({ initialDays, toBook, today, settings, canBook }: { initialDays: AgendaDayJson[]; toBook: ToBookJson[]; today: string; settings: WeekSettings; canBook: boolean }) {
   const [tab, setTab] = useState<Tab>("agenda");
   const [days, setDays] = useState(initialDays);
   const action = useAction();
   const visitCount = days.slice(0, 7).reduce((total, entry) => total + entry.visits.length, 0);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("show") === "tobook") setTab("tobook");
+    const show = new URLSearchParams(window.location.search).get("show");
+    if (show === "tobook" || show === "week") setTab(show);
+    // Tablets and computers have room for the week; phones start on the agenda.
+    else if (window.matchMedia("(min-width: 1024px)").matches) setTab("week");
   }, []);
 
   const loadMore = () =>
@@ -42,6 +47,7 @@ export function Schedule({ initialDays, toBook, today }: { initialDays: AgendaDa
           onChange={setTab}
           items={[
             { value: "agenda", label: "Agenda" },
+            { value: "week", label: "Week" },
             { value: "tobook", label: "To be booked", count: toBook.length },
           ]}
         />
@@ -52,6 +58,8 @@ export function Schedule({ initialDays, toBook, today }: { initialDays: AgendaDa
               {action.busy ? "Loading…" : "Show the next 2 weeks"}
             </Button>
           </>
+        ) : tab === "week" ? (
+          <WeekView today={today} settings={settings} canBook={canBook} />
         ) : (
           <ToBook rows={toBook} />
         )}
@@ -108,6 +116,7 @@ function Agenda({ days, today }: { days: AgendaDayJson[]; today: string }) {
 }
 
 function awayWords(away: NonNullable<AgendaDayJson["away"]>, day: string) {
+  if (away.part === "HOURS" && away.fromTime && away.toTime) return `Away ${timeWords(away.fromTime)} – ${timeWords(away.toTime)}`;
   if (away.startsOn === away.endsOn || (day === away.endsOn && day !== away.startsOn)) {
     const part = away.part === "MORNING" ? " (morning)" : away.part === "AFTERNOON" ? " (afternoon)" : "";
     return `Away${part}`;
@@ -123,7 +132,7 @@ function VisitRow({ visit, day }: { visit: AgendaVisitJson; day: string }) {
   return (
     <li>
       <a href={`/jobs/${visit.job.id}`} className={cn("flex min-h-touch-lg items-center gap-3 px-4 py-3 hover:bg-muted sm:px-6", visit.isTentative && visit.status === "BOOKED" && "opacity-70")}>
-        <span className="w-16 shrink-0 text-sm font-semibold tabular-nums">{time}</span>
+        <span className="w-[4.75rem] shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums">{time}</span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex flex-wrap items-center gap-2">
             <span className="truncate font-semibold">{visit.job.name}</span>

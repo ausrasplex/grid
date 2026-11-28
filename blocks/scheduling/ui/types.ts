@@ -30,7 +30,8 @@ export interface AgendaVisitJson extends VisitJson {
 export interface AgendaDayJson {
   day: string;
   visits: AgendaVisitJson[];
-  away: { part: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS"; lastDayPart: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS"; type: string; startsOn: string; endsOn: string } | null;
+  /** Your time off that day (the whole entry), with this day's part and the type in words. */
+  away: (LeaveJson & { part: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS"; typeWords: string }) | null;
 }
 
 export interface ToBookJson {
@@ -46,8 +47,18 @@ export interface LeaveJson {
   endsOn: string;
   firstDayPart: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS";
   lastDayPart: "WHOLE" | "MORNING" | "AFTERNOON" | "HOURS";
+  /** Some hours on one day: "13:00" to "15:00". */
+  fromTime: string | null;
+  toTime: string | null;
   note: string | null;
   status: string;
+}
+
+export interface FeedJson {
+  address: string | null;
+  subscribe: string | null;
+  createdAt: string | null;
+  lastUsedAt: string | null;
 }
 
 /** Turns a server value (Dates inside) into what a client component gets. */

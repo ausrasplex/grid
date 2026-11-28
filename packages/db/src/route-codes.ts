@@ -55,9 +55,13 @@ export async function findRouteCode(tx: Tx, input: string) {
 }
 
 /** The public address for a code: PUBLIC_LINK_BASE/go/<code>, or this server's own address. */
+/** The address links that leave Grid start with ("https://grid.example.com"): PUBLIC_LINK_BASE, else BETTER_AUTH_URL. */
+export function publicBaseUrl(): string {
+  return (process.env.PUBLIC_LINK_BASE || process.env.BETTER_AUTH_URL || "").replace(/\/$/, "");
+}
+
 export function routeCodeUrl(code: string): string {
-  const base = (process.env.PUBLIC_LINK_BASE || process.env.BETTER_AUTH_URL || "").replace(/\/$/, "");
-  return `${base}/go/${code}`;
+  return `${publicBaseUrl()}/go/${code}`;
 }
 
 const CODE_RE = new RegExp(`^(?:[${ALPHABET}0-9]{2,8}-)?[${ALPHABET}]{4}-[${ALPHABET}]{4}$`);

@@ -603,6 +603,9 @@ importers:
 
   blocks/scheduling:
     dependencies:
+      '@grid/block-clients':
+        specifier: workspace:*
+        version: link:../clients
       '@grid/block-companies':
         specifier: workspace:*
         version: link:../companies

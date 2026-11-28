@@ -18,4 +18,5 @@ export async function purgeCompany(companyId: string): Promise<void> {
   await db.visit.deleteMany({ where: { companyId } });
   await db.schedulingSettings.deleteMany({ where: { companyId } });
   await db.schedulingUserSettings.deleteMany({ where: { companyId } });
+  await db.calendarFeed.deleteMany({ where: { companyId } });
 }

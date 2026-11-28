@@ -143,6 +143,11 @@ model Leave {
   /// Hours away on the first or last day when its part is HOURS.
   firstDayHours   Decimal?    @db.Decimal(4, 2)
   lastDayHours    Decimal?    @db.Decimal(4, 2)
+  /// Some hours on one day (HOURS, startsOn = endsOn): from and to, local
+  /// time ("13:00", "15:00"). Only those hours are away (a 1–3 pm dentist
+  /// visit leaves the morning bookable). firstDayHours is the length.
+  fromTime        String?
+  toTime          String?
   /// Private to the person and whoever approves it.
   note            String?
   /// Time off saved while solo is approved straight away; requests start PENDING.

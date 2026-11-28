@@ -82,3 +82,18 @@ test("days and times read the Australian way", async () => {
   assert.equal(lengthWords(120), "2 hours");
   assert.equal(lengthWords(45), "45 minutes");
 });
+
+test("some hours off only blocks those hours", () => {
+  const visit = (from: string, to: string, isAllDay = false) => ({ startsAt: zonedMoment("2026-12-03", from, MELBOURNE), endsAt: zonedMoment("2026-12-03", to, MELBOURNE), isAllDay });
+  const dentist = { startsOn: "2026-12-03", endsOn: "2026-12-03", firstDayPart: "HOURS" as const, lastDayPart: "HOURS" as const, fromTime: "13:00", toTime: "15:00" };
+  assert.equal(timeOffClashes(dentist, visit("08:00", "12:00"), MELBOURNE), false);
+  assert.equal(timeOffClashes(dentist, visit("12:00", "13:00"), MELBOURNE), false);
+  assert.equal(timeOffClashes(dentist, visit("12:30", "13:30"), MELBOURNE), true);
+  assert.equal(timeOffClashes(dentist, visit("15:00", "16:00"), MELBOURNE), false);
+  assert.equal(timeOffClashes(dentist, visit("00:00", "00:00", true), MELBOURNE), true);
+  // Some hours without times is treated as the whole day.
+  assert.equal(timeOffClashes({ ...dentist, fromTime: null, toTime: null }, visit("08:00", "09:00"), MELBOURNE), true);
+  assert.equal(timeOffLength(dentist), "2 hours");
+  assert.equal(timeOffLength({ ...dentist, toTime: "14:30" }), "1½ hours");
+  assert.equal(timeOffLength({ ...dentist, toTime: "13:30" }), "30 minutes");
+});

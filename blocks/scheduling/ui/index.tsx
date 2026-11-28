@@ -12,22 +12,38 @@ import { timeWords } from "../words";
 import { JobVisits } from "./JobVisits";
 import { Schedule } from "./Schedule";
 import { SchedulingSettings } from "./SchedulingSettings";
-import { json, type AgendaDayJson, type LeaveJson, type ToBookJson, type VisitJson } from "./types";
+import { json, type AgendaDayJson, type FeedJson, type LeaveJson, type ToBookJson, type VisitJson } from "./types";
+import { myFeed } from "../feed";
 
 export const pages: BlockPages = {
   settings: async ({ ctx, params: [extra] }) => {
     if (!can(ctx, "scheduling.view") || extra) throw notFound("Page not found");
     const today = localDay(new Date());
-    const [settings, timeOff] = await Promise.all([getSettings(ctx), myTimeOff(ctx, today)]);
+    const [settings, timeOff, feed] = await Promise.all([getSettings(ctx), myTimeOff(ctx, today), myFeed(ctx)]);
     return (
-      <SchedulingSettings business={settings.business} mine={settings.mine} timeOff={json<LeaveJson[]>(timeOff)} canChangeBusiness={can(ctx, "scheduling.settings")} today={today} />
+      <SchedulingSettings
+        business={settings.business}
+        mine={settings.mine}
+        timeOff={json<LeaveJson[]>(timeOff)}
+        feed={json<FeedJson>(feed)}
+        canChangeBusiness={can(ctx, "scheduling.settings")}
+        today={today}
+      />
     );
   },
   "": async ({ ctx, params: [first] }) => {
     if (!can(ctx, "scheduling.view") || first) throw notFound("Page not found");
     const today = localDay(new Date());
-    const [days, toBook] = await Promise.all([agenda(ctx, { from: today, to: addDays(today, 13) }), toBeBooked(ctx)]);
-    return <Schedule initialDays={json<AgendaDayJson[]>(days)} toBook={json<ToBookJson[]>(toBook)} today={today} />;
+    const [days, toBook, settings] = await Promise.all([agenda(ctx, { from: today, to: addDays(today, 13) }), toBeBooked(ctx), getSettings(ctx)]);
+    return (
+      <Schedule
+        initialDays={json<AgendaDayJson[]>(days)}
+        toBook={json<ToBookJson[]>(toBook)}
+        today={today}
+        settings={{ ...settings.business, dailyVisitWarningLimit: settings.mine.dailyVisitWarningLimit }}
+        canBook={can(ctx, "scheduling.visits.book")}
+      />
+    );
   },
 };
 
@@ -65,7 +81,7 @@ export const panels: BlockPanels = {
           {open.map((visit) => (
             <li key={visit.id}>
               <a href={`/jobs/${visit.job.id}`} className={cn("flex min-h-touch-lg items-center gap-3 px-4 py-3 hover:bg-muted sm:px-6", visit.isTentative && "opacity-70")}>
-                <span className="w-16 shrink-0 text-sm font-semibold tabular-nums">{visit.isAllDay ? "All day" : timeWords(visit.startTime)}</span>
+                <span className="w-[4.75rem] shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums">{visit.isAllDay ? "All day" : timeWords(visit.startTime)}</span>
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate font-semibold">{visit.job.name}</span>
                   <span className="truncate text-sm text-muted-foreground">{[visit.label, visit.job.suburb, visit.isTentative ? "Tentative" : null].filter(Boolean).join(" · ") || "Visit"}</span>
