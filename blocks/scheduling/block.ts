@@ -3,7 +3,8 @@ import { defineBlock } from "@grid/core";
 // Scheduling (docs/scheduling-block.md): visits on jobs, the Schedule
 // (agenda) and "To be booked", tentative visits, warnings for clashes, a
 // busy day and time off. Built for one person first: nothing to set up, and
-// nothing to type beyond a date and a time.
+// nothing to type beyond a date and a time. Core (decided Nov 2026): every
+// business books visits, so it's always on.
 export default defineBlock({
   id: "scheduling",
   // Pages at /schedule (the API stays at /api/scheduling).
@@ -11,6 +12,8 @@ export default defineBlock({
   name: "Scheduling",
   version: "1.0.0",
   description: "Book visits on jobs, see your week, and keep track of what still needs booking.",
+  // Core: always on, can't be switched off in the Store.
+  required: true,
   dependsOn: ["companies", "projects"],
   permissions: [
     { key: "scheduling.view", label: "See the schedule", description: "Visits on jobs, and the Schedule page" },
@@ -27,6 +30,8 @@ export default defineBlock({
     { id: "scheduling.settings", slot: "settings.user", label: "Scheduling & time off", icon: "calendar", href: "/schedule/settings", permission: "scheduling.view", order: 30 },
   ],
   routes: async () => (await import("./routes")).routes,
+  // "Active • Scheduled" on jobs, from their visits.
+  jobSecondStatus: async () => (await import("./service")).secondStatusFor,
   // Rows only (no files): they go with a deleted job or business.
   cleanup: async () => {
     const purge = await import("./purge");

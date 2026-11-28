@@ -36,6 +36,7 @@ The centre button grows with the phases too (`navigation.md` §5a): **Scan** tod
   - the business, team and roles;
   - **Sites & Jobs**;
   - **Materials** (decided Nov 2026): the business's list of things it installs, shared by Quotes and the Handover Block (`materials-block.md`);
+  - **Scheduling** (decided Nov 2026): visits on jobs and the Schedule, since every business books visits (`scheduling-block.md`);
   - the app frame: Home, Settings, the Store, the centre button, Jump to search and notifications.
 
   Everything else is an optional Block. In the code, Sites & Jobs is still written as a Block (`blocks/sites`, `blocks/projects`) but marked `required: true`. Other Blocks can rely on it always being there. Making it optional later would mean changing that one flag and letting screens cope without it.

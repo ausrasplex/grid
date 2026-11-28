@@ -1,6 +1,6 @@
 # Scheduling Block
 
-Status: **part 1 built (Nov 2026); part 2 (week view, phone calendar feed) next.** Block id `scheduling`, pages at `/schedule`, API `/api/scheduling`, depends on `companies` and `projects`. Agreed in the Grid project's `blocks/scheduling-block-plan.md` (Nov 2026); this doc is the record in the repo.
+Status: **part 1 built (Nov 2026); part 2 (week view, phone calendar feed) next.** Block id `scheduling`, **core** (`required: true`, always on; decided Nov 2026), pages at `/schedule`, API `/api/scheduling`, depends on `companies` and `projects`. Agreed in the Grid project's `blocks/scheduling-block-plan.md` (Nov 2026); this doc is the record in the repo.
 
 ## Principles
 
@@ -17,9 +17,24 @@ Status: **part 1 built (Nov 2026); part 2 (week view, phone calendar feed) next.
 - A visit is **timed** (a start and finish on one day; the finish fills in from the business's visit length) or **all day**, over one or more days.
 - **Tentative** ("builder says probably Thursday"): shown faded with a Tentative chip until **Confirm**.
 - A visit is **Booked**, **Done** or **Cancelled**. Done can be undone ("Not done yet"); a visit can't be marked done before its day. Cancelled visits drop off the schedule and the job shows "1 cancelled". Nothing is deleted (Analytics leaves cancelled ones out).
-- **Job status follows visits** without changing the job's own status (decided Nov 2026, see below):
+- **Job status follows visits** without changing the job's own status (decided Nov 2026, see "Second status"):
   - Marking the last booked visit done asks **Mark job complete?** (only for people who can finish jobs). Never automatic.
   - A won job with no booked visit shows in **To be booked**.
+
+## Second status: "Active • Scheduled"
+
+Active jobs (won, not finished, not archived) get a **second status** from their visits, shown after Active. The job's own status (Active, Finished, Quoting, Not won) never changes. Worked out each time, in this order (cancelled visits don't count):
+
+| Second status | When | Hint |
+|---|---|---|
+| **Scheduled** | at least one confirmed booked visit | "Next Thu 3 Dec" (or "Mark the last visit done" when every booked visit has passed) |
+| **Tentative** | booked visits, but none confirmed | "Maybe Thu 3 Dec" |
+| **Visits done** | every visit done, the job not finished | "Finish the job or book another" |
+| **To be booked** | nothing booked | |
+
+- Shown on the **job page** under its name ("Active • Scheduled · Next Thu 3 Dec"), as a chip on the **Jobs table** (/jobs) with a filter under Active (All active, Scheduled, Tentative, To be booked, Visits done, with counts), and as a chip on **every job list** (Home's active jobs, a site's, level's and client's jobs).
+- Comes through the `jobSecondStatus` Block hook (`docs/ADDING_A_BLOCK.md`), one call for a whole list, so Jobs doesn't depend on Scheduling.
+- Analytics counts from visits, not from these words.
 
 ## The Schedule (`/schedule`)
 
@@ -67,7 +82,8 @@ Finishing a job from "Mark job complete?" also needs `projects.complete`.
 
 ## Decided while building part 1 (Nov 2026)
 
-- **No "Scheduled" job status.** The plan had *Scheduled* in the job's status list, but jobs' statuses are core (`ACTIVE`, `COMPLETED`, `QUOTING`, `NOT_WON`) and an optional Block can't add one without core depending on it. Instead "scheduled" is worked out from visits: a won job with a booked visit is scheduled, one without is in To be booked. Analytics counts the same way.
+- **No "Scheduled" job status; a second status instead.** The plan had *Scheduled* in the job's status list, but a new status would touch every place that checks for an active job (lists, Home, quotes), and missing one would quietly hide a job. So the status stays as it is and active jobs get a second status worked out from visits ("Active • Scheduled", see above). Analytics counts from visits too.
+- **Scheduling is core** (`required: true`): every business books visits, so it's always on and doesn't appear as something to switch on in the Store. Nothing else changed: it's still its own Block in `blocks/scheduling`.
 - **Leave lives in core** (`companies`), not in either Block.
 - **Visits belong to whoever booked them** (`assignedUserId` is set); teams will pick a person.
 - **Schedule sits after Quotes in the menus** (order 35), so the phone bar keeps Sites and Quotes; Schedule is under More on phones.
@@ -80,7 +96,7 @@ Finishing a job from "Mark job complete?" also needs `projects.complete`.
 - The Schedule: Agenda and To be booked. Home's Today card (Grid look) and Needs attention rows (Soft look).
 - Settings › Scheduling & time off. Time off saving lists visits to move.
 - `times.ts` (timezones, days a visit covers, part days) and `words.ts`, both tested. `scheduleJobs()` in projects gives a job's name, number, suburb and client to other Blocks.
-- On for new businesses (solo and every trade). Existing businesses switch it on in the Store.
+- Core, so on for every business, new and existing.
 
 ## Part 2 (next)
 

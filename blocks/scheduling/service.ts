@@ -4,7 +4,7 @@
 // a day over your daily limit, and your time off. "Book anyway" saves.
 
 import "server-only";
-import { badRequest, conflict, notFound, requireCompany, type RequestContext } from "@grid/core";
+import { badRequest, conflict, notFound, requireCompany, type JobSecondStatus, type RequestContext } from "@grid/core";
 import { audit, db, type Tx } from "@grid/db";
 import { LEAVE_TYPE_WORDS, approvedLeave, type LeaveRow } from "@grid/block-companies";
 import { scheduleJobs, type ScheduleJob } from "@grid/block-projects";
@@ -398,3 +398,43 @@ export async function visitsDuringTimeOff(ctx: RequestContext, timeOff: LeaveRow
   });
 }
 
+
+// ─── The job's second status ────────────────────────────────────────────
+
+/**
+ * "Active • Scheduled" (docs/scheduling-block.md "Second status"), for the
+ * jobs hook. In order: a confirmed booked visit → Scheduled (next one);
+ * only tentative ones → Tentative; every visit done → Visits done;
+ * nothing booked → To be booked. Cancelled visits don't count.
+ */
+export async function secondStatusFor(ctx: RequestContext, projectIds: string[]): Promise<Record<string, JobSecondStatus>> {
+  const companyId = requireCompany(ctx);
+  const today = localDay(new Date());
+  const visits = await db.visit.findMany({
+    where: { companyId, projectId: { in: projectIds }, status: { in: ["BOOKED", "DONE"] } },
+    select: { projectId: true, status: true, isTentative: true, startsAt: true, endsAt: true },
+    orderBy: { startsAt: "asc" },
+  });
+  const byJob = new Map<string, typeof visits>();
+  for (const visit of visits) byJob.set(visit.projectId, [...(byJob.get(visit.projectId) ?? []), visit]);
+  const result: Record<string, JobSecondStatus> = {};
+  for (const projectId of projectIds) {
+    const list = byJob.get(projectId) ?? [];
+    const booked = list.filter((visit) => visit.status === "BOOKED");
+    const confirmed = booked.filter((visit) => !visit.isTentative);
+    // The next one still to come (or happening today); else the latest one not yet marked done.
+    const nextOf = (entries: typeof list) => entries.find((visit) => localDay(new Date(visit.endsAt.getTime() - 1)) >= today) ?? null;
+    if (confirmed.length) {
+      const next = nextOf(confirmed);
+      result[projectId] = { key: "scheduled", label: "Scheduled", hint: next ? `Next ${dayWords(localDay(next.startsAt))}` : "Mark the last visit done", tone: "default" };
+    } else if (booked.length) {
+      const next = nextOf(booked);
+      result[projectId] = { key: "tentative", label: "Tentative", hint: next ? `Maybe ${dayWords(localDay(next.startsAt))}` : null, tone: "warning" };
+    } else if (list.length) {
+      result[projectId] = { key: "visitsDone", label: "Visits done", hint: "Finish the job or book another", tone: "muted" };
+    } else {
+      result[projectId] = { key: "toBook", label: "To be booked", hint: null, tone: "warning" };
+    }
+  }
+  return result;
+}

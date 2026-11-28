@@ -7,6 +7,8 @@
 
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
+import type { JobSecondStatus } from "@grid/core";
+import { SecondStatus } from "./SecondStatus";
 import { ActionButton, Badge, EmptyState, List, PageHeader, Scroller, SearchInput, Section, Segmented, Stack, cn, formatBytes } from "@grid/ui";
 
 export interface JobsTableRowJson {
@@ -22,6 +24,8 @@ export interface JobsTableRowJson {
   startedAt: string;
   counts: Record<string, number>;
   storage: { originalBytes: number; copyBytes: number; archiveBytes: number; deletedBytes: number; unmeasured: number } | null;
+  /** Active jobs: "Scheduled", "To be booked" (from Scheduling), or null. */
+  secondStatus: JobSecondStatus | null;
 }
 
 type Tab = "active" | "finished" | "archived" | "all";
@@ -47,6 +51,8 @@ export function JobsTable({
   canCreate: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("active");
+  // Within Active: one second status ("Scheduled", "To be booked"), or all.
+  const [second, setSecond] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: "started", descending: true });
 
@@ -57,9 +63,22 @@ export function JobsTable({
     all: rows.length,
   };
 
+  // The second statuses active jobs have, in a fixed order, with counts.
+  const secondOptions = useMemo(() => {
+    const found = new Map<string, { label: string; count: number }>();
+    for (const row of rows) {
+      if (tabOf(row) !== "active" || !row.secondStatus) continue;
+      const entry = found.get(row.secondStatus.key) ?? { label: row.secondStatus.label, count: 0 };
+      found.set(row.secondStatus.key, { ...entry, count: entry.count + 1 });
+    }
+    const order = ["scheduled", "tentative", "toBook", "visitsDone"];
+    return [...found].sort(([first], [other]) => order.indexOf(first) - order.indexOf(other)).map(([value, entry]) => ({ value, label: entry.label, count: entry.count }));
+  }, [rows]);
+  const secondFilter = tab === "active" && secondOptions.some((option) => option.value === second) ? second : "all";
+
   const shown = useMemo(() => {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const inTab = rows.filter((row) => tab === "all" || tabOf(row) === tab);
+    const inTab = rows.filter((row) => (tab === "all" || tabOf(row) === tab) && (secondFilter === "all" || row.secondStatus?.key === secondFilter));
     const matching = words.length
       ? inTab.filter((row) => {
           const text = [row.jobNumber, row.name, row.clientName, row.siteName, row.address].filter(Boolean).join(" ").toLowerCase();
@@ -80,7 +99,7 @@ export function JobsTable({
       const order = firstValue < secondValue ? -1 : firstValue > secondValue ? 1 : 0;
       return sort.descending ? -order : order;
     });
-  }, [rows, tab, query, sort]);
+  }, [rows, tab, query, sort, secondFilter]);
 
   const totalSize = shown.reduce((total, row) => total + sizeOf(row), 0);
   // Numbers and dates start biggest/newest first; words start A to Z.
@@ -123,6 +142,11 @@ export function JobsTable({
           <SearchInput label="Search jobs" placeholder="Job number, name, client or address" value={query} onChange={(event) => setQuery(event.target.value)} className="flex-1" />
         </div>
 
+        {/* Active jobs by their second status: Scheduled, To be booked… */}
+        {tab === "active" && secondOptions.length > 1 && (
+          <Segmented label="Active jobs that are" value={secondFilter} onChange={setSecond} items={[{ value: "all", label: "All active", count: counts.active }, ...secondOptions]} />
+        )}
+
         {/* Phone: quick sort, since there are no column headings to tap. */}
         <div className="md:hidden">
           <Segmented
@@ -150,7 +174,7 @@ export function JobsTable({
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
                             <span className="truncate font-semibold">{row.name}</span>
-                            {row.archived ? <Badge variant="outline">Archived</Badge> : STATUS_BADGE[row.status] && <Badge variant="secondary">{STATUS_BADGE[row.status]}</Badge>}
+                            {row.archived ? <Badge variant="outline">Archived</Badge> : STATUS_BADGE[row.status] ? <Badge variant="secondary">{STATUS_BADGE[row.status]}</Badge> : row.secondStatus && <SecondStatus status={row.secondStatus} />}
                           </span>
                           <span className="block truncate text-sm text-muted-foreground">{[row.jobNumber, row.clientName, row.address].filter(Boolean).join(" · ")}</span>
                           <span className="block truncate text-xs text-muted-foreground">
@@ -188,7 +212,7 @@ export function JobsTable({
                           </a>
                           <span className="flex items-center gap-2 text-xs text-muted-foreground">
                             {row.jobNumber}
-                            {row.archived ? <Badge variant="outline">Archived</Badge> : STATUS_BADGE[row.status] && <Badge variant="secondary">{STATUS_BADGE[row.status]}</Badge>}
+                            {row.archived ? <Badge variant="outline">Archived</Badge> : STATUS_BADGE[row.status] ? <Badge variant="secondary">{STATUS_BADGE[row.status]}</Badge> : row.secondStatus && <SecondStatus status={row.secondStatus} />}
                           </span>
                         </td>
                         <td className="max-w-48 truncate px-3 py-2">{row.clientName ?? <span className="text-muted-foreground">—</span>}</td>

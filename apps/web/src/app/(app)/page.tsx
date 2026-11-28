@@ -79,7 +79,7 @@ export default async function HomePage() {
         </Section>
       )}
 
-      {jobs.length > 0 && <JobRows title="Your active jobs" jobs={jobs} showSite />}
+      {jobs.length > 0 && <JobRows ctx={ctx} title="Your active jobs" jobs={jobs} showSite />}
 
       {widgets.length > 0 && (
         <Grid>
@@ -183,7 +183,7 @@ async function SoftHome({ ctx, firstName }: { ctx: AppContext; firstName: string
 
       <div className="grid gap-5 lg:grid-cols-2">
         <SoftCard title="Your jobs" subtitle={counts.jobs ? `${counts.jobs} active` : "Nothing active yet"} href="/sites" linkLabel="View all">
-          {jobs.length ? <JobRows jobs={jobs} showSite /> : <p className="px-5 pb-5 text-muted-foreground">Start a job and it shows here.</p>}
+          {jobs.length ? <JobRows ctx={ctx} jobs={jobs} showSite /> : <p className="px-5 pb-5 text-muted-foreground">Start a job and it shows here.</p>}
         </SoftCard>
         {widgets.length > 0 && (
           <SoftCard title="Shortcuts">

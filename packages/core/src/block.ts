@@ -227,10 +227,28 @@ export interface BlockDefinition {
    */
   scanLookup?: () => Promise<(ctx: RequestContext, text: string) => Promise<string | null>>;
   /**
+   * A second status for active jobs, shown after "Active": "Scheduled",
+   * "To be booked" (scheduling, from its visits). Keyed by job id; a job
+   * left out has none. Jobs' own status never changes. Asked only when the
+   * business has the block on. Lazy. docs/scheduling-block.md "Second status".
+   */
+  jobSecondStatus?: () => Promise<(ctx: RequestContext, projectIds: string[]) => Promise<Record<string, JobSecondStatus>>>;
+  /**
    * Background work this block does, keyed by queue name, which must start
    * with the block id ("plans.render"). Lazy. Queue with app().jobs.send().
    */
   jobs?: () => Promise<Record<string, BlockJob>>;
+}
+
+/** A job's second status ("Active • Scheduled"), from a block's jobSecondStatus hook. */
+export interface JobSecondStatus {
+  /** Stable, for filters: "scheduled", "tentative", "toBook", "visitsDone". */
+  key: string;
+  /** "Scheduled". */
+  label: string;
+  /** "Next Thu 3 Dec", or null. */
+  hint: string | null;
+  tone: "default" | "warning" | "muted";
 }
 
 /** One count of a material on a job, from plans or a quote (jobMaterials). */
