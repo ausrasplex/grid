@@ -50,5 +50,12 @@ export interface LeaveJson {
   status: string;
 }
 
+export interface FeedJson {
+  address: string | null;
+  subscribe: string | null;
+  createdAt: string | null;
+  lastUsedAt: string | null;
+}
+
 /** Turns a server value (Dates inside) into what a client component gets. */
 export const json = <T,>(value: unknown): T => JSON.parse(JSON.stringify(value)) as T;

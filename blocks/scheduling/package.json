@@ -9,6 +9,7 @@
     "./ui": "./ui/index.tsx"
   },
   "dependencies": {
+    "@grid/block-clients": "workspace:*",
     "@grid/block-companies": "workspace:*",
     "@grid/block-projects": "workspace:*",
     "@grid/core": "workspace:*",

@@ -5,11 +5,11 @@
 // over one or more days. Tentative for "builder says probably Thursday".
 // A clash, a busy day or time off comes back as warnings: Book anyway, or
 // pick another time.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 import { Alert, Button, Checkbox, Field, Sheet, SheetContent, Switch, api, cn, useAction } from "@grid/ui";
-import { lengthWords } from "../words";
-import type { VisitJson } from "./types";
+import { dayWords, lengthWords } from "../words";
+import type { LeaveJson, VisitJson } from "./types";
 
 const LABELS = ["Rough-in", "Fit-off", "Service", "Quote visit", "Inspection"];
 
@@ -32,6 +32,7 @@ export function VisitSheet({
   today,
   defaultLengthMinutes,
   onSaved,
+  jobLink = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,6 +44,8 @@ export function VisitSheet({
   today: string;
   defaultLengthMinutes: number;
   onSaved: (visit: VisitJson) => void;
+  /** Show "Open the job" (from the Schedule, where the job isn't on screen). */
+  jobLink?: boolean;
 }) {
   const [day, setDay] = useState(visit?.day ?? today);
   const [isAllDay, setAllDay] = useState(visit?.isAllDay ?? false);
@@ -53,7 +56,23 @@ export function VisitSheet({
   const [label, setLabel] = useState(visit?.label ?? "");
   const [notes, setNotes] = useState(visit?.notes ?? "");
   const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [timeOff, setTimeOff] = useState<LeaveJson[]>([]);
   const action = useAction();
+
+  // Your time off, to say "You're away" as soon as a day's picked (the phone's date box can't grey days out).
+  useEffect(() => {
+    if (!open) return;
+    api<LeaveJson[]>("/scheduling/time-off")
+      .then(setTimeOff)
+      .catch(() => setTimeOff([]));
+  }, [open]);
+  const lastPicked = isAllDay && lastDay > day ? lastDay : day;
+  const awayOn = timeOff.find((entry) => entry.status === "APPROVED" && entry.startsOn <= lastPicked && entry.endsOn >= day);
+  const awayHint = awayOn
+    ? `You're away ${awayOn.startsOn === awayOn.endsOn ? "that day" : `${dayWords(awayOn.startsOn)} – ${dayWords(awayOn.endsOn)}`}${
+        awayOn.startsOn === awayOn.endsOn && awayOn.firstDayPart === "MORNING" ? " (morning)" : awayOn.startsOn === awayOn.endsOn && awayOn.firstDayPart === "AFTERNOON" ? " (afternoon)" : ""
+      }.`
+    : undefined;
 
   // Moving the start keeps the visit's length.
   const changeStart = (next: string) => {
@@ -133,7 +152,7 @@ export function VisitSheet({
               ))}
             </div>
           )}
-          <Field label={isAllDay ? "First day" : "Day"} type="date" value={day} onChange={(event) => (setDay(event.target.value), setWarnings([]))} required />
+          <Field label={isAllDay ? "First day" : "Day"} type="date" value={day} onChange={(event) => (setDay(event.target.value), setWarnings([]))} hint={awayHint} required />
           <label className="flex min-h-touch items-center justify-between gap-3 text-sm font-medium">
             All day
             <Switch checked={isAllDay} onCheckedChange={(checked) => (setAllDay(checked), setWarnings([]))} />
@@ -173,6 +192,11 @@ export function VisitSheet({
             <textarea rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="e.g. Ring Sam when you're 10 minutes away" className="w-full rounded-md border border-input bg-card px-3 py-2 text-base font-normal" />
           </label>
           <Alert variant="error">{action.error}</Alert>
+          {jobLink && (
+            <a href={`/jobs/${jobId}`} className="self-start text-sm font-semibold text-primary hover:underline">
+              Open the job
+            </a>
+          )}
         </form>
       </SheetContent>
     </Sheet>

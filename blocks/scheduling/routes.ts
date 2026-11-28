@@ -1,6 +1,7 @@
 import type { RequestContext, Routes } from "@grid/core";
 import { deleteTimeOff, myTimeOff, saveTimeOff, timeOffSchema, type LeaveRow } from "@grid/block-companies";
 import * as svc from "./service";
+import * as feed from "./feed";
 import { localDay } from "./times";
 import { agendaQuery, settingsSchema, userSettingsSchema, visitSchema, visitStatusSchema } from "./validation";
 
@@ -30,6 +31,11 @@ export const routes: Routes = {
   "GET /settings": { permission: "scheduling.view", handler: (ctx) => svc.getSettings(ctx) },
   "PUT /settings": { permission: "scheduling.settings", handler: (ctx, request) => svc.saveBusinessSettings(ctx, settingsSchema.parse(request.body)) },
   "PUT /settings/mine": { permission: "scheduling.view", handler: (ctx, request) => svc.saveUserSettings(ctx, userSettingsSchema.parse(request.body)) },
+
+  // Your phone calendar feed: see it, turn it on or get a new link, turn it off
+  "GET /feed": { permission: "scheduling.view", handler: (ctx) => feed.myFeed(ctx) },
+  "POST /feed": { permission: "scheduling.view", handler: (ctx) => feed.newFeedLink(ctx) },
+  "DELETE /feed": { permission: "scheduling.view", handler: (ctx) => feed.stopFeed(ctx) },
 
   // Your time off (core's leave records, approved straight away)
   "GET /time-off": { permission: "scheduling.view", handler: (ctx) => myTimeOff(ctx, localDay(new Date())) },

@@ -4,10 +4,10 @@
 // visit warning limit, your time off (saved as approved, like the Leave
 // Block's), and the business's booking defaults for whoever can change them.
 import { useState } from "react";
-import { Plane, Plus } from "lucide-react";
+import { CalendarPlus, Copy, Plane, Plus } from "lucide-react";
 import { Alert, Button, EmptyState, Field, PageHeader, Section, SelectField, Sheet, SheetContent, Stack, api, useAction } from "@grid/ui";
-import { dayWords, lengthWords } from "../words";
-import type { AgendaVisitJson, LeaveJson } from "./types";
+import { dayWords, lengthWords, timeWords } from "../words";
+import type { AgendaVisitJson, FeedJson, LeaveJson } from "./types";
 
 const LEAVE_TYPES: { value: string; label: string }[] = [
   { value: "ANNUAL", label: "Annual" },
@@ -38,12 +38,14 @@ export function SchedulingSettings({
   business,
   mine,
   timeOff,
+  feed,
   canChangeBusiness,
   today,
 }: {
   business: Business;
   mine: { dailyVisitWarningLimit: number | null };
   timeOff: LeaveJson[];
+  feed: FeedJson;
   canChangeBusiness: boolean;
   today: string;
 }) {
@@ -52,6 +54,7 @@ export function SchedulingSettings({
       <PageHeader title="Scheduling & time off" subtitle="Your own warnings and time away, and how new visits start out." />
       <Stack>
         <TimeOff initial={timeOff} today={today} />
+        <PhoneCalendar initial={feed} />
         <DailyLimit initial={mine.dailyVisitWarningLimit} />
         {canChangeBusiness && <BookingDefaults initial={business} />}
       </Stack>
@@ -142,7 +145,7 @@ function TimeOff({ initial, today }: { initial: LeaveJson[]; today: string }) {
   );
 }
 
-function TimeOffSheet({ entry, today, onClose, onSaved, onDeleted }: { entry: LeaveJson | null; today: string; onClose: () => void; onSaved: (entry: LeaveJson) => void; onDeleted: (id: string) => void }) {
+export function TimeOffSheet({ entry, today, onClose, onSaved, onDeleted }: { entry: LeaveJson | null; today: string; onClose: () => void; onSaved: (entry: LeaveJson) => void; onDeleted: (id: string) => void }) {
   const [type, setType] = useState(entry?.type ?? "ANNUAL");
   const [startsOn, setStartsOn] = useState(entry?.startsOn ?? today);
   const [endsOn, setEndsOn] = useState(entry?.endsOn ?? today);
@@ -285,3 +288,70 @@ function BookingDefaults({ initial }: { initial: Business }) {
     </Section>
   );
 }
+
+/** "Sat 28 Nov, 1:06 pm" in this phone's time. */
+function checkedWords(moment: Date) {
+  const day = `${moment.getFullYear()}-${String(moment.getMonth() + 1).padStart(2, "0")}-${String(moment.getDate()).padStart(2, "0")}`;
+  return `${dayWords(day)}, ${timeWords(`${String(moment.getHours()).padStart(2, "0")}:${String(moment.getMinutes()).padStart(2, "0")}`)}`;
+}
+
+/**
+ * Your phone's calendar: a private link it subscribes to, showing your
+ * visits and time off. Read-only: changes are made in Grid and show up at
+ * the next check (calendars check about every hour).
+ */
+function PhoneCalendar({ initial }: { initial: FeedJson }) {
+  const [feed, setFeed] = useState(initial);
+  const [copied, setCopied] = useState(false);
+  const action = useAction();
+  const call = (method: "POST" | "DELETE") => action.run(async () => setFeed(await api<FeedJson>("/scheduling/feed", { method })));
+  const lastChecked = feed.lastUsedAt ? checkedWords(new Date(feed.lastUsedAt)) : null;
+  return (
+    <Section title="Phone calendar" description="See your visits and time off in your phone's calendar, next to everything else. Changes are made here in Grid; your calendar picks them up within about an hour.">
+      {!feed.address ? (
+        <Button disabled={action.busy} onClick={() => void call("POST")}>
+          <CalendarPlus aria-hidden />
+          Show my visits in my phone's calendar
+        </Button>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button asChild>
+              <a href={feed.subscribe!}>
+                <CalendarPlus aria-hidden />
+                Add to my calendar
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                void navigator.clipboard.writeText(feed.address!).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                })
+              }
+            >
+              <Copy aria-hidden />
+              {copied ? "Copied" : "Copy the link"}
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            iPhone: tap Add to my calendar, then Subscribe. Android (Google Calendar): copy the link, then on a computer open Google Calendar › Other calendars › From URL and paste it. Keep the link private: anyone with it can see your visits.
+          </p>
+          <p className="text-sm text-muted-foreground">{lastChecked ? `Last checked by a calendar ${lastChecked}.` : "Not checked by a calendar yet."}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled={action.busy} onClick={() => void call("POST")}>
+              Get a new link
+            </Button>
+            <Button variant="ghost" className="text-destructive" disabled={action.busy} onClick={() => void call("DELETE")}>
+              Turn off
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">A new link stops the old one straight away (if it was shared by mistake): add the new one to your calendar again.</p>
+        </div>
+      )}
+      <Alert variant="error">{action.error}</Alert>
+    </Section>
+  );
+}
+

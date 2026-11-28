@@ -857,6 +857,7 @@ export interface ScheduleJob {
   jobNumber: string | null;
   status: "ACTIVE" | "COMPLETED" | "QUOTING" | "NOT_WON";
   archived: boolean;
+  clientId: string | null;
   clientName: string | null;
   siteName: string;
   /** "Brunswick". */
@@ -891,6 +892,7 @@ export async function scheduleJobs(ctx: RequestContext, filter: { ids: string[] 
       jobNumber: row.references[0]?.value ?? null,
       status: row.status,
       archived: !!row.archivedAt,
+      clientId: row.clientId,
       clientName: row.clientName,
       siteName: site?.name ?? "",
       suburb: site?.suburb ?? null,

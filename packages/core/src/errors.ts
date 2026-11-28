@@ -32,3 +32,4 @@ export const forbidden = (message = "You don't have permission to do that") =>
   new HttpError(403, "forbidden", message);
 export const notFound = (message = "Not found") => new HttpError(404, "not_found", message);
 export const conflict = (message: string) => new HttpError(409, "conflict", message);
+export const tooManyRequests = (message = "Too many requests: try again in a while") => new HttpError(429, "too_many", message);

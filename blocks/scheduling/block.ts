@@ -14,7 +14,7 @@ export default defineBlock({
   description: "Book visits on jobs, see your week, and keep track of what still needs booking.",
   // Core: always on, can't be switched off in the Store.
   required: true,
-  dependsOn: ["companies", "projects"],
+  dependsOn: ["companies", "clients", "projects"],
   permissions: [
     { key: "scheduling.view", label: "See the schedule", description: "Visits on jobs, and the Schedule page" },
     { key: "scheduling.visits.book", label: "Book visits", description: "And change, cancel or mark them done" },
@@ -30,6 +30,8 @@ export default defineBlock({
     { id: "scheduling.settings", slot: "settings.user", label: "Scheduling & time off", icon: "calendar", href: "/schedule/settings", permission: "scheduling.view", order: 30 },
   ],
   routes: async () => (await import("./routes")).routes,
+  // The phone calendar feed (a private link, no sign-in).
+  publicRoutes: async () => (await import("./public")).publicRoutes,
   // "Active • Scheduled" on jobs, from their visits.
   jobSecondStatus: async () => (await import("./service")).secondStatusFor,
   // Rows only (no files): they go with a deleted job or business.

@@ -1,6 +1,6 @@
 # Scheduling Block
 
-Status: **part 1 built (Nov 2026); part 2 (week view, phone calendar feed) next.** Block id `scheduling`, **core** (`required: true`, always on; decided Nov 2026), pages at `/schedule`, API `/api/scheduling`, depends on `companies` and `projects`. Agreed in the Grid project's `blocks/scheduling-block-plan.md` (Nov 2026); this doc is the record in the repo.
+Status: **parts 1 and 2 built (Nov 2026).** Block id `scheduling`, **core** (`required: true`, always on; decided Nov 2026), pages at `/schedule`, API `/api/scheduling`, depends on `companies` and `projects`. Agreed in the Grid project's `blocks/scheduling-block-plan.md` (Nov 2026); this doc is the record in the repo.
 
 ## Principles
 
@@ -98,11 +98,31 @@ Finishing a job from "Mark job complete?" also needs `projects.complete`.
 - `times.ts` (timezones, days a visit covers, part days) and `words.ts`, both tested. `scheduleJobs()` in projects gives a job's name, number, suburb and client to other Blocks.
 - Core, so on for every business, new and existing.
 
-## Part 2 (next)
+## Week view (part 2)
 
-- **Week view** (Mon–Sun) with drag to reschedule, "Full" and over-limit markers, greyed Away days, long-press a day → Block out.
-- **Calendar feed (iCal):** a private subscribe link per person, read-only. Event title job + label, location the job's address, description client, phone and a link back. Tentative marked "(Tentative)", time off as all-day "Away", the past 30 days and everything ahead. Regenerate to stop the old link.
-- A date picker that greys out days you're away (the phone's own date box can't, so part 1 warns after picking).
+- **The Schedule's Week tab** (Mon–Sun, ‹ › and This week). It's the first tab on a screen 1024px or wider; phones start on Agenda. `/schedule?show=week` opens it.
+- **Tablet and computer: a time grid.** The hours are the business's working day, stretched to fit any visit outside it. All-day visits sit in a row above. Overlapping visits share the column side by side.
+  - **Drag a visit** to another time (snaps to 15 minutes) or another day; an all-day visit moves its whole span. A clash, busy day or time off asks **Move this visit?** with **Move anyway** or **Leave it**. Done visits don't move.
+  - **Tap a visit** to change it in the booking sheet (with **Open the job**). A done one opens its job.
+- **Phone: the seven days as a list** (dragging on a small screen is fiddly). Tap a visit to change it.
+- **Each day** says **Full** at your busy day warning and **Over (6)** past it, and shows **Away** (am/pm for a part day). Away is shaded across the day, or just the morning or afternoon.
+- **A day's ⋯ menu → Block out this day** opens the time off sheet on that day. (This replaces the plan's long-press: a menu works the same with a mouse, a finger or a keyboard.)
+- **The booking sheet says "You're away that day"** as soon as a day you're away is picked. Phones' own date boxes can't grey days out, so this is the closest; booking still warns.
+
+## Phone calendar (part 2)
+
+- **Settings › Scheduling & time off › Phone calendar:** **Show my visits in my phone's calendar** turns it on. Then **Add to my calendar** (a `webcal://` link: on an iPhone it opens Calendar's Subscribe), **Copy the link** (for Google Calendar: Other calendars › From URL), "Last checked by a calendar …", **Get a new link** (the old one stops straight away) and **Turn off**.
+- **One private link per person per business** (`CalendarFeed`): `…/api/public/scheduling/feed/<token>.ics`. Nobody signs in; the token is the only key. It's stored hashed (to find it) and encrypted (to show it again), like the handover link. It stops working if the person leaves the business or the business is deleted. More than 60 checks an hour from one link gets "Too many checks".
+- **What's in it:** your visits (not cancelled) from 30 days ago on: the job and label ("Smith St reno: Rough-in"), "(Tentative)" or "(Done)", the job's address, then the client with their phone, the job number, the visit's notes and **Open in Grid** (a link to the job). Your time off as all-day **Away** (showing free, not busy), with its type but never the private note.
+- **Read-only:** changes are made in Grid; calendars check about every hour (the file asks for hourly).
+- The link starts with `PUBLIC_LINK_BASE` (else `BETTER_AUTH_URL`) from the Unraid template, like other links that leave Grid. A phone away from home can only fetch it if Grid is reachable from the internet (a Cloudflare Tunnel, say).
+
+## What part 2 built (Nov 2026)
+
+- `WeekView.tsx` (the grid with drag, and the phone list), the Week tab, Block out this day, the "You're away that day" hint.
+- `CalendarFeed` (migration `20261128140000_calendar_feed`), `feed.ts`, `ics.ts` (tested: escaping, folding long lines, all-day end dates), the public route, Settings › Phone calendar.
+- `publicBaseUrl()` in `@grid/db` (the start of links that leave Grid) and `tooManyRequests()` in `@grid/core`.
+- `scheduleJobs()` gives the client's id too, and Scheduling now depends on Clients (for the client's phone in the feed).
 
 ## Later
 
